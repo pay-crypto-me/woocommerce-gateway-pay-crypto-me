@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+
+# Nome do serviço WordPress no docker-compose
+WP_SERVICE="wordpress"
+
+# Caminho padrão do WordPress no container
+WP_PATH="/var/www/html"
+
+wp_up() {
+  docker-compose -f ./setup/docker-compose.yml up -d --build --force-recreate  
+}
+
+# Função para rodar WP-CLI dentro do container
+wp_exec() {
+  docker-compose -f ./setup/docker-compose.yml exec -T $WP_SERVICE wp "$@" --path=$WP_PATH --allow-root
+}
+
+echo "🚀 Iniciando o setup do Pay Crypto Me WooCommerce..."
+wp_up
+
+echo "⏳ Verificando se o WordPress já está instalado..."
+if ! wp_exec core is-installed >/dev/null 2>&1; then
+  echo "⚙️ Instalando WordPress..."
+  until wp_exec core install \
+    --url="http://localhost:8080" \
+    --title="Pay Crypto Me" \
+    --admin_user="admin" \
+    --admin_password="admin123" \
+    --admin_email="admin@example.com" \
+    --skip-email \
+    --allow-root \
+    --path=/var/www/html; do
+    echo "⏳ não instalado, aguardando 5s..."
+    sleep 5
+  done
+else
+  echo "✅ WordPress já instalado."
+fi
+
+echo "📦 Instalando e ativando WooCommerce..."
+wp_exec plugin install woocommerce --activate
+
+echo "🎨 Instalando e ativando tema Storefront..."
+wp_exec theme install storefront --activate
+
+echo "⚙️ Adicionando DISABLE_WP_CRON..."
+wp_exec config set DISABLE_WP_CRON true --raw
+
+echo "✅ Setup completo!"

@@ -1,0 +1,57 @@
+services:
+
+  wordpress:
+    build:
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      WORDPRESS_DB_HOST: wp_db
+      WORDPRESS_DB_USER: wordpressdbuser
+      WORDPRESS_DB_PASSWORD: wordpress123456
+      WORDPRESS_DB_NAME: wordpressdb
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_TITLE: "Pay Crypto Me"
+      WORDPRESS_ADMIN_USER: admin
+      WORDPRESS_ADMIN_PASSWORD: admin123
+      WORDPRESS_ADMIN_EMAIL: admin@example.com
+      WORDPRESS_DEBUG: 1
+    depends_on:
+      - wp_db
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - wp_network
+
+  wp_db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: wordpressdb
+      MYSQL_USER: wordpressdbuser
+      MYSQL_PASSWORD: wordpress123456
+      MYSQL_ROOT_PASSWORD: root123456789
+    volumes:
+      - db:/var/lib/mysql
+    networks:
+      - wp_network
+
+  cron:
+    image: alpine:latest
+    container_name: wp_cron
+    restart: always
+    depends_on:
+      - wordpress
+    command: >
+      sh -c "echo '*/5 * * * * wget -q -O- http://wordpress:80/wp-cron.php?doing_wp_cron' | crontab - && crond -f -L /dev/stdout"
+    networks:
+      - wp_network
+
+volumes:
+  wordpress:
+  db:
+
+networks:
+  wp_network:
+    driver: bridge
