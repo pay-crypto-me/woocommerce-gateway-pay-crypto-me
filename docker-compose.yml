@@ -21,6 +21,7 @@ services:
       - wp_db
     volumes:
       - wordpress:/var/www/html
+      - ./src:/var/www/html/wp-content/plugins/pay-crypto-me-woocommerce
     networks:
       - wp_network
 

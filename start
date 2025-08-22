@@ -8,12 +8,12 @@ WP_SERVICE="wordpress"
 WP_PATH="/var/www/html"
 
 wp_up() {
-  docker-compose -f ./setup/docker-compose.yml up -d --build --force-recreate  
+  docker-compose -f ./docker-compose.yml up -d --build --force-recreate  
 }
 
 # Função para rodar WP-CLI dentro do container
 wp_exec() {
-  docker-compose -f ./setup/docker-compose.yml exec -T $WP_SERVICE wp "$@" --path=$WP_PATH --allow-root
+  docker-compose -f ./docker-compose.yml exec -T $WP_SERVICE wp "$@" --path=$WP_PATH --allow-root
 }
 
 echo "🚀 Iniciando o setup do Pay Crypto Me WooCommerce..."
