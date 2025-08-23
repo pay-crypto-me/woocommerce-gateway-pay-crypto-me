@@ -39,14 +39,29 @@ class WC_Gateway_PayCrypto_Me extends WC_Payment_Gateway
 	 * @var string
 	 *
 	 */
-	public $id = 'pay-crypto-me';
+	public $id = 'paycrypto-me';
 
 	/**
 	 * Constructor for the gateway.
 	 */
 	public function __construct()
 	{
-		//TODO: Implement the constructor logic.
+		$this->icon = apply_filters('woocommerce_dummy_gateway_icon', '');
+		$this->has_fields = false;
+		$this->supports = array(
+			'pre-orders',
+			'products',
+			'subscriptions',
+			'subscription_cancellation',
+			'subscription_suspension',
+			'subscription_reactivation',
+			'subscription_amount_changes',
+			'subscription_date_changes',
+			'multiple_subscriptions'
+		);
+
+		$this->method_title = _x('Dummy Payment', 'Dummy payment method', 'woocommerce-gateway-dummy');
+		$this->method_description = __('Allows dummy payments.', 'woocommerce-gateway-dummy');
 	}
 
 	/**
@@ -66,18 +81,6 @@ class WC_Gateway_PayCrypto_Me extends WC_Payment_Gateway
 	public function process_payment($order_id)
 	{
 		//TODO: Implement the payment processing logic.
-	}
-
-	/**
-	 * Process subscription payment.
-	 *
-	 * @param  float     $amount
-	 * @param  WC_Order  $order
-	 * @return void
-	 */
-	public function process_subscription_payment($amount, $order)
-	{
-		//TODO: Implement the subscription payment processing logic.
 	}
 
 	/**

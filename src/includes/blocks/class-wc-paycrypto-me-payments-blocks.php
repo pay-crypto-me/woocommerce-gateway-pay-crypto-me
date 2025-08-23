@@ -20,14 +20,14 @@ final class WC_Gateway_PayCrypto_Me_Blocks_Support extends AbstractPaymentMethod
      *
      * @var string
      */
-    protected $name = 'pay-crypto-me';
+    protected $name = 'paycrypto-me';
 
     /**
      * Initializes the payment method type.
      */
     public function initialize()
     {
-        $this->settings = get_option('pay_crypto_me_woocommerce_settings', []);
+        $this->settings = get_option('woocommerce_paycrypto_me_settings', []);
         $gateways = WC()->payment_gateways->payment_gateways();
         $this->gateway = $gateways[$this->name];
     }
@@ -50,17 +50,17 @@ final class WC_Gateway_PayCrypto_Me_Blocks_Support extends AbstractPaymentMethod
     public function get_payment_method_script_handles()
     {
         $script_path = '/assets/js/frontend/blocks.js';
-        $script_asset_path = WC_Pay_Crypto_Me_Payments::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
+        $script_asset_path = WC_PayCrypto_Me_Payments::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
         $script_asset = file_exists($script_asset_path)
             ? require($script_asset_path)
             : array(
                 'dependencies' => array(),
                 'version' => '1.2.0'
             );
-        $script_url = WC_Pay_Crypto_Me_Payments::plugin_url() . $script_path;
+        $script_url = WC_PayCrypto_Me_Payments::plugin_url() . $script_path;
 
         wp_register_script(
-            'wc-pay-crypto-me-payments-blocks',
+            'wc-paycrypto-me-payments-blocks',
             $script_url,
             $script_asset['dependencies'],
             $script_asset['version'],
@@ -68,10 +68,10 @@ final class WC_Gateway_PayCrypto_Me_Blocks_Support extends AbstractPaymentMethod
         );
 
         if (function_exists('wp_set_script_translations')) {
-            wp_set_script_translations('wc-wc-pay-crypto-me-payments-blocks', 'wc-gateway-pay-crypto-me', WC_Pay_Crypto_Me_Payments::plugin_abspath() . 'languages/');
+            wp_set_script_translations('wc-paycrypto-me-payments-blocks', 'class-wc-gateway-paycrypto-me', WC_PayCrypto_Me_Payments::plugin_abspath() . 'languages/');
         }
 
-        return ['wc-pay-crypto-me-payments-blocks'];
+        return ['wc-paycrypto-me-payments-blocks'];
     }
 
     /**

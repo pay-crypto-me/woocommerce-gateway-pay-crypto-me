@@ -27,27 +27,27 @@ if (!defined('ABSPATH')) {
 /**
  * WC PayCrypto.Me Payment gateway plugin class.
  *
- * @class WC_Pay_Crypto_Me_Payments
+ * @class WC_PayCrypto_Me_Payments
  */
-class WC_Pay_Crypto_Me_Payments
+class WC_PayCrypto_Me_Payments
 {
   public static function init()
   {
     add_action('plugins_loaded', array(__CLASS__, 'includes'), 0);
     add_filter('woocommerce_payment_gateways', array(__CLASS__, 'add_gateway'));
-    add_action('woocommerce_blocks_loaded', array(__CLASS__, 'woocommerce_pay_crypto_me_woocommerce_block_support'));
+    add_action('woocommerce_blocks_loaded', array(__CLASS__, 'woocommerce_paycrypto_me_woocommerce_block_support'));
   }
 
   public static function includes()
   {
     if (class_exists('WC_Payment_Gateway')) {
-      require_once 'includes/wc-gateway-pay-crypto-me.php';
+      require_once 'includes/class-wc-gateway-paycrypto-me.php';
     }
   }
 
   public static function add_gateway($gateways)
   {
-    $options = get_option('pay_crypto_me_woocommerce_settings', array());
+    $options = get_option('woocommerce_paycrypto_me_settings', array());
 
     if (isset($options['hide_for_non_admin_users'])) {
       $hide_for_non_admin_users = $options['hide_for_non_admin_users'];
@@ -71,10 +71,10 @@ class WC_Pay_Crypto_Me_Payments
     return trailingslashit(plugin_dir_path(__FILE__));
   }
 
-  public static function woocommerce_pay_crypto_me_woocommerce_block_support()
+  public static function woocommerce_paycrypto_me_woocommerce_block_support()
   {
     if (class_exists('Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
-      require_once 'includes/blocks/wc-pay-crypto-me-payments-blocks.php';
+      require_once 'includes/blocks/class-wc-paycrypto-me-payments-blocks.php';
       add_action(
         'woocommerce_blocks_payment_method_type_registration',
         function (Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry) {
@@ -85,4 +85,4 @@ class WC_Pay_Crypto_Me_Payments
   }
 }
 
-WC_Pay_Crypto_Me_Payments::init();
+WC_PayCrypto_Me_Payments::init();
