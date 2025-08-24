@@ -11,12 +11,16 @@ wp_up() {
   docker-compose -f ./docker-compose.yml up -d --build --force-recreate  
 }
 
+dc_exec() {
+  docker-compose -f ./docker-compose.yml exec -T $WP_SERVICE "$@"
+}
+
 # Função para rodar WP-CLI dentro do container
 wp_exec() {
   docker-compose -f ./docker-compose.yml exec -T $WP_SERVICE wp "$@" --path=$WP_PATH --allow-root
 }
 
-echo "🚀 Iniciando o setup do Pay Crypto Me WooCommerce..."
+echo "🚀 Iniciando o setup do PayCrypto.Me WooCommerce..."
 wp_up
 
 echo "⏳ Verificando se o WordPress já está instalado..."
@@ -24,7 +28,7 @@ if ! wp_exec core is-installed >/dev/null 2>&1; then
   echo "⚙️ Instalando WordPress..."
   until wp_exec core install \
     --url="http://localhost:8080" \
-    --title="Pay Crypto Me" \
+    --title="PayCrypto.Me" \
     --admin_user="admin" \
     --admin_password="admin123" \
     --admin_email="admin@example.com" \
@@ -46,5 +50,14 @@ wp_exec theme install storefront --activate
 
 echo "⚙️ Adicionando DISABLE_WP_CRON..."
 wp_exec config set DISABLE_WP_CRON true --raw
+
+# ⚙️ Ativar WP_DEBUG_LOG (salva logs em wp-content/debug.log)
+echo "⚙️ Ativando DEBUG_LOGS..."
+
+wp_exec config set WP_DEBUG true --raw
+wp_exec config set WP_DEBUG_LOG true --raw
+wp_exec config set PHP_DISPLAY_ERRORS 1 --raw
+wp_exec config set WP_DEBUG_DISPLAY true --raw
+wp_exec config set PHP_ERROR_REPORTING -1 --raw
 
 echo "✅ Setup completo!"
