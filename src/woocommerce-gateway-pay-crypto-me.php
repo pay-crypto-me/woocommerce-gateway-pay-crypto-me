@@ -20,11 +20,11 @@ namespace PayCryptoMe\WooCommerce;
 defined('ABSPATH') || exit;
 
 // register_activation_hook(__FILE__, function () {
-//     // Exemplo: criar opções, tabelas, etc
+//     // @NOTE: criar opções, tabelas, etc --- IGNORE ---
 // });
 
 // register_deactivation_hook(__FILE__, function () {
-//     // Exemplo: limpar caches, transients, etc
+//     //@NOTE: limpar caches, transients, etc --- IGNORE ---
 // });
 
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
@@ -38,11 +38,8 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             $this->load_textdomain();
 
             add_filter('woocommerce_payment_gateways', [__CLASS__, 'add_gateway']);
-
             add_action('before_woocommerce_init', [$this, 'declare_wc_compatibility']);
-
             add_action('woocommerce_blocks_loaded', [$this, 'load_blocks_support']);
-
             add_filter('woocommerce_get_settings_checkout', [$this, 'add_log_option'], 10, 2);
         }
 
@@ -116,8 +113,8 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
         {
             if ('paycrypto_me' === $current_section) {
                 $settings[] = array(
-                    'title' => __('Ativar Log', 'woocommerce-gateway-pay-crypto-me'),
-                    'desc' => __('Salva eventos em WooCommerce > Status > Logs', 'woocommerce-gateway-pay-crypto-me'),
+                    'title' => __('Enable Log', 'woocommerce-gateway-pay-crypto-me'),
+                    'desc' => __('Save events in WooCommerce > Status > Logs', 'woocommerce-gateway-pay-crypto-me'),
                     'id' => 'woocommerce_paycrypto_me_enable_logging',
                     'default' => 'no',
                     'type' => 'checkbox',

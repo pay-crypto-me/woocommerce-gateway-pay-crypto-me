@@ -24,8 +24,8 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     public function __construct()
     {
         $this->id = 'paycrypto_me';
-        $this->icon = plugins_url('assets/paycrypto-me-icon.png', dirname(__FILE__, 2));
-        $this->has_fields = false; // Altere para true se quiser campos customizados no checkout.
+        $this->icon = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
+        $this->has_fields = false;
         $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me');
         $this->method_description = __('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'woocommerce-gateway-pay-crypto-me');
 
@@ -55,23 +55,23 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     {
         $this->form_fields = array(
             'enabled' => array(
-                'title' => __('Ativar/Desativar', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Ativar PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Enable/Disable', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
-                'default' => 'no',
+                'default' => 'yes',
             ),
             'title' => array(
-                'title' => __('Título', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Title', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
-                'description' => __('Nome do método de pagamento exibido ao cliente.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Criptomoedas via PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
                 'desc_tip' => true,
             ),
             'description' => array(
-                'title' => __('Descrição', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Description', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'textarea',
-                'description' => __('Descrição exibida ao cliente no checkout.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Pague com Bitcoin, Ethereum, Solana e mais.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-pay-crypto-me'),
                 'desc_tip' => true,
             ),
             'api_key' => array(
@@ -81,25 +81,25 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'default' => '',
             ),
             'testmode' => array(
-                'title' => __('Modo de teste', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Ativar modo de teste', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Test Mode', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable Test Mode', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
-                'description' => __('Utilize o ambiente de teste do PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Use the PayCrypto.Me test environment.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => 'yes',
             ),
             'hide_for_non_admin_users' => array(
-                'title' => __('Ocultar para não administradores', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Exibir apenas para administradores', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Show only for administrators', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
-                'description' => __('Se ativado, apenas administradores verão o método de pagamento.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-pay-crypto-me'),
             ),
             'enable_logging' => array(
-                'title' => __('Ativar Log', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Salvar eventos de log (WooCommerce > Status > Logs)', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Enable Log', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Save log events (WooCommerce > Status > Logs)', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
-                'description' => __('Salva eventos para depuração.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Save events for debugging.', 'woocommerce-gateway-pay-crypto-me'),
             ),
         );
     }
@@ -124,7 +124,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function process_pre_order_payment($order)
     {
-        // Permite pré-vendas, usando a lógica normal de pagamento.
         return $this->process_payment($order->get_id());
     }
 
@@ -135,12 +134,10 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         do_action('paycrypto_me_before_payment', $order_id, $_POST);
 
         if ($this->enable_logging === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("Iniciando process_payment para o pedido $order_id");
+            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("starting process_payment for order $order_id");
         }
 
-        // Aqui você implementa a lógica real de integração com a API PayCrypto.Me!
-        // Para teste e checkout, um fluxo de exemplo:
-        $order->update_status('on-hold', __('Aguardando pagamento em cripto.', 'woocommerce-gateway-pay-crypto-me'));
+        $order->update_status('on-hold', __('Awaiting crypto payment.', 'woocommerce-gateway-pay-crypto-me'));
         WC()->cart->empty_cart();
 
         return [
@@ -151,7 +148,12 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function process_refund($order_id, $amount = null, $reason = '')
     {
-        // Implemente a lógica real de reembolso se suportado pela API.
+        if ($this->enable_logging === 'yes') {
+            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("Processing refund for order $order_id, amount: $amount, reason: $reason");
+        }
+
+        //@TODO: Implement real refund logic if supported by the API.
+
         return true;
     }
 }

@@ -1,0 +1,32 @@
+{
+  "name": "woocommerce-gateway-pay-crypto-me",
+  "version": "0.1.0",
+  "description": "PayCrypto.Me payment gateway for WooCommerce with Blocks support",
+  "main": "assets/js/frontend/blocks.js",
+  "scripts": {
+    "build": "wp-scripts build assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
+    "dev": "wp-scripts start assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
+    "lint:js": "wp-scripts lint-js assets/js/",
+    "format:js": "wp-scripts format-js assets/js/"
+  },
+  "keywords": [
+    "woocommerce",
+    "payment-gateway",
+    "cryptocurrency",
+    "bitcoin",
+    "ethereum",
+    "wordpress"
+  ],
+  "author": "PayCrypto.Me",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@wordpress/scripts": "^26.0.0"
+  },
+  "dependencies": {
+    "@woocommerce/blocks-registry": "*",
+    "@woocommerce/settings": "*",
+    "@wordpress/element": "*",
+    "@wordpress/html-entities": "*",
+    "@wordpress/i18n": "*"
+  }
+}

@@ -13,8 +13,8 @@
 	"service": "wordpress",
 	// The optional 'workspaceFolder' property is the path VS Code should open by default when
 	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
-	"workspaceMount": "source=${localWorkspaceFolder},target=/var/www/html/wp-content/plugins/pay-crypto-me-woocommerce,type=bind",
-	"workspaceFolder": "/var/www/html/wp-content/plugins/pay-crypto-me-woocommerce",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/var/www/html,type=bind",
+	"workspaceFolder": "/var/www/html",
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
