@@ -7,7 +7,12 @@
     "build": "wp-scripts build assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
     "dev": "wp-scripts start assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
     "lint:js": "wp-scripts lint-js assets/js/",
-    "format:js": "wp-scripts format-js assets/js/"
+    "format:js": "wp-scripts format-js assets/js/",
+    "translate": "chmod +x ./scripts/build-translations.sh && ./scripts/build-translations.sh",
+    "translate:quick": "chmod +x ./scripts/quick-translate.sh && ./scripts/quick-translate.sh",
+    "translate:pot": "./scripts/build-translations.sh pot",
+    "translate:po": "./scripts/build-translations.sh po",
+    "translate:mo": "./scripts/build-translations.sh mo"
   },
   "keywords": [
     "woocommerce",

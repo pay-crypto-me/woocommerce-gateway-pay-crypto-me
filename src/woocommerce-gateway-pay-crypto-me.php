@@ -9,7 +9,7 @@
  * Developer: Lucas Rosa
  * Developer URI: https://github.com/lucas-rosa95
  * Text Domain: woocommerce-gateway-pay-crypto-me
- * Domain Path: /i18n/languages/
+ * Domain Path: /languages/
  *
  * License: GNU General Public License v3.0
  * License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -20,11 +20,11 @@ namespace PayCryptoMe\WooCommerce;
 defined('ABSPATH') || exit;
 
 // register_activation_hook(__FILE__, function () {
-//     // @NOTE: criar opções, tabelas, etc --- IGNORE ---
+//     // @NOTE: create options, tables, etc --- IGNORE ---
 // });
 
 // register_deactivation_hook(__FILE__, function () {
-//     //@NOTE: limpar caches, transients, etc --- IGNORE ---
+//     //@NOTE: clear caches, transients, etc --- IGNORE ---
 // });
 
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {

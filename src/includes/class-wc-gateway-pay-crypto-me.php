@@ -27,7 +27,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->icon = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
         $this->has_fields = false;
         $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me');
-        $this->method_description = __('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'woocommerce-gateway-pay-crypto-me');
+        $this->method_description = _x('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'Gateway description', 'woocommerce-gateway-pay-crypto-me');
 
         $this->supports = ['products', 'pre-orders', 'refunds'];
 
@@ -77,7 +77,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             'api_key' => array(
                 'title' => __('API Key', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
-                'description' => __('Sua chave de API PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => '',
             ),
             'testmode' => array(
@@ -137,7 +137,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("starting process_payment for order $order_id");
         }
 
-        $order->update_status('on-hold', __('Awaiting crypto payment.', 'woocommerce-gateway-pay-crypto-me'));
+        $order->update_status('on-hold', esc_html__('Awaiting crypto payment.', 'woocommerce-gateway-pay-crypto-me'));
         WC()->cart->empty_cart();
 
         return [

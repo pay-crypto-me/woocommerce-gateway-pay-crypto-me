@@ -1,0 +1,92 @@
+# PayCrypto.Me for WooCommerce Translation Template
+# This file is distributed under the same license as the PayCrypto.Me for WooCommerce package.
+msgid ""
+msgstr ""
+"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues\n"
+"POT-Creation-Date: 2025-10-26 16:45:15+0000\n"
+"PO-Revision-Date: 2025-10-26 16:45:15+0000\n"
+"Last-Translator: PayCrypto.Me Team <support@paycrypto.me>\n"
+"Language-Team: Portuguese (Brazil)\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: PayCrypto.Me POT Generator\n"
+
+msgid "Enable Log"
+msgstr "Ativar Log"
+
+msgid "Save events in WooCommerce > Status > Logs"
+msgstr "Salvar eventos em WooCommerce > Status > Logs"
+
+msgid "Cloning is forbidden."
+msgstr "Clonagem é proibida."
+
+msgid "Unserializing is forbidden."
+msgstr "Deserialização é proibida."
+
+msgid "PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr "PayCrypto.Me para WooCommerce requer que o WooCommerce esteja instalado e ativo."
+
+msgid "PayCrypto.Me"
+msgstr "PayCrypto.Me"
+
+msgid "Enable/Disable"
+msgstr "Ativar/Desativar"
+
+msgid "Enable PayCrypto.Me"
+msgstr "Ativar PayCrypto.Me"
+
+msgid "Title"
+msgstr "Título"
+
+msgid "Name of the payment method displayed to the customer."
+msgstr "Nome do método de pagamento exibido ao cliente."
+
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr "Criptomoedas via PayCrypto.Me"
+
+msgid "Description"
+msgstr "Descrição"
+
+msgid "Description displayed to the customer at checkout."
+msgstr "Descrição exibida ao cliente no checkout."
+
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr "Pague com Bitcoin, Ethereum, Solana e muito mais."
+
+msgid "API Key"
+msgstr "Chave API"
+
+msgid "Your API Key for PayCrypto.Me."
+msgstr "Sua Chave API para PayCrypto.Me."
+
+msgid "Test Mode"
+msgstr "Modo de Teste"
+
+msgid "Enable Test Mode"
+msgstr "Ativar Modo de Teste"
+
+msgid "Use the PayCrypto.Me test environment."
+msgstr "Usar o ambiente de teste do PayCrypto.Me."
+
+msgid "Hide for Non-Admin Users"
+msgstr "Ocultar para Usuários Não-Administradores"
+
+msgid "Show only for administrators"
+msgstr "Mostrar apenas para administradores"
+
+msgid "If enabled, only administrators will see the payment method."
+msgstr "Se ativado, apenas administradores verão o método de pagamento."
+
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr "Salvar eventos de log (WooCommerce > Status > Logs)"
+
+msgid "Save events for debugging."
+msgstr "Salvar eventos para depuração."
+
+msgid "Awaiting crypto payment."
+msgstr "Aguardando pagamento em criptomoeda."
+
