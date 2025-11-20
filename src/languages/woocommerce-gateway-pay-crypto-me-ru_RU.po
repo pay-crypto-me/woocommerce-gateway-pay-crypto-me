@@ -1,0 +1,92 @@
+# PayCrypto.Me for WooCommerce Translation Template
+# This file is distributed under the same license as the PayCrypto.Me for WooCommerce package.
+msgid ""
+msgstr ""
+"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues\n"
+"POT-Creation-Date: 2025-10-26 17:16:53+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru_RU\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: PayCrypto.Me Team <support@paycrypto.me>\n"
+"X-Generator: PayCrypto.Me POT Generator\n"
+
+msgid "Enable Log"
+msgstr "Включить журнал"
+
+msgid "Save events in WooCommerce > Status > Logs"
+msgstr "Сохранять события в WooCommerce > Статус > Журналы"
+
+msgid "Cloning is forbidden."
+msgstr "Клонирование запрещено."
+
+msgid "Unserializing is forbidden."
+msgstr "Десериализация запрещена."
+
+msgid "PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr "PayCrypto.Me для WooCommerce требует установки и активации WooCommerce."
+
+msgid "PayCrypto.Me"
+msgstr "PayCrypto.Me"
+
+msgid "Enable/Disable"
+msgstr "Включить/Отключить"
+
+msgid "Enable PayCrypto.Me"
+msgstr "Включить PayCrypto.Me"
+
+msgid "Title"
+msgstr "Заголовок"
+
+msgid "Name of the payment method displayed to the customer."
+msgstr "Название способа оплаты, отображаемое клиенту."
+
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr "Криптовалюты через PayCrypto.Me"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Description displayed to the customer at checkout."
+msgstr "Описание, отображаемое клиенту при оформлении заказа."
+
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr "Оплачивайте Bitcoin, Ethereum, Solana и другими криптовалютами."
+
+msgid "API Key"
+msgstr "API ключ"
+
+msgid "Your API Key for PayCrypto.Me."
+msgstr "Ваш API ключ для PayCrypto.Me."
+
+msgid "Test Mode"
+msgstr "Тестовый режим"
+
+msgid "Enable Test Mode"
+msgstr "Включить тестовый режим"
+
+msgid "Use the PayCrypto.Me test environment."
+msgstr "Использовать тестовую среду PayCrypto.Me."
+
+msgid "Hide for Non-Admin Users"
+msgstr "Скрыть от обычных пользователей"
+
+msgid "Show only for administrators"
+msgstr "Показывать только администраторам"
+
+msgid "If enabled, only administrators will see the payment method."
+msgstr "Если включено, только администраторы увидят этот способ оплаты."
+
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr "Сохранять события журнала (WooCommerce > Статус > Журналы)"
+
+msgid "Save events for debugging."
+msgstr "Сохранять события для отладки."
+
+msgid "Awaiting crypto payment."
+msgstr "Ожидается криптоплатёж."
+
+msgid "PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies."
+msgstr "PayCrypto.Me представляет полное решение для получения платежей через основные криптовалюты."
+

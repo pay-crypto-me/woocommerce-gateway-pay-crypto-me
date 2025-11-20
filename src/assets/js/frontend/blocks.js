@@ -48,10 +48,15 @@ const Label = ({ components }) => {
         alt: label,
         className: 'wc-paycrypto-me-icon',
         style: {
-            width: '24px',
-            height: '24px',
+            width: 'auto',
+            height: '20px',
+            maxHeight: '20px',
             marginRight: '8px',
-            verticalAlign: 'middle'
+            marginLeft: '0',
+            marginTop: '0',
+            marginBottom: '0',
+            verticalAlign: 'middle',
+            display: 'inline'
         }
     }) : null;
 

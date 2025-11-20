@@ -1,0 +1,16 @@
+/* Correção do alinhamento do ícone do PayCrypto.Me */
+.wc_payment_method.payment_method_paycrypto_me img {
+    vertical-align: middle !important;
+    margin-left: 8px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    max-height: 20px !important;
+    width: auto !important;
+}
+
+/* Ajuste do label do método */
+.wc_payment_method.payment_method_paycrypto_me label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}

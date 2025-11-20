@@ -25,7 +25,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     {
         $this->id = 'paycrypto_me';
         $this->icon = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
-        $this->has_fields = false;
+        $this->has_fields = true;
         $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me');
         $this->method_description = _x('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'Gateway description', 'woocommerce-gateway-pay-crypto-me');
 
@@ -43,6 +43,9 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->enable_logging = $this->get_option('enable_logging', 'no');
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+
+        // Carrega CSS no checkout
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
         do_action('paycrypto_me_gateway_loaded', $this);
 
@@ -75,9 +78,9 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'desc_tip' => true,
             ),
             'api_key' => array(
-                'title' => __('API Key', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
-                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Your Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => '',
             ),
             'testmode' => array(
@@ -109,6 +112,27 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         if ($this->description) {
             echo wpautop(wp_kses_post($this->description));
         }
+        
+        // JavaScript para forçar alinhamento
+        echo '<script>
+        document.addEventListener("DOMContentLoaded", function() {
+            function fixIconAlignment() {
+                var img = document.querySelector(".payment_method_paycrypto_me img, li.payment_method_paycrypto_me img");
+                if (img) {
+                    img.style.verticalAlign = "middle";
+                    img.style.marginLeft = "8px";
+                    img.style.marginTop = "0";
+                    img.style.marginBottom = "0";
+                    img.style.maxHeight = "18px";
+                    img.style.width = "auto";
+                    img.style.display = "inline";
+                }
+            }
+            fixIconAlignment();
+            setTimeout(fixIconAlignment, 100);
+            setTimeout(fixIconAlignment, 500);
+        });
+        </script>';
     }
 
     public function is_available()
@@ -155,5 +179,25 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         //@TODO: Implement real refund logic if supported by the API.
 
         return true;
+    }
+
+    /**
+     * Carrega CSS no checkout
+     */
+    public function enqueue_checkout_styles()
+    {
+        if (is_checkout() || is_wc_endpoint_url('order-pay')) {
+            $css_file = WC_PayCryptoMe::plugin_url() . '/assets/checkout-styles.css';
+            $css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/checkout-styles.css';
+
+            if (file_exists($css_path)) {
+                wp_enqueue_style(
+                    'paycrypto-me-checkout',
+                    $css_file,
+                    array(),
+                    filemtime($css_path)
+                );
+            }
+        }
     }
 }

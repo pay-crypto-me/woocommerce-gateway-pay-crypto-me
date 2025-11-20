@@ -40,7 +40,6 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             add_filter('woocommerce_payment_gateways', [__CLASS__, 'add_gateway']);
             add_action('before_woocommerce_init', [$this, 'declare_wc_compatibility']);
             add_action('woocommerce_blocks_loaded', [$this, 'load_blocks_support']);
-            add_filter('woocommerce_get_settings_checkout', [$this, 'add_log_option'], 10, 2);
         }
 
         public static function instance()
@@ -107,21 +106,6 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             if (class_exists('\Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
                 include_once plugin_dir_path(__FILE__) . 'includes/blocks/class-wc-gateway-pay-crypto-me-blocks.php';
             }
-        }
-
-        public function add_log_option($settings, $current_section)
-        {
-            if ('paycrypto_me' === $current_section) {
-                $settings[] = array(
-                    'title' => __('Enable Log', 'woocommerce-gateway-pay-crypto-me'),
-                    'desc' => __('Save events in WooCommerce > Status > Logs', 'woocommerce-gateway-pay-crypto-me'),
-                    'id' => 'woocommerce_paycrypto_me_enable_logging',
-                    'default' => 'no',
-                    'type' => 'checkbox',
-                    'desc_tip' => true,
-                );
-            }
-            return $settings;
         }
 
         public static function log($message, $level = 'info')
