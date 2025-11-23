@@ -43,26 +43,16 @@ const Content = () => {
 const Label = ({ components }) => {
     const { PaymentMethodLabel } = components;
 
-    const icon = settings.icon ? createElement('img', {
+    const icon = settings.icon && settings.show_icon === 'yes' ? createElement('img', {
+        className: 'wc-paycrypto-me-icon',
         src: settings.icon,
         alt: label,
-        className: 'wc-paycrypto-me-icon',
-        style: {
-            width: 'auto',
-            height: '20px',
-            maxHeight: '20px',
-            marginRight: '8px',
-            marginLeft: '0',
-            marginTop: '0',
-            marginBottom: '0',
-            verticalAlign: 'middle',
-            display: 'inline'
-        }
     }) : null;
 
     return createElement(PaymentMethodLabel, {
         text: label,
-        icon: icon
+        icon: icon,
+        className: 'wc-paycrypto-me-label',
     });
 };
 
@@ -102,11 +92,13 @@ const PayCryptoMePaymentMethod = {
 registerPaymentMethod(PayCryptoMePaymentMethod);
 
 // Debug logging (temporarily enabled for testing)
-console.log('PayCrypto.Me payment method registered:', PayCryptoMePaymentMethod);
-console.log('PayCrypto.Me settings:', settings);
-console.log('Available WC objects:', {
-    wcBlocksRegistry: !!window.wc?.wcBlocksRegistry,
-    wcSettings: !!window.wc?.wcSettings,
-    wpElement: !!window.wp?.element,
-    wpI18n: !!window.wp?.i18n
-});
+if (settings.enable_logging) {
+    console.log('PayCrypto.Me payment method registered:', PayCryptoMePaymentMethod);
+    console.log('PayCrypto.Me settings:', settings);
+    console.log('Available WC objects:', {
+        wcBlocksRegistry: !!window.wc?.wcBlocksRegistry,
+        wcSettings: !!window.wc?.wcSettings,
+        wpElement: !!window.wp?.element,
+        wpI18n: !!window.wp?.i18n
+    });
+}

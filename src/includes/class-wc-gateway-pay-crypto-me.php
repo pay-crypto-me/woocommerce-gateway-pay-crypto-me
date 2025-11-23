@@ -16,10 +16,10 @@ defined('ABSPATH') || exit;
 
 class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 {
-    protected $api_key;
+    protected $show_icon;
     protected $testmode;
     protected $hide_for_non_admin_users;
-    protected $enable_logging;
+    protected $configured_networks;
 
     public function __construct()
     {
@@ -34,13 +34,13 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->init_form_fields();
         $this->init_settings();
 
-        $this->title = $this->get_option('title');
-        $this->description = $this->get_option('description');
+        $this->title = $this->get_option('title') ?: __('Pay with Bitcoin', 'woocommerce-gateway-pay-crypto-me');
+        $this->description = $this->get_option('description') ?: __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-pay-crypto-me');
         $this->enabled = $this->get_option('enabled');
+        $this->show_icon = $this->get_option('show_icon');
         $this->testmode = $this->get_option('testmode');
-        $this->api_key = $this->get_option('api_key');
         $this->hide_for_non_admin_users = $this->get_option('hide_for_non_admin_users', 'no');
-        $this->enable_logging = $this->get_option('enable_logging', 'no');
+        $this->configured_networks = $this->get_option('configured_networks', array());
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
@@ -48,10 +48,101 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
         do_action('paycrypto_me_gateway_loaded', $this);
+    }
 
-        if ($this->enable_logging === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log('PayCrypto.Me Gateway initialized.');
+    /**
+     * Get available network types
+     */
+    public function get_available_networks()
+    {
+        return array(
+            'mainnet' => array(
+                'name' => __('Bitcoin Mainnet', 'woocommerce-gateway-pay-crypto-me'),
+                'address_prefix' => array('1', '3', 'bc1'),
+                'xpub_prefix' => array('xpub', 'ypub', 'zpub'),
+                'testnet' => false,
+                'field_type' => 'text',
+                'field_label' => __('Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
+                'field_placeholder' => 'xpub6...',
+            ),
+            'testnet' => array(
+                'name' => __('Bitcoin Testnet', 'woocommerce-gateway-pay-crypto-me'),
+                'address_prefix' => array('m', 'n', '2', 'tb1'),
+                'xpub_prefix' => array('tpub', 'upub', 'vpub'),
+                'testnet' => true,
+                'field_type' => 'text',
+                'field_label' => __('Testnet xPub', 'woocommerce-gateway-pay-crypto-me'),
+                'field_placeholder' => 'tpub6...',
+            ),
+            'lightning' => array(
+                'name' => __('Lightning Network', 'woocommerce-gateway-pay-crypto-me'),
+                'address_prefix' => array('lnbc', 'lntb', 'lnbcrt'),
+                'xpub_prefix' => array(),
+                'testnet' => false,
+                'field_type' => 'text',
+                'field_label' => __('Lightning Address', 'woocommerce-gateway-pay-crypto-me'),
+                'field_placeholder' => 'payments@yourstore.com',
+            ),
+        );
+    }
+
+    /**
+     * Get configured networks
+     */
+    public function get_configured_networks()
+    {
+        return $this->configured_networks;
+    }
+
+
+
+    /**
+     * Get network-specific configuration
+     */
+    public function get_network_config($network_type = null)
+    {
+        $available_networks = $this->get_available_networks();
+        // If specific network type requested, return that
+        if ($network_type && isset($available_networks[$network_type])) {
+            return $available_networks[$network_type];
         }
+        // Fallback to mainnet
+        return $available_networks['mainnet'];
+    }
+
+    /**
+     * Check if development features should be enabled
+     */
+    public function is_development_mode()
+    {
+        return $this->testmode === 'yes';
+    }
+
+    /**
+     * Get development mode features
+     */
+    public function get_development_features()
+    {
+        if (!$this->is_development_mode()) {
+            return array();
+        }
+
+        return array(
+            'enhanced_logging' => true,
+            'payment_simulation' => true,
+            'webhook_testing' => true,
+            'address_generation_test' => true,
+            'fake_confirmations' => true,
+            'debug_info_display' => true,
+        );
+    }
+
+    /**
+     * Check if enhanced logging should be enabled
+     */
+    public function should_log_enhanced()
+    {
+        return $this->is_development_mode();
     }
 
     public function init_form_fields()
@@ -67,28 +158,30 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'title' => __('Title', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
                 'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => __('Pay with Bitcoin', 'woocommerce-gateway-pay-crypto-me'),
                 'desc_tip' => true,
             ),
             'description' => array(
                 'title' => __('Description', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'textarea',
                 'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-pay-crypto-me'),
                 'desc_tip' => true,
             ),
-            'api_key' => array(
-                'title' => __('Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
-                'type' => 'text',
-                'description' => __('Your Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => '',
+
+            'show_icon' => array(
+                'title' => __('Show/Hide Option Icon', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable Option Icon', 'woocommerce-gateway-pay-crypto-me'),
+                'type' => 'checkbox',
+                'default' => 'no',
             ),
             'testmode' => array(
-                'title' => __('Test Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable Test Mode', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Development Mode', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable Development Mode', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
-                'description' => __('Use the PayCrypto.Me test environment.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Enables additional debugging, simulated payments, and development features. Independent of Bitcoin network selection.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => 'yes',
+                'desc_tip' => true,
             ),
             'hide_for_non_admin_users' => array(
                 'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
@@ -96,13 +189,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'type' => 'checkbox',
                 'default' => 'no',
                 'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-pay-crypto-me'),
-            ),
-            'enable_logging' => array(
-                'title' => __('Enable Log', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Save log events (WooCommerce > Status > Logs)', 'woocommerce-gateway-pay-crypto-me'),
-                'type' => 'checkbox',
-                'default' => 'no',
-                'description' => __('Save events for debugging.', 'woocommerce-gateway-pay-crypto-me'),
             ),
         );
     }
@@ -112,7 +198,17 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         if ($this->description) {
             echo wpautop(wp_kses_post($this->description));
         }
-        
+
+        // TODO: Show active network and mode information
+        // Will be implemented in later phases
+        if ($this->testmode === 'yes') {
+            echo '<div class="paycrypto-network-info" style="background: #f0f0f1; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em;">';
+            echo '<strong>' . esc_html__('Mode:', 'woocommerce-gateway-pay-crypto-me') . '</strong> ';
+            echo '<span style="color: #d63638;">' . esc_html__('Development Mode Active', 'woocommerce-gateway-pay-crypto-me') . '</span>';
+            echo ' - ' . esc_html__('Enhanced logging and simulation features enabled', 'woocommerce-gateway-pay-crypto-me');
+            echo '</div>';
+        }
+
         // JavaScript para forçar alinhamento
         echo '<script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -157,9 +253,15 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         do_action('paycrypto_me_before_payment', $order_id, $_POST);
 
-        if ($this->enable_logging === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("starting process_payment for order $order_id");
-        }
+        // Log payment initialization
+        \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("Processing payment for order $order_id");
+
+        // TODO: Implement crypto payment processing logic
+        // - Generate wallet address based on selected network
+        // - Calculate crypto amount based on exchange rate
+        // - Create QR code for payment
+        // - Set up payment monitoring/webhook
+        // - Handle payment confirmation
 
         $order->update_status('on-hold', esc_html__('Awaiting crypto payment.', 'woocommerce-gateway-pay-crypto-me'));
         WC()->cart->empty_cart();
@@ -172,13 +274,17 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function process_refund($order_id, $amount = null, $reason = '')
     {
-        if ($this->enable_logging === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("Processing refund for order $order_id, amount: $amount, reason: $reason");
-        }
+        // Log refund initialization
+        \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log("Refund request for order $order_id: $amount");
 
-        //@TODO: Implement real refund logic if supported by the API.
+        // TODO: Implement crypto refund logic
+        // - Validate if refund is possible for crypto payments
+        // - Calculate crypto refund amount based on current exchange rate
+        // - Process refund transaction if supported by network
+        // - Update order status and add refund notes
+        // - Handle partial vs full refunds
 
-        return true;
+        return false; // Refunds not implemented yet
     }
 
     /**

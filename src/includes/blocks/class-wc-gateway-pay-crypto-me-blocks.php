@@ -30,7 +30,7 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
 
     public function get_payment_method_script_handles()
     {
-        $script_path = '/assets/js/frontend/blocks.js';
+        $script_path = "/assets/js/frontend/blocks.js?v=" . WC_PayCryptoMe::VERSION;
         $script_asset_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
         $script_asset = file_exists($script_asset_path)
             ? require($script_asset_path)
@@ -66,9 +66,11 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
     public function get_payment_method_data()
     {
         return [
+            'icon' => $this->gateway->icon,
             'title' => $this->get_setting('title'),
             'description' => $this->get_setting('description'),
-            'icon' => $this->gateway->icon,
+            'show_icon' => $this->get_setting('show_icon', 'no'),
+            'enable_logging' => $this->get_setting('enable_logging', 'no'),
             'supports' => array_filter($this->gateway->supports, [$this->gateway, 'supports'])
         ];
     }

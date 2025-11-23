@@ -30,6 +30,7 @@ defined('ABSPATH') || exit;
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
     class WC_PayCryptoMe
     {
+        public const string VERSION = '0.1.0';
         protected static $instance = null;
 
         protected function __construct()
