@@ -3,8 +3,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
-"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues\n"
-"POT-Creation-Date: 2025-10-26 16:45:15+0000\n"
+"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-"
+"pay-crypto-me/issues\n"
+"POT-Creation-Date: 2025-11-29T23:17:50+00:00\n"
 "PO-Revision-Date: 2025-10-26 16:45:15+0000\n"
 "Last-Translator: PayCrypto.Me Team <support@paycrypto.me>\n"
 "Language-Team: Portuguese (Brazil)\n"
@@ -15,78 +16,246 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: PayCrypto.Me POT Generator\n"
 
-msgid "Enable Log"
-msgstr "Ativar Log"
+#. Plugin Name of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+#, fuzzy
+msgid "PayCrypto.Me for WooCommerce"
+msgstr "PayCrypto.Me"
 
-msgid "Save events in WooCommerce > Status > Logs"
-msgstr "Salvar eventos em WooCommerce > Status > Logs"
+#. Plugin URI of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid "https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/"
+msgstr ""
 
-msgid "Cloning is forbidden."
-msgstr "Clonagem é proibida."
+#. Description of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid ""
+"PayCrypto.Me Payments for WooCommerce introduces a complete solution that "
+"allows your customers to pay with BTC, ETH, SOL, and many other "
+"cryptocurrencies in your WooCommerce store."
+msgstr ""
 
-msgid "Unserializing is forbidden."
-msgstr "Deserialização é proibida."
-
-msgid "PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
-msgstr "PayCrypto.Me para WooCommerce requer que o WooCommerce esteja instalado e ativo."
-
+#. Author of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+#: includes/class-wc-gateway-pay-crypto-me.php:29
+#: scripts/test-admin-interface.php:119
 msgid "PayCrypto.Me"
 msgstr "PayCrypto.Me"
 
+#. Author URI of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid "https://paycrypto.me/"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:30
+msgctxt "Gateway description"
+msgid ""
+"PayCrypto.Me introduces a complete solution to receive your payments through "
+"the main cryptocurrencies."
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:37
+#: includes/class-wc-gateway-pay-crypto-me.php:161
+msgid "Pay with Bitcoin"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:38
+#: includes/class-wc-gateway-pay-crypto-me.php:168
+msgid ""
+"Pay directly from your Bitcoin wallet. Place your order to view the QR code "
+"and payment instructions."
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:60
+msgid "Bitcoin Mainnet"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:65
+msgid "Wallet xPub"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:69
+msgid "Bitcoin Testnet"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:74
+msgid "Testnet xPub"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:78
+msgid "Lightning Network"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:83
+msgid "Lightning Address"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:152
+#: scripts/test-admin-interface.php:128 scripts/test-chinese.php:106
+#: scripts/test-english.php:106 scripts/test-french.php:106
+#: scripts/test-german.php:106 scripts/test-portuguese.php:106
+#: scripts/test-russian.php:106 scripts/test-spanish.php:106
 msgid "Enable/Disable"
 msgstr "Ativar/Desativar"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:153
+#: scripts/test-admin-interface.php:129
 msgid "Enable PayCrypto.Me"
 msgstr "Ativar PayCrypto.Me"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:158
+#: scripts/test-admin-interface.php:134 scripts/test-chinese.php:109
+#: scripts/test-english.php:109 scripts/test-french.php:109
+#: scripts/test-german.php:109 scripts/test-portuguese.php:109
+#: scripts/test-russian.php:109 scripts/test-spanish.php:109
 msgid "Title"
 msgstr "Título"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:160
+#: scripts/test-admin-interface.php:136 scripts/test-chinese.php:110
+#: scripts/test-english.php:110 scripts/test-french.php:110
+#: scripts/test-german.php:110 scripts/test-portuguese.php:110
+#: scripts/test-russian.php:110 scripts/test-spanish.php:110
 msgid "Name of the payment method displayed to the customer."
 msgstr "Nome do método de pagamento exibido ao cliente."
 
-msgid "Cryptocurrencies via PayCrypto.Me"
-msgstr "Criptomoedas via PayCrypto.Me"
-
+#: includes/class-wc-gateway-pay-crypto-me.php:165
+#: scripts/test-admin-interface.php:140
 msgid "Description"
 msgstr "Descrição"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:167
+#: scripts/test-admin-interface.php:142
 msgid "Description displayed to the customer at checkout."
 msgstr "Descrição exibida ao cliente no checkout."
 
-msgid "Pay with Bitcoin, Ethereum, Solana, and more."
-msgstr "Pague com Bitcoin, Ethereum, Solana e muito mais."
+#: includes/class-wc-gateway-pay-crypto-me.php:173
+msgid "Show/Hide Option Icon"
+msgstr ""
 
-msgid "API Key"
-msgstr "Chave API"
+#: includes/class-wc-gateway-pay-crypto-me.php:174
+msgid "Enable Option Icon"
+msgstr ""
 
-msgid "Your API Key for PayCrypto.Me."
-msgstr "Sua Chave API para PayCrypto.Me."
+#: includes/class-wc-gateway-pay-crypto-me.php:179
+msgid "Development Mode"
+msgstr ""
 
-msgid "Test Mode"
-msgstr "Modo de Teste"
-
-msgid "Enable Test Mode"
+#: includes/class-wc-gateway-pay-crypto-me.php:180
+#, fuzzy
+msgid "Enable Development Mode"
 msgstr "Ativar Modo de Teste"
 
-msgid "Use the PayCrypto.Me test environment."
-msgstr "Usar o ambiente de teste do PayCrypto.Me."
+#: includes/class-wc-gateway-pay-crypto-me.php:182
+msgid ""
+"Enables additional debugging, simulated payments, and development features. "
+"Independent of Bitcoin network selection."
+msgstr ""
 
+#: includes/class-wc-gateway-pay-crypto-me.php:187
+#: scripts/test-admin-interface.php:158
 msgid "Hide for Non-Admin Users"
 msgstr "Ocultar para Usuários Não-Administradores"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:188
+#: scripts/test-admin-interface.php:159
 msgid "Show only for administrators"
 msgstr "Mostrar apenas para administradores"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:191
+#: scripts/test-admin-interface.php:162
 msgid "If enabled, only administrators will see the payment method."
 msgstr "Se ativado, apenas administradores verão o método de pagamento."
 
-msgid "Save log events (WooCommerce > Status > Logs)"
-msgstr "Salvar eventos de log (WooCommerce > Status > Logs)"
+#: includes/class-wc-gateway-pay-crypto-me.php:206
+msgid "Mode:"
+msgstr ""
 
-msgid "Save events for debugging."
-msgstr "Salvar eventos para depuração."
+#: includes/class-wc-gateway-pay-crypto-me.php:207
+msgid "Development Mode Active"
+msgstr ""
 
+#: includes/class-wc-gateway-pay-crypto-me.php:208
+msgid "Enhanced logging and simulation features enabled"
+msgstr ""
+
+#: includes/class-wc-gateway-pay-crypto-me.php:266
+#: scripts/test-frontend.php:156
 msgid "Awaiting crypto payment."
 msgstr "Aguardando pagamento em criptomoeda."
 
+#: scripts/test-admin-interface.php:120
+msgid ""
+"PayCrypto.Me introduces a complete solution to receive your payments through "
+"the main cryptocurrencies."
+msgstr ""
+
+#: scripts/test-admin-interface.php:137 scripts/test-frontend.php:143
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr "Criptomoedas via PayCrypto.Me"
+
+#: scripts/test-admin-interface.php:143 scripts/test-frontend.php:144
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr "Pague com Bitcoin, Ethereum, Solana e muito mais."
+
+#: scripts/test-admin-interface.php:146 scripts/test-chinese.php:113
+#: scripts/test-english.php:113 scripts/test-french.php:113
+#: scripts/test-german.php:113 scripts/test-portuguese.php:113
+#: scripts/test-russian.php:113 scripts/test-spanish.php:113
+msgid "API Key"
+msgstr "Chave API"
+
+#: scripts/test-admin-interface.php:148 scripts/test-chinese.php:114
+#: scripts/test-english.php:114 scripts/test-french.php:114
+#: scripts/test-german.php:114 scripts/test-portuguese.php:114
+#: scripts/test-russian.php:114 scripts/test-spanish.php:114
+msgid "Your API Key for PayCrypto.Me."
+msgstr "Sua Chave API para PayCrypto.Me."
+
+#: scripts/test-admin-interface.php:151 scripts/test-chinese.php:117
+#: scripts/test-english.php:117 scripts/test-french.php:117
+#: scripts/test-german.php:117 scripts/test-portuguese.php:117
+#: scripts/test-russian.php:117 scripts/test-spanish.php:117
+msgid "Test Mode"
+msgstr "Modo de Teste"
+
+#: scripts/test-admin-interface.php:152
+msgid "Enable Test Mode"
+msgstr "Ativar Modo de Teste"
+
+#: scripts/test-admin-interface.php:155 scripts/test-chinese.php:118
+#: scripts/test-english.php:118 scripts/test-french.php:118
+#: scripts/test-german.php:118 scripts/test-portuguese.php:118
+#: scripts/test-russian.php:118 scripts/test-spanish.php:118
+msgid "Use the PayCrypto.Me test environment."
+msgstr "Usar o ambiente de teste do PayCrypto.Me."
+
+#: scripts/test-admin-interface.php:165
+msgid "Enable Log"
+msgstr "Ativar Log"
+
+#: scripts/test-admin-interface.php:166
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr "Salvar eventos de log (WooCommerce > Status > Logs)"
+
+#: scripts/test-admin-interface.php:169
+msgid "Save events for debugging."
+msgstr "Salvar eventos para depuração."
+
+#: woocommerce-gateway-pay-crypto-me.php:124
+msgid "Cloning is forbidden."
+msgstr "Clonagem é proibida."
+
+#: woocommerce-gateway-pay-crypto-me.php:129
+msgid "Unserializing is forbidden."
+msgstr "Deserialização é proibida."
+
+#: woocommerce-gateway-pay-crypto-me.php:138
+msgid ""
+"PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""
+"PayCrypto.Me para WooCommerce requer que o WooCommerce esteja instalado e "
+"ativo."
+
+#~ msgid "Save events in WooCommerce > Status > Logs"
+#~ msgstr "Salvar eventos em WooCommerce > Status > Logs"

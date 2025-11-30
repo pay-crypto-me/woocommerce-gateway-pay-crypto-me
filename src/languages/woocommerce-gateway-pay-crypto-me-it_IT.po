@@ -1,0 +1,99 @@
+# PayCrypto.Me for WooCommerce Translation Template
+# This file is distributed under the same license as the PayCrypto.Me for WooCommerce package.
+msgid ""
+msgstr ""
+"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-"
+"pay-crypto-me/issues\n"
+"POT-Creation-Date: 2025-10-26 17:16:53+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: Italian\n"
+"X-Generator: Loco https://localise.biz/\n"
+"PO-Revision-Date: 2025-11-23 15:28+0000\n"
+"Last-Translator: \n"
+"Language: it_IT\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Loco-Version: 2.8.0; wp-6.8.3; php-8.3.28"
+
+msgid "Enable Log"
+msgstr ""
+
+msgid "Save events in WooCommerce > Status > Logs"
+msgstr ""
+
+msgid "Cloning is forbidden."
+msgstr ""
+
+msgid "Unserializing is forbidden."
+msgstr ""
+
+msgid ""
+"PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""
+
+msgid "PayCrypto.Me"
+msgstr ""
+
+msgid "Enable/Disable"
+msgstr ""
+
+msgid "Enable PayCrypto.Me"
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "Name of the payment method displayed to the customer."
+msgstr ""
+
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+msgid "Description displayed to the customer at checkout."
+msgstr ""
+
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr ""
+
+msgid "API Key"
+msgstr ""
+
+msgid "Your API Key for PayCrypto.Me."
+msgstr ""
+
+msgid "Test Mode"
+msgstr ""
+
+msgid "Enable Test Mode"
+msgstr ""
+
+msgid "Use the PayCrypto.Me test environment."
+msgstr ""
+
+msgid "Hide for Non-Admin Users"
+msgstr ""
+
+msgid "Show only for administrators"
+msgstr ""
+
+msgid "If enabled, only administrators will see the payment method."
+msgstr ""
+
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr ""
+
+msgid "Save events for debugging."
+msgstr ""
+
+msgid "Awaiting crypto payment."
+msgstr ""
+
+msgid ""
+"PayCrypto.Me introduces a complete solution to receive your payments through "
+"the main cryptocurrencies."
+msgstr ""

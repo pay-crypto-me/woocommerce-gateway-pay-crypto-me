@@ -147,6 +147,12 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function init_form_fields()
     {
+        $available_networks = $this->get_available_networks();
+        $network_options = array();
+        foreach ($available_networks as $key => $network) {
+            $network_options[$key] = $network['name'];
+        }
+
         $this->form_fields = array(
             'enabled' => array(
                 'title' => __('Enable/Disable', 'woocommerce-gateway-pay-crypto-me'),
@@ -167,6 +173,23 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-pay-crypto-me'),
                 'desc_tip' => true,
+            ),
+
+            'selected_network' => array(
+                'title' => __('Network', 'woocommerce-gateway-pay-crypto-me'),
+                'type' => 'select',
+                'options' => $network_options,
+                'desc_tip' => __('Select the network for payments.', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => 'mainnet',
+                'required' => true,
+            ),
+
+            'network_identifier' => array(
+                'title' => __('Network Identifier', 'woocommerce-gateway-pay-crypto-me'),
+                'type' => 'text',
+                'desc_tip' => __('Enter the required identifier for the selected network (e.g., xpub, Lightning Address).', 'woocommerce-gateway-pay-crypto-me'),
+                'default' => '',
+                'required' => true,
             ),
 
             'show_icon' => array(

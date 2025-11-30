@@ -1,0 +1,20 @@
+{
+    "name": "paycrypto-me/woocommerce-gateway-pay-crypto-me",
+    "description": "WooCommerce payment gateway for PayCrypto.Me (accept crypto payments)",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "PayCryptoMe\\WooCommerce\\": "includes/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Lucas Rosa",
+            "email": "lucas.rosa95br@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "version": "0.1.0",
+    "require": {}
+}

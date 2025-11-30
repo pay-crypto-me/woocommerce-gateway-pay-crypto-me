@@ -1,0 +1,35 @@
+{
+    // Correção ortográfica customizada
+    "cSpell.words": [
+        "paycrypto",
+        "woocommerce"
+    ],
+    // Formatação automática ao salvar
+    "editor.formatOnSave": true,
+    // Indentação padrão para PHP
+    "[php]": {
+        "editor.defaultFormatter": "DEVSENSE.phptools-vscode",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    // Snippets e sugestões WordPress
+    "editor.snippetSuggestions": "top",
+    // Configuração do Intelephense (se instalado)
+    "intelephense.environment.includePaths": [
+        "src/includes",
+        "src/blocks"
+    ],
+    // Linting PHP
+    "php.validate.enable": true,
+    "php.validate.executablePath": "/usr/local/bin/php",
+    // Suporte a arquivos .env
+    "dotenv.enableAutocloak": true,
+    // Remover espaços em branco finais automaticamente
+    "trailing-spaces.trimOnSave": true,
+    // Configuração para arquivos de tradução
+    "files.associations": {
+        "*.po": "po",
+        "*.pot": "po",
+        "*.mo": "po"
+    }
+}
