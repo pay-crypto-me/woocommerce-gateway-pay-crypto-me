@@ -43,15 +43,8 @@ const Content = () => {
 const Label = ({ components }) => {
     const { PaymentMethodLabel } = components;
 
-    const icon = settings.icon && settings.show_icon === 'yes' ? createElement('img', {
-        className: 'wc-paycrypto-me-icon',
-        src: settings.icon,
-        alt: label,
-    }) : null;
-
     return createElement(PaymentMethodLabel, {
         text: label,
-        icon: icon,
         className: 'wc-paycrypto-me-label',
     });
 };

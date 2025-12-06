@@ -147,13 +147,6 @@ class WC_Gateway_PayCryptoMe extends WC_Payment_Gateway {
                 'type' => 'text',
                 'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
             ),
-            'testmode' => array(
-                'title' => __('Test Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable Test Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'type' => 'checkbox',
-                'default' => 'no',
-                'description' => __('Use the PayCrypto.Me test environment.', 'woocommerce-gateway-pay-crypto-me'),
-            ),
             'hide_for_non_admin_users' => array(
                 'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
                 'label' => __('Show only for administrators', 'woocommerce-gateway-pay-crypto-me'),

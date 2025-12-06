@@ -1,0 +1,65 @@
+.paycrypto-support-box {
+    padding: 12px;
+    /* margin: 12px 0; */
+    border-radius: 8px;
+    background: #fffbe7;
+    display: inline-block;
+    border: 1px solid #ffd580;
+}
+
+.paycrypto-support-box img {
+    width: 32px;
+    margin-right: 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+
+.paycrypto-support-box .support-content {
+    border: 1px solid #ffd580;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    display: inline-block;
+    border-radius: 4px;
+    max-width: 370px;
+    overflow: hidden;
+    padding: 6px 8px;
+    font-size: 1.1em;
+    user-select: all;
+    cursor: default;
+}
+
+.paycrypto-support-box .support-input {
+    max-width: 260px;
+    font-size: 1.1em;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #ffd580;
+    background: #fff;
+    margin-right: 8px;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    line-height: 1.4em;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.paycrypto-support-box .support-btn {
+    background: #ffdd00;
+    color: #222;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 8px;
+    line-height: 1.4em;
+}
+
+.paycrypto-support-box .support-btn:hover {
+    background: #ffe666;
+}
+
+.paycrypto-support-box .support-divider {
+    height: 8px;
+}

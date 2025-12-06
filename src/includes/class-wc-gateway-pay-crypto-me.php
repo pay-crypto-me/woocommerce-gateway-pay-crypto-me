@@ -16,10 +16,12 @@ defined('ABSPATH') || exit;
 
 class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 {
-    protected $show_icon;
-    protected $testmode;
     protected $hide_for_non_admin_users;
     protected $configured_networks;
+    protected $debug_log;
+    protected $payment_timeout_hours;
+    private $support_btc_address = 'bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw';
+    private $support_btc_payment_address = 'PM8TJdrkRoSqkCWmJwUMojQCG1rEXsuCTQ4GG7Gub7SSMYxaBx7pngJjhV8GUeXbaJujy8oq5ybpazVpNdotFftDX7f7UceYodNGmffUUiS5NZFu4wq4';
 
     public function __construct()
     {
@@ -37,10 +39,10 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->title = $this->get_option('title') ?: __('Pay with Bitcoin', 'woocommerce-gateway-pay-crypto-me');
         $this->description = $this->get_option('description') ?: __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-pay-crypto-me');
         $this->enabled = $this->get_option('enabled');
-        $this->show_icon = $this->get_option('show_icon');
-        $this->testmode = $this->get_option('testmode');
         $this->hide_for_non_admin_users = $this->get_option('hide_for_non_admin_users', 'no');
+        $this->debug_log = $this->get_option('debug_log', 'yes');
         $this->configured_networks = $this->get_option('configured_networks', array());
+        $this->payment_timeout_hours = $this->get_option('payment_timeout_hours', '1');
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
@@ -48,6 +50,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
         do_action('paycrypto_me_gateway_loaded', $this);
+        add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
     }
 
     /**
@@ -110,41 +113,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         return $available_networks['mainnet'];
     }
 
-    /**
-     * Check if development features should be enabled
-     */
-    public function is_development_mode()
-    {
-        return $this->testmode === 'yes';
-    }
-
-    /**
-     * Get development mode features
-     */
-    public function get_development_features()
-    {
-        if (!$this->is_development_mode()) {
-            return array();
-        }
-
-        return array(
-            'enhanced_logging' => true,
-            'payment_simulation' => true,
-            'webhook_testing' => true,
-            'address_generation_test' => true,
-            'fake_confirmations' => true,
-            'debug_info_display' => true,
-        );
-    }
-
-    /**
-     * Check if enhanced logging should be enabled
-     */
-    public function should_log_enhanced()
-    {
-        return $this->is_development_mode();
-    }
-
     public function init_form_fields()
     {
         $available_networks = $this->get_available_networks();
@@ -156,7 +124,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->form_fields = array(
             'enabled' => array(
                 'title' => __('Enable/Disable', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
                 'default' => 'yes',
             ),
@@ -191,27 +159,39 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'default' => '',
                 'required' => true,
             ),
-
-            'show_icon' => array(
-                'title' => __('Show/Hide Option Icon', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable Option Icon', 'woocommerce-gateway-pay-crypto-me'),
-                'type' => 'checkbox',
-                'default' => 'no',
-            ),
-            'testmode' => array(
-                'title' => __('Development Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable Development Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'type' => 'checkbox',
-                'description' => __('Enables additional debugging, simulated payments, and development features. Independent of Bitcoin network selection.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => 'yes',
+            'payment_timeout_hours' => array(
+                'title' => __('Payment Timeout (hours)', 'woocommerce-gateway-pay-crypto-me'),
+                'type' => 'number',
+                'description' => __('Maximum time (in hours) for the customer to complete the crypto payment before the order expires.', 'woocommerce-gateway-pay-crypto-me'),
+                'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '72'),
+                'default' => '24',
                 'desc_tip' => true,
+
             ),
             'hide_for_non_admin_users' => array(
                 'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Show only for administrators', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Show only for administrators.', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
                 'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-pay-crypto-me'),
+            ),
+            'debug_log' => array(
+                'title' => __('Debug', 'woocommerce-gateway-pay-crypto-me'),
+                'label' => __('Enable debugging messages', 'woocommerce-gateway-pay-crypto-me'),
+                'type' => 'checkbox',
+                'default' => 'yes',
+                'description' => __('Debug logs will be saved to WooCommerce > Status > Logs.', 'woocommerce-gateway-pay-crypto-me'),
+            ),
+            'paycrypto_me_donate' => array(
+                'type' => 'title',
+                'title' => __('Support the development!', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => '<div class="paycrypto-support-box">
+                    <img src="' . WC_PayCryptoMe::plugin_url() . '/assets/buy_me_a_coffee.png">
+                    <strong>Enjoying the plugin?</strong> Send some BTC to support:
+                    <div class="support-divider"></div>
+                    <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
+                    <button type="button" id="copy-btc-admin" class="support-btn">Copy</button>
+                </div>',
             ),
         );
     }
@@ -220,16 +200,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     {
         if ($this->description) {
             echo wpautop(wp_kses_post($this->description));
-        }
-
-        // TODO: Show active network and mode information
-        // Will be implemented in later phases
-        if ($this->testmode === 'yes') {
-            echo '<div class="paycrypto-network-info" style="background: #f0f0f1; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em;">';
-            echo '<strong>' . esc_html__('Mode:', 'woocommerce-gateway-pay-crypto-me') . '</strong> ';
-            echo '<span style="color: #d63638;">' . esc_html__('Development Mode Active', 'woocommerce-gateway-pay-crypto-me') . '</span>';
-            echo ' - ' . esc_html__('Enhanced logging and simulation features enabled', 'woocommerce-gateway-pay-crypto-me');
-            echo '</div>';
         }
 
         // JavaScript para forçar alinhamento
@@ -252,6 +222,26 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             setTimeout(fixIconAlignment, 500);
         });
         </script>';
+    }
+
+    public function admin_enqueue_scripts()
+    {
+        $screen = get_current_screen();
+        if ($screen && $screen->id === 'woocommerce_page_wc-settings' && isset($_GET['section']) && $_GET['section'] === $this->id) {
+            wp_enqueue_style(
+                'pay-crypto-me-admin',
+                WC_PayCryptoMe::plugin_url() . '/assets/pay-crypto-me-admin.css',
+                array(),
+                filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/pay-crypto-me-admin.css')
+            );
+            wp_enqueue_script(
+                'pay-crypto-me-admin',
+                WC_PayCryptoMe::plugin_url() . '/assets/pay-crypto-me-admin.js',
+                array(),
+                filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/pay-crypto-me-admin.js'),
+                true
+            );
+        }
     }
 
     public function is_available()

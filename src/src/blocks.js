@@ -45,12 +45,6 @@ const Label = ({ components }) => {
         src: settings.icon,
         alt: label,
         className: 'wc-paycrypto-me-icon',
-        style: {
-            width: '24px',
-            height: '24px',
-            marginRight: '8px',
-            verticalAlign: 'middle'
-        }
     }) : null;
 
     return createElement(PaymentMethodLabel, {

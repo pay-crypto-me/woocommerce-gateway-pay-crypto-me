@@ -113,10 +113,6 @@ class WC_Gateway_PayCryptoMe_DE_DE {
                 'title' => __('API Key', 'woocommerce-gateway-pay-crypto-me'),
                 'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
             ],
-            'testmode' => [
-                'title' => __('Test Mode', 'woocommerce-gateway-pay-crypto-me'),
-                'description' => __('Use the PayCrypto.Me test environment.', 'woocommerce-gateway-pay-crypto-me'),
-            ],
         ];
     }
 }
