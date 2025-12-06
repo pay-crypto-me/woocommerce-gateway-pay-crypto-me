@@ -1,92 +1,287 @@
-# PayCrypto.Me for WooCommerce Translation Template
-# This file is distributed under the same license as the PayCrypto.Me for WooCommerce package.
+# Copyright (C) 2025 PayCrypto.Me
+# This file is distributed under the GNU General Public License v3.0.
 msgid ""
 msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
-"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues\n"
-"POT-Creation-Date: 2025-10-26 17:16:53+0000\n"
+"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-"
+"pay-crypto-me/issues\n"
+"POT-Creation-Date: 2025-12-06T17:27:15+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: PayCrypto.Me Team <support@paycrypto.me>\n"
+"Language: ru_RU\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
-"Language: ru_RU\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language-Team: PayCrypto.Me Team <support@paycrypto.me>\n"
-"X-Generator: PayCrypto.Me POT Generator\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: woocommerce-gateway-pay-crypto-me\n"
 
-msgid "Enable Log"
-msgstr "Включить журнал"
+#. Plugin Name of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid "PayCrypto.Me for WooCommerce"
+msgstr "PayCrypto.Me для WooCommerce"
 
-msgid "Save events in WooCommerce > Status > Logs"
-msgstr "Сохранять события в WooCommerce > Статус > Журналы"
+#. Plugin URI of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid "https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/"
+msgstr "https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/"
 
-msgid "Cloning is forbidden."
-msgstr "Клонирование запрещено."
+#. Description of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid ""
+"PayCrypto.Me Payments for WooCommerce introduces a complete solution that "
+"allows your customers to pay with BTC, ETH, SOL, and many other "
+"cryptocurrencies in your WooCommerce store."
+msgstr ""
+"PayCrypto.Me Payments для WooCommerce предлагает комплексное решение, "
+"позволяющее вашим клиентам оплачивать покупки с помощью BTC, ETH, SOL и "
+"многих других криптовалют в вашем магазине WooCommerce."
 
-msgid "Unserializing is forbidden."
-msgstr "Десериализация запрещена."
-
-msgid "PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
-msgstr "PayCrypto.Me для WooCommerce требует установки и активации WooCommerce."
-
+#. Author of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+#: includes/class-wc-gateway-pay-crypto-me.php:29
+#: scripts/test-admin-interface.php:119
 msgid "PayCrypto.Me"
 msgstr "PayCrypto.Me"
 
+#. Author URI of the plugin
+#: woocommerce-gateway-pay-crypto-me.php
+msgid "https://paycrypto.me/"
+msgstr "https://paycrypto.me/"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:30
+msgctxt "Gateway description"
+msgid ""
+"PayCrypto.Me introduces a complete solution to receive your payments through "
+"the main cryptocurrencies."
+msgstr ""
+"PayCrypto.Me предлагает комплексное решение для приема платежей через "
+"основные криптовалюты."
+
+#: includes/class-wc-gateway-pay-crypto-me.php:37
+#: includes/class-wc-gateway-pay-crypto-me.php:167
+msgid "Pay with Bitcoin"
+msgstr "Оплатить с помощью Bitcoin"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:38
+#: includes/class-wc-gateway-pay-crypto-me.php:174
+msgid ""
+"Pay directly from your Bitcoin wallet. Place your order to view the QR code "
+"and payment instructions."
+msgstr ""
+"Оплатите напрямую из вашего Bitcoin-кошелька. Оформите заказ, чтобы увидеть "
+"QR-код и инструкции по оплате."
+
+#: includes/class-wc-gateway-pay-crypto-me.php:60
+msgid "Bitcoin Mainnet"
+msgstr "Bitcoin Mainnet"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:65
+msgid "Wallet xPub"
+msgstr "Кошелек xPub"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:69
+msgid "Bitcoin Testnet"
+msgstr "Bitcoin Testnet"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:74
+msgid "Testnet xPub"
+msgstr "Testnet xPub"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:78
+msgid "Lightning Network"
+msgstr "Lightning Network"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:83
+msgid "Lightning Address"
+msgstr "Lightning-адрес"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:158
+#: scripts/test-admin-interface.php:128 scripts/test-chinese.php:106
+#: scripts/test-english.php:106 scripts/test-french.php:106
+#: scripts/test-german.php:106 scripts/test-portuguese.php:106
+#: scripts/test-russian.php:106 scripts/test-spanish.php:106
 msgid "Enable/Disable"
 msgstr "Включить/Отключить"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:159
+#: scripts/test-admin-interface.php:129
 msgid "Enable PayCrypto.Me"
 msgstr "Включить PayCrypto.Me"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:164
+#: scripts/test-admin-interface.php:134 scripts/test-chinese.php:109
+#: scripts/test-english.php:109 scripts/test-french.php:109
+#: scripts/test-german.php:109 scripts/test-portuguese.php:109
+#: scripts/test-russian.php:109 scripts/test-spanish.php:109
 msgid "Title"
 msgstr "Заголовок"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:166
+#: scripts/test-admin-interface.php:136 scripts/test-chinese.php:110
+#: scripts/test-english.php:110 scripts/test-french.php:110
+#: scripts/test-german.php:110 scripts/test-portuguese.php:110
+#: scripts/test-russian.php:110 scripts/test-spanish.php:110
 msgid "Name of the payment method displayed to the customer."
-msgstr "Название способа оплаты, отображаемое клиенту."
+msgstr "Название способа оплаты, отображаемого клиенту."
 
-msgid "Cryptocurrencies via PayCrypto.Me"
-msgstr "Криптовалюты через PayCrypto.Me"
-
+#: includes/class-wc-gateway-pay-crypto-me.php:171
+#: scripts/test-admin-interface.php:140
 msgid "Description"
 msgstr "Описание"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:173
+#: scripts/test-admin-interface.php:142
 msgid "Description displayed to the customer at checkout."
 msgstr "Описание, отображаемое клиенту при оформлении заказа."
 
-msgid "Pay with Bitcoin, Ethereum, Solana, and more."
-msgstr "Оплачивайте Bitcoin, Ethereum, Solana и другими криптовалютами."
+#: includes/class-wc-gateway-pay-crypto-me.php:179
+msgid "Network"
+msgstr "Сеть"
 
-msgid "API Key"
-msgstr "API ключ"
+#: includes/class-wc-gateway-pay-crypto-me.php:182
+msgid "Select the network for payments."
+msgstr "Выберите сеть для платежей."
 
-msgid "Your API Key for PayCrypto.Me."
-msgstr "Ваш API ключ для PayCrypto.Me."
+#: includes/class-wc-gateway-pay-crypto-me.php:188
+msgid "Network Identifier"
+msgstr "Идентификатор сети"
 
-msgid "Test Mode"
-msgstr "Тестовый режим"
+#: includes/class-wc-gateway-pay-crypto-me.php:190
+msgid ""
+"Enter the required identifier for the selected network (e.g., xpub, "
+"Lightning Address)."
+msgstr ""
+"Введите необходимый идентификатор для выбранной сети (например, xpub, "
+"Lightning-адрес)."
 
-msgid "Enable Test Mode"
-msgstr "Включить тестовый режим"
+#: includes/class-wc-gateway-pay-crypto-me.php:196
+msgid "Show/Hide Option Icon"
+msgstr "Показать/Скрыть значок опции"
 
-msgid "Use the PayCrypto.Me test environment."
-msgstr "Использовать тестовую среду PayCrypto.Me."
+#: includes/class-wc-gateway-pay-crypto-me.php:197
+msgid "Enable Option Icon"
+msgstr "Включить значок опции"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:202
+msgid "Development Mode"
+msgstr "Режим разработки"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:203
+msgid "Enable Development Mode"
+msgstr "Включить режим разработки"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:205
+msgid ""
+"Enables additional debugging, simulated payments, and development features. "
+"Independent of Bitcoin network selection."
+msgstr ""
+"Включает дополнительные функции отладки, имитации платежей и разработки. Не "
+"зависит от выбора сети Bitcoin."
+
+#: includes/class-wc-gateway-pay-crypto-me.php:210
+#: scripts/test-admin-interface.php:158
 msgid "Hide for Non-Admin Users"
-msgstr "Скрыть от обычных пользователей"
+msgstr "Скрыть для неадминистраторов"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:211
+#: scripts/test-admin-interface.php:159
 msgid "Show only for administrators"
 msgstr "Показывать только администраторам"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:214
+#: scripts/test-admin-interface.php:162
 msgid "If enabled, only administrators will see the payment method."
 msgstr "Если включено, только администраторы увидят этот способ оплаты."
 
-msgid "Save log events (WooCommerce > Status > Logs)"
-msgstr "Сохранять события журнала (WooCommerce > Статус > Журналы)"
+#: includes/class-wc-gateway-pay-crypto-me.php:229
+msgid "Mode:"
+msgstr "Режим:"
 
+#: includes/class-wc-gateway-pay-crypto-me.php:230
+msgid "Development Mode Active"
+msgstr "Режим разработки активен"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:231
+msgid "Enhanced logging and simulation features enabled"
+msgstr "Включены расширенные функции логирования и симуляции"
+
+#: includes/class-wc-gateway-pay-crypto-me.php:289
+#: scripts/test-frontend.php:156
+msgid "Awaiting crypto payment."
+msgstr "Ожидание крипто-платежа."
+
+#: scripts/test-admin-interface.php:120
+msgid ""
+"PayCrypto.Me introduces a complete solution to receive your payments through "
+"the main cryptocurrencies."
+msgstr ""
+"PayCrypto.Me предлагает комплексное решение для приема платежей через "
+"основные криптовалюты."
+
+#: scripts/test-admin-interface.php:137 scripts/test-frontend.php:143
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr "Криптовалюты через PayCrypto.Me"
+
+#: scripts/test-admin-interface.php:143 scripts/test-frontend.php:144
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr "Оплатить с помощью Bitcoin, Ethereum, Solana и других."
+
+#: scripts/test-admin-interface.php:146 scripts/test-chinese.php:113
+#: scripts/test-english.php:113 scripts/test-french.php:113
+#: scripts/test-german.php:113 scripts/test-portuguese.php:113
+#: scripts/test-russian.php:113 scripts/test-spanish.php:113
+msgid "API Key"
+msgstr "API-ключ"
+
+#: scripts/test-admin-interface.php:148 scripts/test-chinese.php:114
+#: scripts/test-english.php:114 scripts/test-french.php:114
+#: scripts/test-german.php:114 scripts/test-portuguese.php:114
+#: scripts/test-russian.php:114 scripts/test-spanish.php:114
+msgid "Your API Key for PayCrypto.Me."
+msgstr "Ваш API-ключ для PayCrypto.Me."
+
+#: scripts/test-admin-interface.php:151 scripts/test-chinese.php:117
+#: scripts/test-english.php:117 scripts/test-french.php:117
+#: scripts/test-german.php:117 scripts/test-portuguese.php:117
+#: scripts/test-russian.php:117 scripts/test-spanish.php:117
+msgid "Test Mode"
+msgstr "Тестовый режим"
+
+#: scripts/test-admin-interface.php:152
+msgid "Enable Test Mode"
+msgstr "Включить тестовый режим"
+
+#: scripts/test-admin-interface.php:155 scripts/test-chinese.php:118
+#: scripts/test-english.php:118 scripts/test-french.php:118
+#: scripts/test-german.php:118 scripts/test-portuguese.php:118
+#: scripts/test-russian.php:118 scripts/test-spanish.php:118
+msgid "Use the PayCrypto.Me test environment."
+msgstr "Использовать тестовую среду PayCrypto.Me."
+
+#: scripts/test-admin-interface.php:165
+msgid "Enable Log"
+msgstr "Включить логирование"
+
+#: scripts/test-admin-interface.php:166
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr "Сохранять события логов (WooCommerce > Статус > Логи)"
+
+#: scripts/test-admin-interface.php:169
 msgid "Save events for debugging."
 msgstr "Сохранять события для отладки."
 
-msgid "Awaiting crypto payment."
-msgstr "Ожидается криптоплатёж."
+#: woocommerce-gateway-pay-crypto-me.php:124
+msgid "Cloning is forbidden."
+msgstr "Клонирование запрещено."
 
-msgid "PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies."
-msgstr "PayCrypto.Me представляет полное решение для получения платежей через основные криптовалюты."
+#: woocommerce-gateway-pay-crypto-me.php:129
+msgid "Unserializing is forbidden."
+msgstr "Десериализация запрещена."
 
+#: woocommerce-gateway-pay-crypto-me.php:138
+msgid ""
+"PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""
+"PayCrypto.Me для WooCommerce требует, чтобы WooCommerce был установлен и "
+"активен."

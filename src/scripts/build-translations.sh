@@ -171,7 +171,7 @@ main() {
     fi
     
     # Idiomas para criar/atualizar
-    LANGUAGES=("pt_BR" "en_US" "es_ES")
+    LANGUAGES=("pt_BR" "en_US" "es_ES" "de_DE" "fr_FR" "it_IT" "ru_RU" "zh_CN")
     
     # Criar/atualizar arquivos PO
     header "Criando/Atualizando arquivos PO"

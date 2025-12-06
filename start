@@ -8,7 +8,7 @@ WP_SERVICE="wordpress"
 WP_PATH="/var/www/html"
 
 wp_up() {
-  docker compose -f ./docker-compose.yml up -d --build --force-recreate  
+  docker compose -f ./docker-compose.yml up -d --force-recreate  
 }
 
 dc_exec() {
