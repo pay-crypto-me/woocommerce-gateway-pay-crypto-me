@@ -102,14 +102,12 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
                 \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('woocommerce_blocks', __FILE__, true);
             }
         }
-
         public function load_blocks_support()
         {
             if (class_exists('\Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
                 include_once plugin_dir_path(__FILE__) . 'includes/blocks/class-wc-gateway-pay-crypto-me-blocks.php';
             }
         }
-
         public static function log($message, $level = 'info')
         {
             $options = get_option('woocommerce_paycrypto_me_settings', []);
@@ -119,12 +117,10 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
                 $logger->log($level, $message, ['source' => 'paycrypto-me']);
             }
         }
-
         public function __clone()
         {
             _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'woocommerce-gateway-pay-crypto-me'), '0.1.2');
         }
-
         public function __wakeup()
         {
             _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'woocommerce-gateway-pay-crypto-me'), '0.1.2');
