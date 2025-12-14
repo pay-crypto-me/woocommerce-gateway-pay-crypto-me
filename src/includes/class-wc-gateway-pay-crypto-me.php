@@ -14,6 +14,10 @@ namespace PayCryptoMe\WooCommerce;
 
 defined('ABSPATH') || exit;
 
+use BitWasp\Bitcoin\Key\Deterministic\HierarchicalKeyFactory;
+use BitWasp\Bitcoin\Address\AddressFactory;
+use BitWasp\Bitcoin\Network\NetworkFactory;
+
 class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 {
     protected $hide_for_non_admin_users;
@@ -46,16 +50,31 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
-        // Carrega CSS no checkout
         add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
         do_action('paycrypto_me_gateway_loaded', $this);
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
     }
 
-    /**
-     * Get available network types
-     */
+    public function process_admin_options()
+    {
+        $selected_network = isset($_POST['woocommerce_paycrypto_me_selected_network']) ? sanitize_text_field($_POST['woocommerce_paycrypto_me_selected_network']) : null;
+        $network_identifier = isset($_POST['woocommerce_paycrypto_me_network_identifier']) ? sanitize_text_field($_POST['woocommerce_paycrypto_me_network_identifier']) : '';
+        $network_config = $this->get_network_config($selected_network);
+
+        if (empty($network_identifier)) {
+            \WC_Admin_Settings::add_error(\sprintf(__('Please enter a valid %s.', 'woocommerce-gateway-pay-crypto-me'), $network_config['field_label']), 'error');
+            return false;
+        }
+
+        if (!$this->validate_network_identifier($selected_network, $network_identifier)) {
+            \WC_Admin_Settings::add_error(\sprintf(__('The %s provided is not valid for the selected network.', 'woocommerce-gateway-pay-crypto-me'), $network_config['field_label']), 'error');
+            return false;
+        }
+
+        return parent::process_admin_options();
+    }
+
     public function get_available_networks()
     {
         return array(
@@ -65,8 +84,8 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'xpub_prefix' => array('xpub', 'ypub', 'zpub'),
                 'testnet' => false,
                 'field_type' => 'text',
-                'field_label' => __('Wallet xPub', 'woocommerce-gateway-pay-crypto-me'),
-                'field_placeholder' => 'xpub6...',
+                'field_label' => __('Wallet address or xPub', 'woocommerce-gateway-pay-crypto-me'),
+                'field_placeholder' => 'e.g., xpub6, ypub6, zpub6...',
             ),
             'testnet' => array(
                 'name' => __('Bitcoin Testnet', 'woocommerce-gateway-pay-crypto-me'),
@@ -74,42 +93,33 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'xpub_prefix' => array('tpub', 'upub', 'vpub'),
                 'testnet' => true,
                 'field_type' => 'text',
-                'field_label' => __('Testnet xPub', 'woocommerce-gateway-pay-crypto-me'),
-                'field_placeholder' => 'tpub6...',
+                'field_label' => __('Testnet Wallet address or xPub', 'woocommerce-gateway-pay-crypto-me'),
+                'field_placeholder' => 'e.g., tpub6, upub6, vpub6...',
             ),
             'lightning' => array(
                 'name' => __('Lightning Network', 'woocommerce-gateway-pay-crypto-me'),
                 'address_prefix' => array('lnbc', 'lntb', 'lnbcrt'),
                 'xpub_prefix' => array(),
                 'testnet' => false,
-                'field_type' => 'text',
+                'field_type' => 'email',
                 'field_label' => __('Lightning Address', 'woocommerce-gateway-pay-crypto-me'),
-                'field_placeholder' => 'payments@yourstore.com',
+                'field_placeholder' => 'e.g., payments@yourstore.com',
             ),
         );
     }
 
-    /**
-     * Get configured networks
-     */
     public function get_configured_networks()
     {
         return $this->configured_networks;
     }
 
-
-
-    /**
-     * Get network-specific configuration
-     */
     public function get_network_config($network_type = null)
     {
         $available_networks = $this->get_available_networks();
-        // If specific network type requested, return that
         if ($network_type && isset($available_networks[$network_type])) {
             return $available_networks[$network_type];
         }
-        // Fallback to mainnet
+
         return $available_networks['mainnet'];
     }
 
@@ -131,23 +141,21 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             'title' => array(
                 'title' => __('Title', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
-                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Payment method name displayed on Checkout page.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => __('Pay with Bitcoin', 'woocommerce-gateway-pay-crypto-me'),
-                'desc_tip' => true,
             ),
             'description' => array(
                 'title' => __('Description', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'textarea',
-                'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Payment method description displayed on Checkout page.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-pay-crypto-me'),
-                'desc_tip' => true,
             ),
 
             'selected_network' => array(
                 'title' => __('Network', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'select',
                 'options' => $network_options,
-                'desc_tip' => __('Select the network for payments.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Select the network for payments.', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => 'mainnet',
                 'required' => true,
             ),
@@ -155,25 +163,24 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             'network_identifier' => array(
                 'title' => __('Network Identifier', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'text',
-                'desc_tip' => __('Enter the required identifier for the selected network (e.g., xpub, Lightning Address).', 'woocommerce-gateway-pay-crypto-me'),
                 'default' => '',
                 'required' => true,
+                'description' => __('Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments.', 'woocommerce-gateway-pay-crypto-me'),
+                'custom_attributes' => array('maxlength' => 255),
             ),
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'number',
-                'description' => __('Maximum time (in hours) for the customer to complete the crypto payment before the order expires.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Max time (in hours) to wait to confirm payment before the order expires.', 'woocommerce-gateway-pay-crypto-me'),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '72'),
-                'default' => '24',
-                'desc_tip' => true,
-
+                'default' => '24'
             ),
             'hide_for_non_admin_users' => array(
                 'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
                 'label' => __('Show only for administrators.', 'woocommerce-gateway-pay-crypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
-                'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('If enabled, only administrators will see the payment method on Checkout page.', 'woocommerce-gateway-pay-crypto-me'),
             ),
             'debug_log' => array(
                 'title' => __('Debug', 'woocommerce-gateway-pay-crypto-me'),
@@ -186,11 +193,15 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'type' => 'title',
                 'title' => __('Support the development!', 'woocommerce-gateway-pay-crypto-me'),
                 'description' => '<div class="paycrypto-support-box">
-                    <img src="' . WC_PayCryptoMe::plugin_url() . '/assets/buy_me_a_coffee.png">
-                    <strong>Enjoying the plugin?</strong> Send some BTC to support:
-                    <div class="support-divider"></div>
-                    <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
-                    <button type="button" id="copy-btc-admin" class="support-btn">Copy</button>
+                    <div>
+                        <img src="' . WC_PayCryptoMe::plugin_url() . '/assets/wallet_address_qrcode.png">
+                    </div>
+                    <div>
+                        <strong>Enjoying the plugin?</strong> Send some BTC to support:
+                        <div class="support-divider"></div>
+                        <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
+                        <button type="button" id="copy-btc-admin" class="support-btn">Copy</button>
+                    </div>
                 </div>',
             ),
         );
@@ -202,7 +213,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             echo wpautop(wp_kses_post($this->description));
         }
 
-        // JavaScript para forçar alinhamento
         echo '<script>
         document.addEventListener("DOMContentLoaded", function() {
             function fixIconAlignment() {
@@ -240,6 +250,13 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 array(),
                 filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/pay-crypto-me-admin.js'),
                 true
+            );
+            wp_localize_script(
+                'pay-crypto-me-admin',
+                'PayCryptoMeAdminData',
+                array(
+                    'networks' => $this->get_available_networks()
+                )
             );
         }
     }
@@ -300,9 +317,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         return false; // Refunds not implemented yet
     }
 
-    /**
-     * Carrega CSS no checkout
-     */
     public function enqueue_checkout_styles()
     {
         if (is_checkout() || is_wc_endpoint_url('order-pay')) {
@@ -318,5 +332,44 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 );
             }
         }
+    }
+
+    private function validate_xpub_address($xpub)
+    {
+
+    }
+
+    private function validate_network_identifier($network_type, $identifier)
+    {
+        if ($network_type === 'lightning') {
+            return is_email($identifier);
+        } else {
+            // Is it a xpub/tpub/ypub/zpub/upub/vpub?
+            try {
+                HierarchicalKeyFactory::fromExtended($identifier);
+                return true;
+            } catch (\Exception $e) {
+                // Log the error if debug is enabled
+                if ($this->debug_log === 'yes') {
+                    \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log('xPub validation failed: ' . $e->getMessage());
+                }
+            }
+
+            // Or is it a valid address for the selected network?
+            try {
+                $network = $network_type === 'testnet'
+                    ? NetworkFactory::bitcoinTestnet()
+                    : NetworkFactory::bitcoin();
+
+                AddressFactory::fromString($identifier, $network);
+                return true;
+            } catch (\Exception $e) {
+                // Log the error if debug is enabled
+                if ($this->debug_log === 'yes') {
+                    \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log('Address validation failed: ' . $e->getMessage());
+                }
+            }
+        }
+        return false;
     }
 }

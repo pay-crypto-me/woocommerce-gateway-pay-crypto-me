@@ -14,7 +14,27 @@
             "email": "lucas.rosa95br@gmail.com"
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "version": "0.1.0",
-    "require": {}
+    "config": {
+        "audit": {
+            "ignore": [
+                "PKSA-j43q-24zh-tyzv",
+                "PKSA-36gf-zqdd-tq5m"
+            ]
+        },
+        "platform": {
+            "php": "7.4"
+        }
+    },
+    "require": {
+        "lucas-rosa95/bitcoin": "1.0.x-dev"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/lucas-rosa95/bitcoin-php"
+        }
+    ]
 }

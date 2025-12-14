@@ -53,7 +53,6 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
             wp_set_script_translations('wc-paycrypto-me-payments-blocks', 'woocommerce-gateway-pay-crypto-me', dirname(__FILE__, 3) . '/languages/');
         }
 
-        // Localize script data for JavaScript
         wp_localize_script(
             'wc-paycrypto-me-payments-blocks',
             'paycrypto_me_data',
@@ -74,13 +73,6 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
         ];
     }
 
-    /**
-     * Get a setting value
-     * 
-     * @param string $name Setting key
-     * @param string $default Default value
-     * @return mixed Setting value
-     */
     public function get_setting($name, $default = '')
     {
         return isset($this->settings[$name]) ? $this->settings[$name] : $default;
