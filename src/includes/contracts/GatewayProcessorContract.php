@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * PayCrypto.Me Gateway for WooCommerce
+ *
+ * @package     WooCommerce\PayCryptoMe
+ * @interface   GatewayProcessorContract
+ * @author      PayCrypto.Me
+ */
+
+namespace PayCryptoMe\WooCommerce;
+
+\defined('ABSPATH') || exit;
+
+interface GatewayProcessorContract
+{
+    public function process(\WC_Order $order, \WC_Payment_Gateway $gateway, array $currency_data): array;
+}

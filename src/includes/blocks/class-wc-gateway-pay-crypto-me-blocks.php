@@ -69,6 +69,7 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
             'title' => $this->get_setting('title'),
             'description' => $this->get_setting('description'),
             'enable_logging' => $this->get_setting('enable_logging', 'no'),
+            // 'selected_crypto_input' => $this->gateway->get_available_cryptocurrencies()[0],
             'supports' => array_filter($this->gateway->supports, [$this->gateway, 'supports'])
         ];
     }

@@ -108,6 +108,18 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         );
     }
 
+    public function get_available_cryptocurrencies($network = null) {
+        return ['BTC']; //@NOTE: all networks using same crypto.
+    }
+
+    public function check_cryptocurrency_support($currency, $network = null)
+    {
+        $available_cryptos = $this->get_available_cryptocurrencies($network);
+        $normalized_currency = strtoupper($currency);
+
+        return \in_array($normalized_currency, array_keys($available_cryptos), true);
+    }
+
     public function get_configured_networks()
     {
         return $this->configured_networks;
