@@ -43,7 +43,7 @@ PayCrypto.Me for WooCommerce introduces a secure and easy-to-use payment gateway
 ### FTP Installation
 
 1. Download and extract the plugin files
-2. Upload the `woocommerce-gateway-pay-crypto-me` folder to `/wp-content/plugins/`
+2. Upload the `woocommerce-gateway-paycrypto-me` folder to `/wp-content/plugins/`
 3. Activate the plugin through the 'Plugins' menu in WordPress
 
 ## Configuration
@@ -115,9 +115,9 @@ Enable logging in the plugin settings to troubleshoot issues:
 ## Support
 
 - **Documentation**: [PayCrypto.Me Docs](https://docs.paycrypto.me/)
-- **Support Forum**: [WordPress.org Support](https://wordpress.org/support/plugin/woocommerce-gateway-pay-crypto-me/)
+- **Support Forum**: [WordPress.org Support](https://wordpress.org/support/plugin/woocommerce-gateway-paycrypto-me/)
 - **Email Support**: support@paycrypto.me
-- **GitHub Issues**: [Report bugs or request features](https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/issues)
 
 ## Contributing
 
@@ -141,7 +141,7 @@ This plugin is licensed under the [GNU General Public License v3.0](LICENSE).
 
 - **Developer**: Lucas Rosa
 - **Company**: PayCrypto.Me
-- **Contributors**: [View all contributors](https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/contributors)
+- **Contributors**: [View all contributors](https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/contributors)
 
 ## Changelog
 

@@ -46,13 +46,13 @@ chmod +x ./scripts/quick-translate.sh
 
 ```
 languages/
-├── woocommerce-gateway-pay-crypto-me.pot        # Template (gerado automaticamente)
-├── woocommerce-gateway-pay-crypto-me-pt_BR.po   # Tradução Português Brasil
-├── woocommerce-gateway-pay-crypto-me-pt_BR.mo   # Compilado Português Brasil
-├── woocommerce-gateway-pay-crypto-me-en_US.po   # Tradução Inglês EUA
-├── woocommerce-gateway-pay-crypto-me-en_US.mo   # Compilado Inglês EUA
-├── woocommerce-gateway-pay-crypto-me-es_ES.po   # Tradução Espanhol
-└── woocommerce-gateway-pay-crypto-me-es_ES.mo   # Compilado Espanhol
+├── woocommerce-gateway-paycrypto-me.pot        # Template (gerado automaticamente)
+├── woocommerce-gateway-paycrypto-me-pt_BR.po   # Tradução Português Brasil
+├── woocommerce-gateway-paycrypto-me-pt_BR.mo   # Compilado Português Brasil
+├── woocommerce-gateway-paycrypto-me-en_US.po   # Tradução Inglês EUA
+├── woocommerce-gateway-paycrypto-me-en_US.mo   # Compilado Inglês EUA
+├── woocommerce-gateway-paycrypto-me-es_ES.po   # Tradução Espanhol
+└── woocommerce-gateway-paycrypto-me-es_ES.mo   # Compilado Espanhol
 ```
 
 ## 🛠️ Ferramentas Recomendadas
@@ -95,8 +95,8 @@ LANGUAGES=("pt_BR" "en_US" "es_ES" "fr_FR")
 1. **Adicionar novas strings**:
    ```php
    // Sempre usar funções de tradução
-   __('New string', 'woocommerce-gateway-pay-crypto-me')
-   esc_html__('Safe string', 'woocommerce-gateway-pay-crypto-me')
+   __('New string', 'woocommerce-gateway-paycrypto-me')
+   esc_html__('Safe string', 'woocommerce-gateway-paycrypto-me')
    ```
 
 2. **Regenerar POT**:
@@ -119,7 +119,7 @@ LANGUAGES=("pt_BR" "en_US" "es_ES" "fr_FR")
 ## 🎯 Boas Práticas
 
 ### ✅ Fazer
-- Usar sempre text domain: `'woocommerce-gateway-pay-crypto-me'`
+- Usar sempre text domain: `'woocommerce-gateway-paycrypto-me'`
 - Regenerar POT após adicionar strings
 - Testar traduções em diferentes idiomas
 - Manter traduções curtas e claras
@@ -173,7 +173,7 @@ sudo apt-get install gettext
 
 ## 📊 Status Atual
 
-- ✅ Text Domain configurado: `woocommerce-gateway-pay-crypto-me`
+- ✅ Text Domain configurado: `woocommerce-gateway-paycrypto-me`
 - ✅ Domain Path: `/languages/`
 - ✅ Função load_textdomain implementada
 - ✅ Strings usando funções corretas de tradução

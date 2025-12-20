@@ -43,18 +43,18 @@ echo "=====================================\n\n";
 echo "🚀 Iniciando teste...\n\n";
 
 echo "1️⃣ Testando load_textdomain():\n";
-$result = load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+$result = load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 echo "   Resultado: " . ($result ? "✅ SUCESSO" : "❌ FALHA") . "\n\n";
 
 echo "2️⃣ Verificando arquivos necessários:\n";
 $plugin_dir = dirname(__FILE__) . '/../';
 
 $files_to_check = [
-    'woocommerce-gateway-pay-crypto-me.pot',
-    'woocommerce-gateway-pay-crypto-me-pt_BR.po',
-    'woocommerce-gateway-pay-crypto-me-pt_BR.mo',
-    'woocommerce-gateway-pay-crypto-me-en_US.po',
-    'woocommerce-gateway-pay-crypto-me-en_US.mo'
+    'woocommerce-gateway-paycrypto-me.pot',
+    'woocommerce-gateway-paycrypto-me-pt_BR.po',
+    'woocommerce-gateway-paycrypto-me-pt_BR.mo',
+    'woocommerce-gateway-paycrypto-me-en_US.po',
+    'woocommerce-gateway-paycrypto-me-en_US.mo'
 ];
 
 foreach ($files_to_check as $file) {

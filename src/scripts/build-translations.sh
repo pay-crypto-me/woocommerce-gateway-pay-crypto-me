@@ -7,8 +7,8 @@ set -e  # Parar em caso de erro
 
 # Configurações
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_SLUG="woocommerce-gateway-pay-crypto-me"
-TEXT_DOMAIN="woocommerce-gateway-pay-crypto-me"
+PLUGIN_SLUG="woocommerce-gateway-paycrypto-me"
+TEXT_DOMAIN="woocommerce-gateway-paycrypto-me"
 LANGUAGES_DIR="$PLUGIN_DIR/languages"
 POT_FILE="$LANGUAGES_DIR/$PLUGIN_SLUG.pot"
 
@@ -62,7 +62,7 @@ generate_pot_wp_cli() {
     if wp i18n make-pot . "$POT_FILE" \
         --domain="$TEXT_DOMAIN" \
         --package-name="PayCrypto.Me for WooCommerce" \
-        --headers='{"Report-Msgid-Bugs-To":"https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues","Language-Team":"PayCrypto.Me Team <support@paycrypto.me>"}' \
+        --headers='{"Report-Msgid-Bugs-To":"https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/issues","Language-Team":"PayCrypto.Me Team <support@paycrypto.me>"}' \
         --exclude="node_modules,vendor,.git,assets/js,webpack.config.js" \
         --skip-js 2>/dev/null; then
         log "Arquivo POT gerado: $POT_FILE"

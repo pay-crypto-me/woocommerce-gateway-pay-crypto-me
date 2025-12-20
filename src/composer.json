@@ -1,5 +1,5 @@
 {
-    "name": "paycrypto-me/woocommerce-gateway-pay-crypto-me",
+    "name": "paycrypto-me/woocommerce-gateway-paycrypto-me",
     "description": "WooCommerce payment gateway for PayCrypto.Me (accept crypto payments)",
     "type": "wordpress-plugin",
     "license": "GPL-3.0-or-later",

@@ -1,14 +1,14 @@
 <?php
 /**
  * Plugin Name: PayCrypto.Me for WooCommerce
- * Plugin URI: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/
+ * Plugin URI: https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/
  * Description: PayCrypto.Me Payments for WooCommerce introduces a complete solution that allows your customers to pay with BTC, ETH, SOL, and many other cryptocurrencies in your WooCommerce store.
  * Version: 0.1.0
  * Author: PayCrypto.Me
  * Author URI: https://paycrypto.me/
  * Developer: Lucas Rosa
  * Developer URI: https://github.com/lucas-rosa95
- * Text Domain: woocommerce-gateway-pay-crypto-me
+ * Text Domain: woocommerce-gateway-paycrypto-me
  * Domain Path: /languages/
  *
  * License: GNU General Public License v3.0
@@ -85,13 +85,13 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
 
         protected function load_textdomain()
         {
-            load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, dirname(plugin_basename(__FILE__)) . '/languages/');
+            load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, dirname(plugin_basename(__FILE__)) . '/languages/');
         }
 
         protected function includes()
         {
             if (class_exists('WC_Payment_Gateway')) {
-                include_once plugin_dir_path(__FILE__) . 'includes/class-wc-gateway-pay-crypto-me.php';
+                include_once plugin_dir_path(__FILE__) . 'includes/class-wc-gateway-paycrypto-me.php';
             }
         }
 
@@ -105,34 +105,34 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
         public function load_blocks_support()
         {
             if (class_exists('\Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
-                include_once plugin_dir_path(__FILE__) . 'includes/blocks/class-wc-gateway-pay-crypto-me-blocks.php';
+                include_once plugin_dir_path(__FILE__) . 'includes/blocks/class-wc-gateway-paycrypto-me-blocks.php';
             }
         }
         public static function log($message, $level = 'info')
         {
             $options = get_option('woocommerce_paycrypto_me_settings', []);
-            $logging = isset($options['enable_logging']) ? $options['enable_logging'] : 'no';
+            $logging = isset($options['debug_log']) ? $options['debug_log'] : 'no';
             if ('yes' === $logging && function_exists('wc_get_logger')) {
                 $logger = \wc_get_logger();
-                $logger->log($level, $message, ['source' => 'paycrypto-me']);
+                $logger->log($level, $message, ['source' => 'paycrypto_me']);
             }
         }
         public function __clone()
         {
-            _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'woocommerce-gateway-pay-crypto-me'), '0.1.2');
+            _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'woocommerce-gateway-paycrypto-me'), '0.1.0');
         }
         public function __wakeup()
         {
-            _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'woocommerce-gateway-pay-crypto-me'), '0.1.2');
+            _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'woocommerce-gateway-paycrypto-me'), '0.1.0');
         }
     }
 }
 
-function wc_paycryptome_initialize()
+function wc_paycrypto_me_initialize()
 {
     if (!class_exists('WooCommerce')) {
         add_action('admin_notices', function () {
-            echo '<div class="error"><p>' . esc_html__('PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active.', 'woocommerce-gateway-pay-crypto-me') . '</p></div>';
+            echo '<div class="error"><p>' . esc_html__('PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active.', 'woocommerce-gateway-paycrypto-me') . '</p></div>';
         });
         return;
     }
@@ -140,7 +140,7 @@ function wc_paycryptome_initialize()
     \PayCryptoMe\WooCommerce\WC_PayCryptoMe::instance();
 }
 
-add_action('plugins_loaded', __NAMESPACE__ . '\\wc_paycryptome_initialize', 10);
+add_action('plugins_loaded', __NAMESPACE__ . '\\wc_paycrypto_me_initialize', 10);
 
 function paycrypto_me_before_payment($order_id, $data)
 {

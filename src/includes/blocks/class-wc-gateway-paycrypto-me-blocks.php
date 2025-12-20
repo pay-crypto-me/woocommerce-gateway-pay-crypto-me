@@ -25,13 +25,24 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
 
     public function is_active()
     {
-        return $this->gateway && $this->gateway->is_available();
+        // Primeiro verifica se o WooCommerce está ativo
+        if (!function_exists('WC') || !WC()->payment_gateways) {
+            return false;
+        }
+
+        // Verifica se o gateway existe e está disponível
+        if (!$this->gateway) {
+            return false;
+        }
+
+        // Verifica se o gateway está habilitado
+        return $this->gateway->is_available();
     }
 
     public function get_payment_method_script_handles()
     {
-        $script_path = "/assets/js/frontend/blocks.js?v=" . WC_PayCryptoMe::VERSION;
-        $script_asset_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
+        $script_path = "/assets/js/frontend/paycrypto-me-script.js?v=" . WC_PayCryptoMe::VERSION;
+        $script_asset_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/frontend/paycrypto-me-script.asset.php';
         $script_asset = file_exists($script_asset_path)
             ? require($script_asset_path)
             : [
@@ -50,27 +61,29 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
         );
 
         if (function_exists('wp_set_script_translations')) {
-            wp_set_script_translations('wc-paycrypto-me-payments-blocks', 'woocommerce-gateway-pay-crypto-me', dirname(__FILE__, 3) . '/languages/');
+            wp_set_script_translations('wc-paycrypto-me-payments-blocks', 'woocommerce-gateway-paycrypto-me', dirname(__FILE__, 3) . '/languages/');
         }
-
-        wp_localize_script(
-            'wc-paycrypto-me-payments-blocks',
-            'paycrypto_me_data',
-            $this->get_payment_method_data()
-        );
 
         return ['wc-paycrypto-me-payments-blocks'];
     }
 
     public function get_payment_method_data()
     {
+        if (!$this->gateway) {
+            return [
+                'title' => __('PayCrypto.Me', 'woocommerce-gateway-paycrypto-me'),
+                'description' => __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-paycrypto-me'),
+                'debug_log' => 'no',
+                'supports' => ['products']
+            ];
+        }
+
         return [
-            'icon' => $this->gateway->icon,
-            'title' => $this->get_setting('title'),
-            'description' => $this->get_setting('description'),
-            'enable_logging' => $this->get_setting('enable_logging', 'no'),
-            // 'selected_crypto_input' => $this->gateway->get_available_cryptocurrencies()[0],
-            'supports' => array_filter($this->gateway->supports, [$this->gateway, 'supports'])
+            'icon' => $this->gateway->icon ?? '',
+            'title' => $this->gateway->title ?: __('PayCrypto.Me', 'woocommerce-gateway-paycrypto-me'),
+            'description' => $this->gateway->description ?: __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-paycrypto-me'),
+            'debug_log' => $this->get_setting('debug_log', 'no'),
+            'supports' => $this->gateway->supports ?? ['products']
         ];
     }
 

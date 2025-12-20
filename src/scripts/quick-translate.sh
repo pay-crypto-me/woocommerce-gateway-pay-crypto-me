@@ -4,7 +4,7 @@
 # Uso: ./scripts/quick-translate.sh
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_SLUG="woocommerce-gateway-pay-crypto-me"
+PLUGIN_SLUG="woocommerce-gateway-paycrypto-me"
 
 echo "🚀 Gerando traduções para PayCrypto.Me..."
 

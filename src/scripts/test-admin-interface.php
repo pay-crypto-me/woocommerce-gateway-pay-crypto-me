@@ -116,8 +116,8 @@ class WC_Gateway_PayCryptoMe extends WC_Payment_Gateway {
     
     public function __construct() {
         $this->id = 'paycrypto_me';
-        $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me');
-        $this->method_description = __('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'woocommerce-gateway-pay-crypto-me');
+        $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-paycrypto-me');
+        $this->method_description = __('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'woocommerce-gateway-paycrypto-me');
         
         parent::__construct();
     }
@@ -125,41 +125,41 @@ class WC_Gateway_PayCryptoMe extends WC_Payment_Gateway {
     public function init_form_fields() {
         $this->form_fields = array(
             'enabled' => array(
-                'title' => __('Enable/Disable', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Enable PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Enable/Disable', 'woocommerce-gateway-paycrypto-me'),
+                'label' => __('Enable PayCrypto.Me', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
             ),
             'title' => array(
-                'title' => __('Title', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Title', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'text',
-                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-paycrypto-me'),
+                'default' => __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-paycrypto-me'),
             ),
             'description' => array(
-                'title' => __('Description', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Description', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'textarea',
-                'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-pay-crypto-me'),
-                'default' => __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Description displayed to the customer at checkout.', 'woocommerce-gateway-paycrypto-me'),
+                'default' => __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-paycrypto-me'),
             ),
             'api_key' => array(
-                'title' => __('API Key', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('API Key', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'text',
-                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-paycrypto-me'),
             ),
             'hide_for_non_admin_users' => array(
-                'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Show only for administrators', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-paycrypto-me'),
+                'label' => __('Show only for administrators', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
-                'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('If enabled, only administrators will see the payment method.', 'woocommerce-gateway-paycrypto-me'),
             ),
-            'enable_logging' => array(
-                'title' => __('Enable Log', 'woocommerce-gateway-pay-crypto-me'),
-                'label' => __('Save log events (WooCommerce > Status > Logs)', 'woocommerce-gateway-pay-crypto-me'),
+            'debug_log' => array(
+                'title' => __('Enable Log', 'woocommerce-gateway-paycrypto-me'),
+                'label' => __('Save log events (WooCommerce > Status > Logs)', 'woocommerce-gateway-paycrypto-me'),
                 'type' => 'checkbox',
                 'default' => 'no',
-                'description' => __('Save events for debugging.', 'woocommerce-gateway-pay-crypto-me'),
+                'description' => __('Save events for debugging.', 'woocommerce-gateway-paycrypto-me'),
             ),
         );
     }
@@ -207,7 +207,7 @@ echo "====================================\n\n";
 
 // Testar carregamento das traduções
 echo "1️⃣ Carregando traduções...\n";
-$result = load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+$result = load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 echo "   Status: " . ($result ? "✅ SUCESSO" : "❌ FALHA") . "\n\n";
 
 // Testar instanciação do gateway
@@ -255,13 +255,13 @@ echo "\n5️⃣ Testando diferentes locales...\n";
 
 // Testar com en_US
 $wp_locale = 'en_US';
-load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 $gateway_en = new WC_Gateway_PayCryptoMe();
 echo "   en_US - Method Title: '" . $gateway_en->method_title . "'\n";
 
 // Voltar para pt_BR
 $wp_locale = 'pt_BR';
-load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 $gateway_pt = new WC_Gateway_PayCryptoMe();
 echo "   pt_BR - Method Title: '" . $gateway_pt->method_title . "'\n";
 

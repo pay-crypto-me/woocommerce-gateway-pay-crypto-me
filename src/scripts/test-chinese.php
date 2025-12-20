@@ -60,7 +60,7 @@ echo "🇨🇳 测试专用 - 中文简体翻译\n";
 echo "========================\n\n";
 
 echo "1️⃣ 正在加载中文简体翻译...\n";
-$result = load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+$result = load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 echo "   状态: " . ($result ? "✅ 成功" : "❌ 失败") . "\n";
 echo "   语言环境: $wp_locale\n\n";
 
@@ -81,7 +81,7 @@ $success_count = 0;
 $total_count = count($test_strings);
 
 foreach ($test_strings as $original => $expected) {
-    $translated = __($original, 'woocommerce-gateway-pay-crypto-me');
+    $translated = __($original, 'woocommerce-gateway-paycrypto-me');
     $success = ($translated === $expected);
     
     if ($success) $success_count++;
@@ -103,15 +103,15 @@ class WC_Gateway_PayCryptoMe_ZH_CN {
     public function __construct() {
         $this->form_fields = [
             'enabled' => [
-                'title' => __('Enable/Disable', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Enable/Disable', 'woocommerce-gateway-paycrypto-me'),
             ],
             'title' => [
-                'title' => __('Title', 'woocommerce-gateway-pay-crypto-me'),
-                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('Title', 'woocommerce-gateway-paycrypto-me'),
+                'description' => __('Name of the payment method displayed to the customer.', 'woocommerce-gateway-paycrypto-me'),
             ],
             'api_key' => [
-                'title' => __('API Key', 'woocommerce-gateway-pay-crypto-me'),
-                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-pay-crypto-me'),
+                'title' => __('API Key', 'woocommerce-gateway-paycrypto-me'),
+                'description' => __('Your API Key for PayCrypto.Me.', 'woocommerce-gateway-paycrypto-me'),
             ],
         ];
     }

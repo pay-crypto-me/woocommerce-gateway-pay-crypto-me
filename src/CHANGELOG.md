@@ -97,7 +97,7 @@ This is the first release of PayCrypto.Me for WooCommerce. The plugin provides a
 ## Support
 
 For support, bug reports, or feature requests:
-- GitHub: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues
+- GitHub: https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/issues
 - Email: support@paycrypto.me
 - Documentation: https://docs.paycrypto.me/
 

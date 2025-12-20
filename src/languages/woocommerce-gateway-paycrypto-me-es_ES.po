@@ -1,0 +1,368 @@
+# Copyright (C) 2025 PayCrypto.Me
+# This file is distributed under the GNU General Public License v3.0.
+msgid ""
+msgstr ""
+"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/issues\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: PayCrypto.Me Team <support@paycrypto.me>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es_ES\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-12-20T23:48:31+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: woocommerce-gateway-paycrypto-me\n"
+
+#. Plugin Name of the plugin
+#: woocommerce-gateway-paycrypto-me.php
+msgid "PayCrypto.Me for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: woocommerce-gateway-paycrypto-me.php
+msgid "https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/"
+msgstr ""
+
+#. Description of the plugin
+#: woocommerce-gateway-paycrypto-me.php
+msgid "PayCrypto.Me Payments for WooCommerce introduces a complete solution that allows your customers to pay with BTC, ETH, SOL, and many other cryptocurrencies in your WooCommerce store."
+msgstr ""
+
+#. Author of the plugin
+#: woocommerce-gateway-paycrypto-me.php
+#: includes/blocks/class-wc-gateway-paycrypto-me-blocks.php:74
+#: includes/blocks/class-wc-gateway-paycrypto-me-blocks.php:83
+#: includes/class-wc-gateway-paycrypto-me.php:35
+#: scripts/test-admin-interface.php:119
+msgid "PayCrypto.Me"
+msgstr ""
+
+#. Author URI of the plugin
+#: woocommerce-gateway-paycrypto-me.php
+msgid "https://paycrypto.me/"
+msgstr ""
+
+#: includes/blocks/class-wc-gateway-paycrypto-me-blocks.php:75
+#: includes/blocks/class-wc-gateway-paycrypto-me-blocks.php:84
+#: includes/class-wc-gateway-paycrypto-me.php:44
+#: includes/class-wc-gateway-paycrypto-me.php:173
+msgid "Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions."
+msgstr ""
+
+#: includes/class-payment-processor.php:86
+msgid "PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation."
+msgstr ""
+
+#: includes/class-payment-processor.php:91
+msgid "Awaiting cryptocurrency payment"
+msgstr ""
+
+#: includes/class-payment-processor.php:123
+msgid "Security check failed during checkout."
+msgstr ""
+
+#: includes/class-payment-processor.php:131
+#, php-format
+msgid "Selected currency (%s) is unprocessable."
+msgstr ""
+
+#: includes/class-payment-processor.php:140
+#, php-format
+msgid "Selected currency (%s) is not supported."
+msgstr ""
+
+#: includes/class-payment-processor.php:161
+#: includes/class-wc-gateway-paycrypto-me.php:331
+msgid "Order not found."
+msgstr ""
+
+#: includes/class-payment-processor.php:165
+msgid "Order does not require payment."
+msgstr ""
+
+#: includes/class-payment-processor.php:169
+msgid "Invalid payment amount."
+msgstr ""
+
+#: includes/class-payment-processor.php:173
+msgid "Payment method mismatch."
+msgstr ""
+
+#: includes/class-payment-processor.php:177
+msgid "Order currency is not valid."
+msgstr ""
+
+#: includes/class-payment-processor.php:186
+msgid "Payment gateway is not enabled."
+msgstr ""
+
+#: includes/class-payment-processor.php:191
+msgid "No network selected in gateway settings."
+msgstr ""
+
+#: includes/class-payment-processor.php:196
+msgid "Network identifier not configured."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:36
+msgctxt "Gateway description"
+msgid "PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:43
+#: includes/class-wc-gateway-paycrypto-me.php:167
+msgid "Pay with Bitcoin"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:64
+#: includes/class-wc-gateway-paycrypto-me.php:67
+msgid "Security check failed"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:75
+#, php-format
+msgid "Please enter a valid %s."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:80
+#, php-format
+msgid "The %s provided is not valid for the selected network."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:91
+msgid "Bitcoin Mainnet"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:96
+msgid "Wallet address or xPub"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:100
+msgid "Bitcoin Testnet"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:105
+msgid "Testnet Wallet address or xPub"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:109
+msgid "Lightning Network"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:114
+msgid "Lightning Address"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:158
+#: scripts/test-admin-interface.php:128
+#: scripts/test-chinese.php:106
+#: scripts/test-english.php:106
+#: scripts/test-french.php:106
+#: scripts/test-german.php:106
+#: scripts/test-portuguese.php:106
+#: scripts/test-russian.php:106
+#: scripts/test-spanish.php:106
+msgid "Enable/Disable"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:159
+msgid "Enable PayCrypto.Me."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:164
+#: scripts/test-admin-interface.php:134
+#: scripts/test-chinese.php:109
+#: scripts/test-english.php:109
+#: scripts/test-french.php:109
+#: scripts/test-german.php:109
+#: scripts/test-portuguese.php:109
+#: scripts/test-russian.php:109
+#: scripts/test-spanish.php:109
+msgid "Title"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:166
+msgid "Payment method name displayed on Checkout page."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:170
+#: scripts/test-admin-interface.php:140
+msgid "Description"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:172
+msgid "Payment method description displayed on Checkout page."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:177
+msgid "Network"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:180
+msgid "Select the network for payments."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:186
+msgid "Network Identifier"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:190
+msgid "Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:194
+msgid "Payment Timeout (hours)"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:196
+msgid "Max time (in hours) to wait to confirm payment before the order expires."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:201
+#: scripts/test-admin-interface.php:151
+msgid "Hide for Non-Admin Users"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:202
+msgid "Show only for administrators."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:205
+msgid "If enabled, only administrators will see the payment method on Checkout page."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:208
+msgid "Debug"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:209
+msgid "Enable debugging messages"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:212
+msgid "Debug logs will be saved to WooCommerce > Status > Logs."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:216
+msgid "Support the development!"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:326
+msgid "You do not have permission to process refunds."
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:337
+#, php-format
+msgid "Manual refund required: %s %s. Reason: %s"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:338
+msgid "Full amount"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:340
+msgid "No reason provided"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:346
+#, php-format
+msgid "Refund requested for order #%s: %s"
+msgstr ""
+
+#: includes/class-wc-gateway-paycrypto-me.php:407
+#, php-format
+msgid "Network identifier validation failed for %s: `%s`"
+msgstr ""
+
+#: scripts/test-admin-interface.php:120
+msgid "PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies."
+msgstr ""
+
+#: scripts/test-admin-interface.php:129
+msgid "Enable PayCrypto.Me"
+msgstr ""
+
+#: scripts/test-admin-interface.php:136
+#: scripts/test-chinese.php:110
+#: scripts/test-english.php:110
+#: scripts/test-french.php:110
+#: scripts/test-german.php:110
+#: scripts/test-portuguese.php:110
+#: scripts/test-russian.php:110
+#: scripts/test-spanish.php:110
+msgid "Name of the payment method displayed to the customer."
+msgstr ""
+
+#: scripts/test-admin-interface.php:137
+#: scripts/test-frontend.php:143
+msgid "Cryptocurrencies via PayCrypto.Me"
+msgstr ""
+
+#: scripts/test-admin-interface.php:142
+msgid "Description displayed to the customer at checkout."
+msgstr ""
+
+#: scripts/test-admin-interface.php:143
+#: scripts/test-frontend.php:144
+msgid "Pay with Bitcoin, Ethereum, Solana, and more."
+msgstr ""
+
+#: scripts/test-admin-interface.php:146
+#: scripts/test-chinese.php:113
+#: scripts/test-english.php:113
+#: scripts/test-french.php:113
+#: scripts/test-german.php:113
+#: scripts/test-portuguese.php:113
+#: scripts/test-russian.php:113
+#: scripts/test-spanish.php:113
+msgid "API Key"
+msgstr ""
+
+#: scripts/test-admin-interface.php:148
+#: scripts/test-chinese.php:114
+#: scripts/test-english.php:114
+#: scripts/test-french.php:114
+#: scripts/test-german.php:114
+#: scripts/test-portuguese.php:114
+#: scripts/test-russian.php:114
+#: scripts/test-spanish.php:114
+msgid "Your API Key for PayCrypto.Me."
+msgstr ""
+
+#: scripts/test-admin-interface.php:152
+msgid "Show only for administrators"
+msgstr ""
+
+#: scripts/test-admin-interface.php:155
+msgid "If enabled, only administrators will see the payment method."
+msgstr ""
+
+#: scripts/test-admin-interface.php:158
+msgid "Enable Log"
+msgstr ""
+
+#: scripts/test-admin-interface.php:159
+msgid "Save log events (WooCommerce > Status > Logs)"
+msgstr ""
+
+#: scripts/test-admin-interface.php:162
+msgid "Save events for debugging."
+msgstr ""
+
+#: scripts/test-frontend.php:156
+msgid "Awaiting crypto payment."
+msgstr ""
+
+#: woocommerce-gateway-paycrypto-me.php:122
+msgid "Cloning is forbidden."
+msgstr ""
+
+#: woocommerce-gateway-paycrypto-me.php:126
+msgid "Unserializing is forbidden."
+msgstr ""
+
+#: woocommerce-gateway-paycrypto-me.php:135
+msgid "PayCrypto.Me for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""

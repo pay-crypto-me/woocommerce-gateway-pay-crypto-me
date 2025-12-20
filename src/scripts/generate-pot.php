@@ -8,8 +8,8 @@
 
 // Configuration
 $plugin_dir = dirname(__DIR__);
-$plugin_slug = 'woocommerce-gateway-pay-crypto-me';
-$text_domain = 'woocommerce-gateway-pay-crypto-me';
+$plugin_slug = 'woocommerce-gateway-paycrypto-me';
+$text_domain = 'woocommerce-gateway-paycrypto-me';
 $languages_dir = $plugin_dir . '/languages';
 $pot_file = $languages_dir . '/' . $plugin_slug . '.pot';
 
@@ -95,7 +95,7 @@ $pot_content .= '# This file is distributed under the same license as the PayCry
 $pot_content .= 'msgid ""' . "\n";
 $pot_content .= 'msgstr ""' . "\n";
 $pot_content .= '"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\\n"' . "\n";
-$pot_content .= '"Report-Msgid-Bugs-To: https://github.com/pay-crypto-me/woocommerce-gateway-pay-crypto-me/issues\\n"' . "\n";
+$pot_content .= '"Report-Msgid-Bugs-To: https://github.com/paycrypto-me/woocommerce-gateway-paycrypto-me/issues\\n"' . "\n";
 $pot_content .= '"POT-Creation-Date: ' . date('Y-m-d H:i:s+0000') . '\\n"' . "\n";
 $pot_content .= '"MIME-Version: 1.0\\n"' . "\n";
 $pot_content .= '"Content-Type: text/plain; charset=UTF-8\\n"' . "\n";

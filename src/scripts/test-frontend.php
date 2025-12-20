@@ -140,8 +140,8 @@ class WC_Gateway_PayCryptoMe extends WC_Payment_Gateway {
     
     public function __construct() {
         $this->id = 'paycrypto_me';
-        $this->title = __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-pay-crypto-me');
-        $this->description = __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-pay-crypto-me');
+        $this->title = __('Cryptocurrencies via PayCrypto.Me', 'woocommerce-gateway-paycrypto-me');
+        $this->description = __('Pay with Bitcoin, Ethereum, Solana, and more.', 'woocommerce-gateway-paycrypto-me');
     }
     
     public function payment_fields() {
@@ -153,7 +153,7 @@ class WC_Gateway_PayCryptoMe extends WC_Payment_Gateway {
     public function process_payment($order_id) {
         $order = wc_get_order($order_id);
         
-        $order->update_status('on-hold', __('Awaiting crypto payment.', 'woocommerce-gateway-pay-crypto-me'));
+        $order->update_status('on-hold', __('Awaiting crypto payment.', 'woocommerce-gateway-paycrypto-me'));
         WC()->cart->empty_cart();
         
         return [
@@ -179,7 +179,7 @@ echo "=============================\n\n";
 
 // Testar carregamento das traduções
 echo "1️⃣ Carregando traduções para frontend...\n";
-$result = load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+$result = load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 echo "   Status: " . ($result ? "✅ SUCESSO" : "❌ FALHA") . "\n\n";
 
 // Testar instanciação do gateway para frontend
@@ -228,13 +228,13 @@ echo "\n7️⃣ Testando diferentes idiomas...\n";
 
 // Teste com en_US
 $wp_locale = 'en_US';
-load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 $gateway_en = new WC_Gateway_PayCryptoMe();
 echo "   en_US - Title: '" . $gateway_en->title . "'\n";
 
 // Teste com pt_BR
 $wp_locale = 'pt_BR';
-load_plugin_textdomain('woocommerce-gateway-pay-crypto-me', false, 'languages/');
+load_plugin_textdomain('woocommerce-gateway-paycrypto-me', false, 'languages/');
 $gateway_pt = new WC_Gateway_PayCryptoMe();
 echo "   pt_BR - Title: '" . $gateway_pt->title . "'\n";
 

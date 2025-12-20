@@ -13,10 +13,10 @@ $languages_dir = $plugin_dir . '/languages';
 // 1. Verificação de arquivos
 echo "1️⃣ Verificação de arquivos de tradução...\n";
 $files = [
-    'woocommerce-gateway-pay-crypto-me.pot',
-    'woocommerce-gateway-pay-crypto-me-pt_BR.po', 'woocommerce-gateway-pay-crypto-me-pt_BR.mo',
-    'woocommerce-gateway-pay-crypto-me-en_US.po', 'woocommerce-gateway-pay-crypto-me-en_US.mo', 
-    'woocommerce-gateway-pay-crypto-me-es_ES.po', 'woocommerce-gateway-pay-crypto-me-es_ES.mo'
+    'woocommerce-gateway-paycrypto-me.pot',
+    'woocommerce-gateway-paycrypto-me-pt_BR.po', 'woocommerce-gateway-paycrypto-me-pt_BR.mo',
+    'woocommerce-gateway-paycrypto-me-en_US.po', 'woocommerce-gateway-paycrypto-me-en_US.mo', 
+    'woocommerce-gateway-paycrypto-me-es_ES.po', 'woocommerce-gateway-paycrypto-me-es_ES.mo'
 ];
 
 $all_files_exist = true;
@@ -33,7 +33,7 @@ foreach ($files as $file) {
 
 // 2. Análise do POT
 echo "\n2️⃣ Análise do arquivo POT...\n";
-$pot_file = $languages_dir . '/woocommerce-gateway-pay-crypto-me.pot';
+$pot_file = $languages_dir . '/woocommerce-gateway-paycrypto-me.pot';
 if (file_exists($pot_file)) {
     $pot_content = file_get_contents($pot_file);
     $msgid_count = substr_count($pot_content, 'msgid "');
@@ -67,7 +67,7 @@ foreach ($locales as $locale) {
     // Simula mudança de locale
     putenv("LANG=$locale");
     
-    $mo_file = $languages_dir . '/woocommerce-gateway-pay-crypto-me-' . $locale . '.mo';
+    $mo_file = $languages_dir . '/woocommerce-gateway-paycrypto-me-' . $locale . '.mo';
     if (file_exists($mo_file)) {
         echo "   🌍 $locale: ✅ MO disponível (" . filesize($mo_file) . " bytes)\n";
         $load_success++;

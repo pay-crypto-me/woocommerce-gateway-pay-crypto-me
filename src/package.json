@@ -1,13 +1,13 @@
 {
-  "name": "woocommerce-gateway-pay-crypto-me",
+  "name": "woocommerce-gateway-paycrypto-me",
   "version": "0.1.0",
   "description": "PayCrypto.Me payment gateway for WooCommerce with Blocks support",
-  "main": "assets/js/frontend/blocks.js",
+  "main": "assets/js/frontend/paycrypto-me-script.js",
   "scripts": {
-    "build": "wp-scripts build assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
-    "dev": "wp-scripts start assets/js/frontend/blocks.js --output-path=assets/js/frontend/",
-    "lint:js": "wp-scripts lint-js assets/js/",
-    "format:js": "wp-scripts format-js assets/js/",
+    "build": "wp-scripts build src/paycrypto-me-script.js --output-path=assets/js/frontend/",
+    "dev": "wp-scripts start src/paycrypto-me-script.js --output-path=assets/js/frontend/",
+    "lint:js": "wp-scripts lint-js src/",
+    "format:js": "wp-scripts format-js src/",
     "translate": "chmod +x ./scripts/build-translations.sh && ./scripts/build-translations.sh",
     "translate:quick": "chmod +x ./scripts/quick-translate.sh && ./scripts/quick-translate.sh",
     "translate:pot": "./scripts/build-translations.sh pot",
@@ -26,12 +26,5 @@
   "license": "GPL-3.0",
   "devDependencies": {
     "@wordpress/scripts": "^26.0.0"
-  },
-  "dependencies": {
-    "@woocommerce/blocks-registry": "*",
-    "@woocommerce/settings": "*",
-    "@wordpress/element": "*",
-    "@wordpress/html-entities": "*",
-    "@wordpress/i18n": "*"
   }
 }

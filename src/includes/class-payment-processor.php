@@ -17,33 +17,39 @@ class PaymentProcessor
 {
     public function process_payment($order_id, \WC_Payment_Gateway $gateway): array
     {
-        $order = wc_get_order($order_id);
-        $final_amount = $this->apply_filter_payment_amount($order);
-        $currency_data = $this->apply_filter_payment_data($order, $gateway, $final_amount);
+        try {
+            $order = wc_get_order($order_id);
+            $final_amount = $this->apply_filter_payment_amount($order);
+            $currency_data = $this->apply_filter_payment_data($order, $gateway, $final_amount);
 
-        $this->validate_order($order, $currency_data, $gateway);
+            $this->validate_order($order, $currency_data, $gateway);
 
-        $this->validate_gateway_config($gateway);
+            $this->validate_gateway_config($gateway);
 
-        $this->trigger_hook_before($order, $currency_data, $gateway);
+            $this->trigger_hook_before($order, $currency_data, $gateway);
 
-        $result = $this->handle_payment_processor_strategy($order, $gateway, $currency_data);
+            $result = $this->handle_payment_processor_strategy($order, $gateway, $currency_data);
 
-        // 4. Atualizar order
-        // 4.1 Atualizar order status
-        // 4.2 seta meta dados de pagamento na order
-        // 5. Hooks after
-        // 6. Return WC result
-    }
+            // Atualizar status da order e adicionar metadados
+            $this->update_order_after_payment($order, $result, $gateway);
 
-    public function process_refund($order_id, $amount = null, $reason = '', \WC_Payment_Gateway $gateway): bool
-    {
-        // 1. Validações
-        // 2. Hooks before
-        // 3. Processar refund
-        // 4. Atualizar order
-        // 5. Hooks after
-        // 6. Return success/fail
+            // Hook depois do processamento
+            $this->trigger_hook_after('paycrypto_me_after_payment', $order, $gateway, $result);
+
+            // Retornar resultado do WooCommerce
+            return array(
+                'result' => 'success',
+                'redirect' => $this->get_return_url($order, $result)
+            );
+
+        } catch (\Exception $e) {
+            wc_add_notice($e->getMessage(), 'error');
+            
+            return array(
+                'result' => 'failure',
+                'redirect' => wc_get_checkout_url()
+            );
+        }
     }
 
     private function trigger_hook_before($order, $currency_data, $gateway)
@@ -53,15 +59,48 @@ class PaymentProcessor
 
     private function trigger_hook_after($hook_name, $order, $gateway, $result)
     {
-
+        do_action($hook_name, $order, $gateway, $result);
     }
 
-    private function apply_filter_refund_amount($order, $amount)
+    private function update_order_after_payment($order, $result, $gateway)
     {
-        $final_amount = apply_filters('paycrypto_me_refund_amount', $amount, $order->get_id());
-        return $final_amount;
+        // Adicionar metadados de pagamento crypto
+        if (isset($result['payment_address'])) {
+            $order->add_meta_data('_paycrypto_me_payment_address', $result['payment_address'], true);
+        }
+        
+        if (isset($result['crypto_amount'])) {
+            $order->add_meta_data('_paycrypto_me_crypto_amount', $result['crypto_amount'], true);
+        }
+        
+        if (isset($result['crypto_currency'])) {
+            $order->add_meta_data('_paycrypto_me_crypto_currency', $result['crypto_currency'], true);
+        }
+
+        // Salvar metadados
+        $order->save_meta_data();
+
+        // Adicionar nota na order
+        $order->add_order_note(
+            sprintf(
+                __('PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation.', 'woocommerce-gateway-paycrypto-me')
+            )
+        );
+
+        // Definir status como pending payment
+        $order->update_status('pending', __('Awaiting cryptocurrency payment', 'woocommerce-gateway-paycrypto-me'));
     }
 
+    private function get_return_url($order, $result)
+    {
+        // Se há uma URL específica no resultado, usar ela
+        if (isset($result['redirect_url'])) {
+            return $result['redirect_url'];
+        }
+
+        // Senão, usar a URL padrão de thank you do WooCommerce
+        return $order->get_checkout_order_received_url();
+    }
     private function apply_filter_payment_amount($order)
     {
         $final_amount = apply_filters('paycrypto_me_payment_amount', $order->get_total(), $order->get_id());
@@ -79,13 +118,17 @@ class PaymentProcessor
         $payment_receive_address = $gateway->get_option('network_identifier');
 
         if (isset($_POST['selected_crypto'])) {
+            // Validação de segurança para checkout
+            if (!wp_verify_nonce($_POST['woocommerce-process-checkout-nonce'] ?? '', 'woocommerce-process_checkout')) {
+                throw new \InvalidArgumentException(__('Security check failed during checkout.', 'woocommerce-gateway-paycrypto-me'));
+            }
             $selected_crypto = strtoupper(sanitize_text_field(wp_unslash($_POST['selected_crypto'])));
         }
 
         if (empty($selected_crypto)) {
             throw new \InvalidArgumentException(
                 \sprintf(
-                    __('Selected currency (%s) is unprocessable.', 'woocommerce-gateway-pay-crypto-me'),
+                    __('Selected currency (%s) is unprocessable.', 'woocommerce-gateway-paycrypto-me'),
                     $selected_crypto
                 )
             );
@@ -94,7 +137,7 @@ class PaymentProcessor
         if (!$gateway->check_cryptocurrency_support($selected_crypto, $gateway->get_option('selected_network'))) {
             throw new \InvalidArgumentException(
                 \sprintf(
-                    __('Selected currency (%s) is not supported.', 'woocommerce-gateway-pay-crypto-me'),
+                    __('Selected currency (%s) is not supported.', 'woocommerce-gateway-paycrypto-me'),
                     $selected_crypto
                 )
             );
@@ -115,23 +158,23 @@ class PaymentProcessor
     private function validate_order($order, $currency_data, $gateway)
     {
         if (!$order) {
-            throw new \InvalidArgumentException(__('Order not found.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \InvalidArgumentException(__('Order not found.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         if (!$order->needs_payment()) {
-            throw new \InvalidArgumentException(__('Order does not require payment.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \InvalidArgumentException(__('Order does not require payment.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         if ($currency_data['total'] <= 0) {
-            throw new \InvalidArgumentException(__('Invalid payment amount.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \InvalidArgumentException(__('Invalid payment amount.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         if ($order->get_payment_method() !== $gateway->id) {
-            throw new \InvalidArgumentException(__('Payment method mismatch.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \InvalidArgumentException(__('Payment method mismatch.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         if (!$order->get_currency()) {
-            throw new \InvalidArgumentException(__('Order currency is not valid.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \InvalidArgumentException(__('Order currency is not valid.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         return true;
@@ -140,17 +183,17 @@ class PaymentProcessor
     private function validate_gateway_config(\WC_Payment_Gateway $gateway)
     {
         if (!$gateway->is_available()) {
-            throw new \Exception(__('Payment gateway is not enabled.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \Exception(__('Payment gateway is not enabled.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         $selected_network = $gateway->get_option('selected_network');
         if (!$selected_network) {
-            throw new \Exception(__('No network selected in gateway settings.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \Exception(__('No network selected in gateway settings.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         $network_identifier = $gateway->get_option('network_identifier');
         if (empty($network_identifier)) {
-            throw new \Exception(__('Network identifier not configured.', 'woocommerce-gateway-pay-crypto-me'));
+            throw new \Exception(__('Network identifier not configured.', 'woocommerce-gateway-paycrypto-me'));
         }
 
         return true;
@@ -171,9 +214,7 @@ class PaymentProcessor
         $processor = ProcessorStrategiesFactory::create($gateway_id);
         return $processor;
     }
-    private function update_order_status($order, $result)
-    {
-    }
+
     public static function init_url_params()
     {
         // Registrar query vars no WordPress
@@ -182,17 +223,17 @@ class PaymentProcessor
             $vars[] = 'paycrypto_network';
             return $vars;
         });
-        
+
         // Hook para salvar na session quando vem via URL
         add_action('template_redirect', function() {
             if (is_checkout()) {
                 $crypto = get_query_var('crypto');
                 $network = get_query_var('paycrypto_network');
-                
+
                 if (!empty($crypto) && WC()->session) {
                     WC()->session->set('paycrypto_me_selected_crypto', sanitize_text_field($crypto));
                 }
-                
+
                 if (!empty($network) && WC()->session) {
                     WC()->session->set('paycrypto_me_selected_network', sanitize_text_field($network));
                 }
