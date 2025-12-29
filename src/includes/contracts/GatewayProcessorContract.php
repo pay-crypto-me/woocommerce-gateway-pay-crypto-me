@@ -14,5 +14,5 @@ namespace PayCryptoMe\WooCommerce;
 
 interface GatewayProcessorContract
 {
-    public function process(\WC_Order $order, \WC_Payment_Gateway $gateway, array $currency_data): array;
+    public function process(\WC_Order $order, \WC_Payment_Gateway $gateway, array $payment_data): array;
 }

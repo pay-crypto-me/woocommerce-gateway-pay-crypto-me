@@ -16,9 +16,10 @@ namespace PayCryptoMe\WooCommerce;
 
 class BitcoinPaymentProcessor implements GatewayProcessorContract
 {
-    public function process(\WC_Order $order, \WC_Payment_Gateway $gateway, array $currency_data): array
+    public function process(\WC_Order $order, \WC_Payment_Gateway $gateway, array $payment_data): array
     {
         // Implement Bitcoin-specific payment processing logic here
+        return $payment_data;
     }
 
     public function process_refund($order, $amount, $reason, $gateway): bool

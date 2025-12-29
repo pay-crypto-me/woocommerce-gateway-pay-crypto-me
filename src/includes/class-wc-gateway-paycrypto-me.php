@@ -24,6 +24,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     protected $configured_networks;
     protected $debug_log;
     protected $payment_timeout_hours;
+    protected $payment_number_confirmations;
     private $support_btc_address = 'bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw';
     private $support_btc_payment_address = 'PM8TJdrkRoSqkCWmJwUMojQCG1rEXsuCTQ4GG7Gub7SSMYxaBx7pngJjhV8GUeXbaJujy8oq5ybpazVpNdotFftDX7f7UceYodNGmffUUiS5NZFu4wq4';
 
@@ -47,6 +48,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->debug_log = $this->get_option('debug_log', 'yes');
         $this->configured_networks = $this->get_option('configured_networks', array());
         $this->payment_timeout_hours = $this->get_option('payment_timeout_hours', '1');
+        $this->payment_number_confirmations = $this->get_option('payment_number_confirmations', '2');
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
@@ -124,10 +126,9 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function check_cryptocurrency_support($currency, $network = null)
     {
-        $available_cryptos = $this->get_available_cryptocurrencies($network);
         $normalized_currency = strtoupper($currency);
-
-        return \in_array($normalized_currency, array_keys($available_cryptos), true);
+        $available_cryptos = $this->get_available_cryptocurrencies($network);
+        return \in_array($normalized_currency, $available_cryptos, true);
     }
 
     public function get_configured_networks()
@@ -188,7 +189,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'default' => '',
                 'required' => true,
                 'description' => __('Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments.', 'woocommerce-gateway-paycrypto-me'),
-                'custom_attributes' => array('maxlength' => 255),
+                'custom_attributes' => array('maxlength' => 255),2
             ),
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'woocommerce-gateway-paycrypto-me'),
@@ -196,6 +197,13 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'description' => __('Max time (in hours) to wait to confirm payment before the order expires.', 'woocommerce-gateway-paycrypto-me'),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '72'),
                 'default' => '24'
+            ),
+            'payment_number_confirmations' => array(
+                'title' => __('Payment number of confirmations', 'woocommerce-gateway-paycrypto-me'),
+                'type' => 'number',
+                'description' => __('Tip: To ensure the Bitcoin payment has been made, recommended wait for 3 confirmations.', 'woocommerce-gateway-paycrypto-me'),
+                'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '6'),
+                'default' => '3'
             ),
             'hide_for_non_admin_users' => array(
                 'title' => __('Hide for Non-Admin Users', 'woocommerce-gateway-paycrypto-me'),
@@ -220,9 +228,10 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                     </div>
                     <div>
                         <strong>Enjoying the plugin?</strong> Send some BTC to support:
-                        <div class="support-divider"></div>
-                        <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
-                        <button type="button" id="copy-btc-admin" class="support-btn">Copy</button>
+                        <div style="display: flex; align-items: center; margin-top: 8px;">
+                            <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
+                            <button type="button" id="copy-btc-admin" class="support-btn">Copy</button>
+                        </div>
                     </div>
                 </div>',
             ),
@@ -259,15 +268,15 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     public function generate_settings_html($form_fields = array(), $echo = true)
     {
         $html = parent::generate_settings_html($form_fields, false);
-        
+
         // Adicionar nonce ao formulário
         $nonce_field = wp_nonce_field('paycrypto_me_settings', 'paycrypto_me_nonce', true, false);
         $html = str_replace('</table>', $nonce_field . '</table>', $html);
-        
+
         if ($echo) {
             echo $html;
         }
-        
+
         return $html;
     }
 
@@ -306,6 +315,15 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         if ('yes' === $this->hide_for_non_admin_users && !current_user_can('manage_options')) {
             return false;
         }
+
+        if (empty($this->get_option('selected_network'))) {
+            return false;
+        }
+
+        if (empty($this->get_option('network_identifier'))) {
+            return false;
+        }
+
         return true;
     }
 
@@ -343,7 +361,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         // Log the refund request
         $this->register_paycrypto_me_log(
-            sprintf(__('Refund requested for order #%s: %s', 'woocommerce-gateway-paycrypto-me'), $order_id, $reason),
+            \sprintf(__('Refund requested for order #%s: %s', 'woocommerce-gateway-paycrypto-me'), $order_id, $reason),
             'info'
         );
 
@@ -409,7 +427,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         return false;
     }
 
-    private function register_paycrypto_me_log(...$rest)
+    public function register_paycrypto_me_log(...$rest)
     {
         if ($this->debug_log === 'yes') {
             \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log(...$rest);

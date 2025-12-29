@@ -12,6 +12,7 @@ import { getSetting } from '@woocommerce/settings';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
 import { createElement } from '@wordpress/element';
+import { useEffect } from 'react';
 
 // Get payment method data from PHP
 const settings = getSetting('paycrypto_me_data', {});
@@ -23,8 +24,28 @@ const label = decodeEntities(settings.title) || defaultLabel;
  * Content component for the payment method
  * Displays the payment method description in the checkout
  */
-const Content = () => {
+const Content = ({ eventRegistration, emitResponse }) => {
+    const { onPaymentSetup } = eventRegistration;
+
     const description = decodeEntities(settings.description || '');
+
+    useEffect(() => {
+
+        const unsubscribe = onPaymentSetup(async () => {
+            const paycrypto_me_crypto_currency = settings.crypto_currency;
+
+            return {
+                type: emitResponse.responseTypes.SUCCESS,
+                meta: {
+                    paymentMethodData: { paycrypto_me_crypto_currency }
+                },
+            };
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, [onPaymentSetup, emitResponse, settings.crypto_currency]);
 
     if (!description) {
         return null;

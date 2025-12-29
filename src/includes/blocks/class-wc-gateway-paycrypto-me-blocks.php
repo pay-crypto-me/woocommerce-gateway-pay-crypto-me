@@ -25,17 +25,14 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
 
     public function is_active()
     {
-        // Primeiro verifica se o WooCommerce está ativo
         if (!function_exists('WC') || !WC()->payment_gateways) {
             return false;
         }
 
-        // Verifica se o gateway existe e está disponível
         if (!$this->gateway) {
             return false;
         }
 
-        // Verifica se o gateway está habilitado
         return $this->gateway->is_available();
     }
 
@@ -46,7 +43,7 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
         $script_asset = file_exists($script_asset_path)
             ? require($script_asset_path)
             : [
-                'dependencies' => [],
+                'dependencies' => ['wc-blocks-checkout'],
                 'version' => '1.0.0'
             ];
 
@@ -80,6 +77,8 @@ final class WC_Gateway_PayCryptoMe_Blocks extends AbstractPaymentMethodType
 
         return [
             'icon' => $this->gateway->icon ?? '',
+            'gateway_id' => $this->gateway->id ?? '',
+            'crypto_currency' => $this->gateway->get_available_cryptocurrencies()[0] ?? '',
             'title' => $this->gateway->title ?: __('PayCrypto.Me', 'woocommerce-gateway-paycrypto-me'),
             'description' => $this->gateway->description ?: __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'woocommerce-gateway-paycrypto-me'),
             'debug_log' => $this->get_setting('debug_log', 'no'),

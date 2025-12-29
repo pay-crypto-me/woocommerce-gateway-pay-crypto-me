@@ -110,12 +110,8 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
         }
         public static function log($message, $level = 'info')
         {
-            $options = get_option('woocommerce_paycrypto_me_settings', []);
-            $logging = isset($options['debug_log']) ? $options['debug_log'] : 'no';
-            if ('yes' === $logging && function_exists('wc_get_logger')) {
-                $logger = \wc_get_logger();
-                $logger->log($level, $message, ['source' => 'paycrypto_me']);
-            }
+            $logger = \wc_get_logger();
+            $logger->log($level, $message, ['source' => 'paycrypto_me']);
         }
         public function __clone()
         {
