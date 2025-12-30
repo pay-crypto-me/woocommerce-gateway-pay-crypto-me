@@ -15,15 +15,13 @@ namespace PayCryptoMe\WooCommerce;
 
 class ProcessorStrategiesFactory
 {
-    public static function create(string $gateway_id): GatewayProcessorContract
+    public static function create(\WC_Payment_Gateway $gateway): GatewayProcessorContract
     {
-        switch ($gateway_id) {
+        switch ($gateway->id) {
             case 'paycrypto_me': //TODO: paycrypto_me_bitcoin
-                return new BitcoinPaymentProcessor();
-            // case 'paycrypto_me_ethereum':
-            //     return new EthereumProcessorStrategy();
+                return BitcoinProcessorStrategiesFactory::create($gateway);
             default:
-                throw new \InvalidArgumentException(\sprintf("There isn't any processor strategy for gateway ID: %s", $gateway_id));
+                throw new \InvalidArgumentException(\sprintf("There isn't any processor strategy for gateway ID: %s", $gateway->id));
         }
     }
 }

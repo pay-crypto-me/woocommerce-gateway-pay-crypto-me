@@ -25,18 +25,23 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     protected $debug_log;
     protected $payment_timeout_hours;
     protected $payment_number_confirmations;
+    private BitcoinAddressService $bitcoin_address_service;
     private $support_btc_address = 'bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw';
     private $support_btc_payment_address = 'PM8TJdrkRoSqkCWmJwUMojQCG1rEXsuCTQ4GG7Gub7SSMYxaBx7pngJjhV8GUeXbaJujy8oq5ybpazVpNdotFftDX7f7UceYodNGmffUUiS5NZFu4wq4';
 
     public function __construct()
     {
         $this->id = 'paycrypto_me';
-        $this->icon = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
+
         $this->has_fields = true;
+
+        $this->supports = ['products', 'pre-orders', 'refunds'];
+
+        $this->icon = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
         $this->method_title = __('PayCrypto.Me', 'woocommerce-gateway-paycrypto-me');
         $this->method_description = _x('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'Gateway description', 'woocommerce-gateway-paycrypto-me');
 
-        $this->supports = ['products', 'pre-orders', 'refunds'];
+        $this->bitcoin_address_service = new BitcoinAddressService();
 
         $this->init_form_fields();
         $this->init_settings();
@@ -189,7 +194,8 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'default' => '',
                 'required' => true,
                 'description' => __('Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments.', 'woocommerce-gateway-paycrypto-me'),
-                'custom_attributes' => array('maxlength' => 255),2
+                'custom_attributes' => array('maxlength' => 255),
+                2
             ),
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'woocommerce-gateway-paycrypto-me'),
@@ -387,28 +393,19 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     private function validate_xpub_address($network_type, $identifier)
     {
-        try {
-            $network = $network_type === 'testnet'
-                ? NetworkFactory::bitcoinTestnet()
-                : NetworkFactory::bitcoin();
-
-            $keyFactory = new HierarchicalKeyFactory();
-            $keyFactory->fromExtended($identifier, $network);
-            return true;
-        } catch (\Exception $e) {
-            // Not a valid xpub, continue to address validation
-        }
+        $network = $network_type === 'testnet'
+            ? NetworkFactory::bitcoinTestnet()
+            : NetworkFactory::bitcoin();
 
         try {
-            $network = $network_type === 'testnet'
-                ? NetworkFactory::bitcoinTestnet()
-                : NetworkFactory::bitcoin();
+            if ($ok = $this->bitcoin_address_service->validate_extended_pubkey($identifier, $network)) {
+                return $ok;
+            }
 
-            $addressCreator = new AddressCreator();
-            $addressCreator->fromString($identifier, $network);
-            return true;
-        } catch (\Exception $e) {
-            // Not a valid address
+            if ($ok = $this->bitcoin_address_service->validate_bitcoin_address($identifier, $network)) {
+                return $ok;
+            }
+        } catch (\Throwable $th) {
         }
 
         return false;

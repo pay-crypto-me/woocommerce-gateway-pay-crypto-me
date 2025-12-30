@@ -110,7 +110,6 @@ class PaymentProcessor
         $payment_amount = $modified_total ?? $order->get_total();
         $payment_network = $gateway->get_option('selected_network');
         $payment_expires_at = $gateway->get_option('payment_timeout_hours');
-        $payment_receive_address = $gateway->get_option('network_identifier');
         $payment_numbers_confirmations = $gateway->get_option('payment_number_confirmations');
 
         if (isset($_POST['woocommerce-process-checkout-nonce'])) {
@@ -148,7 +147,6 @@ class PaymentProcessor
 
         $payment_data['crypto_network'] = $payment_network;
         $payment_data['crypto_currency'] = $selected_crypto;
-        $payment_data['crypto_receive_address'] = $payment_receive_address;
 
         return $payment_data;
     }
@@ -208,18 +206,17 @@ class PaymentProcessor
 
     private function handle_payment_processor_strategy(\WC_Order $order, \WC_Payment_Gateway $gateway, array $payment_data)
     {
-        $gateway_id = $gateway->id;
+        $processor = $this->get_processor_for_gateway($gateway);
 
-        $processor = $this->get_processor_for_gateway($gateway_id);
-
-        $payment_data = $processor->process($order, $gateway, $payment_data);
+        $payment_data = $processor->process($order, $payment_data);
 
         return $payment_data;
     }
 
-    private function get_processor_for_gateway($gateway_id)
+    private function get_processor_for_gateway(\WC_Payment_Gateway $gateway)
     {
-        $processor = ProcessorStrategiesFactory::create($gateway_id);
+        $processor = ProcessorStrategiesFactory::create($gateway);
+
         return $processor;
     }
 
