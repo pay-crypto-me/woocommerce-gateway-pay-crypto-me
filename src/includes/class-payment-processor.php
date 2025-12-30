@@ -28,9 +28,9 @@ class PaymentProcessor
 
             $this->trigger_hook_before($order, $payment_data, $gateway);
 
-            $payment_data = $this->handle_payment_processor_strategy($order, $gateway, $payment_data);
+            $payment_data = $this->handle_payment_processor_strategy($order, $payment_data, $gateway);
 
-            $this->update_order_after_payment($order, $gateway, $payment_data);
+            $this->update_order_after_payment($order, $payment_data);
 
             $this->trigger_hook_after($order, $payment_data, $gateway);
 
@@ -61,17 +61,17 @@ class PaymentProcessor
         }
     }
 
-    private function trigger_hook_before($order, $payment_data, $gateway)
+    private function trigger_hook_before(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
     {
         do_action('paycrypto_me_before_payment', $order, $gateway, $payment_data);
     }
 
-    private function trigger_hook_after($order, $payment_data, $gateway)
+    private function trigger_hook_after(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
     {
         do_action('paycrypto_me_after_payment', $order, $gateway, $payment_data);
     }
 
-    private function update_order_after_payment($order, $payment_data, $gateway)
+    private function update_order_after_payment(\WC_Order $order, array $payment_data)
     {
         foreach ($payment_data as $key => $value) {
             $order->add_meta_data("_paycrypto_me_{$key}", $value, true);
@@ -79,11 +79,7 @@ class PaymentProcessor
 
         $order->save_meta_data();
 
-        $order->add_order_note(
-            \sprintf(
-                __('PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation.', 'woocommerce-gateway-paycrypto-me')
-            )
-        );
+        $order->add_order_note(__('PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation.', 'woocommerce-gateway-paycrypto-me'));
 
         $order->update_status('pending', __('Awaiting cryptocurrency payment', 'woocommerce-gateway-paycrypto-me'));
     }
@@ -138,7 +134,7 @@ class PaymentProcessor
         }
 
         $payment_data = apply_filters('paycrypto_me_payment_data', [
-            'crypto_amount' => null,
+            'crypto_amount' => 0,
             'fiat_amount' => $payment_amount,
             'fiat_currency' => $fiat_currency,
             'payment_expires_at' => $payment_expires_at,
@@ -151,7 +147,7 @@ class PaymentProcessor
         return $payment_data;
     }
 
-    private function validate_order($order, $payment_data, $gateway)
+    private function validate_order(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
     {
         if (!$order) {
             throw new \InvalidArgumentException(__('Order is unavailable.', 'woocommerce-gateway-paycrypto-me'));
@@ -204,7 +200,7 @@ class PaymentProcessor
         }
     }
 
-    private function handle_payment_processor_strategy(\WC_Order $order, \WC_Payment_Gateway $gateway, array $payment_data)
+    private function handle_payment_processor_strategy(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
     {
         $processor = $this->get_processor_for_gateway($gateway);
 

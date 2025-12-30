@@ -1,0 +1,56 @@
+/* PayCrypto.Me Order Details Section */
+.paycrypto-me-order-details {
+    margin-bottom: 15px
+}
+
+.paycrypto-me-order-details h3 {
+    margin: 0 0 10px 0;
+}
+
+.paycrypto-me-order-details p {}
+
+.paycrypto-me-order-details a {}
+
+.paycrypto-me-order-details__container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.paycrypto-me-order-details__wrapper {
+    display: flex;
+    justify-content: space-between;
+}
+
+/** */
+
+.paycrypto-me-network-switch {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+}
+
+.paycrypto-me-network-switch input[type="radio"] {
+    display: none;
+}
+
+.paycrypto-me-network-switch label {
+    margin: 0;
+    color: #262626;
+    font-weight: 700;
+    cursor: default;
+    padding: 4px 8px;
+    font-size: .75rem;
+    user-select: none;
+    pointer-events: none;
+    background: #e1e1e1;
+    border-radius: 1.5rem;
+    letter-spacing: 0.02em;
+    font-family: sans-serif;
+}
+
+.paycrypto-me-order-details__qr-code-image {
+    max-width: 100%;
+    margin: 0 auto;
+    height: auto;
+}

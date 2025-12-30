@@ -96,4 +96,29 @@ class BitcoinAddressService
             return false;
         }
     }
+
+    public function build_bitcoin_payment_uri(string $address, ?float $amount = null, ?string $label = null, ?string $message = null): string
+    {
+        $uri = "bitcoin:{$address}";
+
+        $params = [];
+
+        if ($amount !== null) {
+            $params['amount'] = number_format($amount, 8, '.', '');
+        }
+
+        if ($label !== null) {
+            $params['label'] = $label;
+        }
+
+        if ($message !== null) {
+            $params['message'] = $message;
+        }
+
+        if (!empty($params)) {
+            $uri .= '?' . http_build_query($params);
+        }
+
+        return $uri;
+    }
 }

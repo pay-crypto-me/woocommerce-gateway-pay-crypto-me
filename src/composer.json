@@ -30,7 +30,8 @@
         }
     },
     "require": {
-        "lucas-rosa95/bitcoin": "1.0.x-dev"
+        "lucas-rosa95/bitcoin": "1.0.x-dev",
+        "endroid/qr-code": "^4.6"
     },
     "repositories": [
         {

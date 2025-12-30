@@ -39,17 +39,35 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 
         try {
 
-            $order_index = hexdec(substr(hash('sha256', $order->get_id() . $order->get_date_created()), 0, 8));
+            $order_index = hexdec(substr(hash('sha256', $order->get_id() . $order->get_date_created() . time()), 0, 8));
 
             $order_index %= 0x80000000;
 
             $payment_address = $this->bitcoin_address_service->generate_address_from_xPub($xPub, $order_index, $bitcoin_network);
 
+            //TODO: Save the generated address and index to the database for future reference
+
             $payment_data['payment_address'] = $payment_address;
-            $payment_data['payment_uri'] = ''; //TODO: implement generate bitcoin payment uri
+
+            $message = \sprintf(
+                __('Payment sent to %s, Order Reference #%s', 'woocommerce-gateway-paycrypto-me'),
+                get_bloginfo('name'),
+                $order->get_id()
+            );
+
+            $payment_data['payment_uri'] = $this->bitcoin_address_service->build_bitcoin_payment_uri(
+                message: $message,
+                address: $payment_address,
+                amount: $payment_data['crypto_amount'],
+                label: $order->get_billing_first_name(),
+            );
 
         } catch (\Exception $e) {
-            throw new PayCryptoMeException(__(\sprintf("Bitcoin Payment Processor: %s", $e->getMessage()), 'woocommerce-gateway-paycrypto-me'), 0, $e);
+            throw new PayCryptoMeException(
+                \sprintf(__("Bitcoin Payment Processor: %s", 'woocommerce-gateway-paycrypto-me'), $e->getMessage()),
+                0,
+                $e
+            );
         }
 
         return $payment_data;

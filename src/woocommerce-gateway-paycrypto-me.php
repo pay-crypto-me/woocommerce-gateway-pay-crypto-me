@@ -23,13 +23,7 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
 
-// register_activation_hook(__FILE__, function () {
-//     // @NOTE: create options, tables, etc --- IGNORE ---
-// });
-
-// register_deactivation_hook(__FILE__, function () {
-//     //@NOTE: clear caches, transients, etc --- IGNORE ---
-// });
+register_activation_hook(__FILE__, [PayCryptoMeBitcoinGatewayActivate::class, 'activate']);
 
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
     class WC_PayCryptoMe

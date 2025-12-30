@@ -33,6 +33,8 @@ services:
       MYSQL_USER: wordpressdbuser
       MYSQL_PASSWORD: wordpress123456
       MYSQL_ROOT_PASSWORD: root123456789
+    ports:
+      - 33061:3306
     volumes:
       - db:/var/lib/mysql
     networks:

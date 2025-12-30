@@ -26,6 +26,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     protected $payment_timeout_hours;
     protected $payment_number_confirmations;
     private BitcoinAddressService $bitcoin_address_service;
+    private QrCodeService $qr_code_service;
     private $support_btc_address = 'bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw';
     private $support_btc_payment_address = 'PM8TJdrkRoSqkCWmJwUMojQCG1rEXsuCTQ4GG7Gub7SSMYxaBx7pngJjhV8GUeXbaJujy8oq5ybpazVpNdotFftDX7f7UceYodNGmffUUiS5NZFu4wq4';
 
@@ -42,6 +43,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->method_description = _x('PayCrypto.Me introduces a complete solution to receive your payments through the main cryptocurrencies.', 'Gateway description', 'woocommerce-gateway-paycrypto-me');
 
         $this->bitcoin_address_service = new BitcoinAddressService();
+        $this->qr_code_service = new QrCodeService();
 
         $this->init_form_fields();
         $this->init_settings();
@@ -55,8 +57,8 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->payment_timeout_hours = $this->get_option('payment_timeout_hours', '1');
         $this->payment_number_confirmations = $this->get_option('payment_number_confirmations', '2');
 
+        add_action('woocommerce_order_details_before_order_table', array($this, 'render_order_details_section'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-
         add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
         do_action('woocommerce_paycrypto_me_gateway_loaded', $this);
@@ -79,12 +81,16 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $network_config = $this->get_network_config($selected_network);
 
         if (empty($network_identifier)) {
-            \WC_Admin_Settings::add_error(\sprintf(__('Please enter a valid %s.', 'woocommerce-gateway-paycrypto-me'), $network_config['field_label']));
+            \WC_Admin_Settings::add_error(
+                \sprintf(__('Please enter a valid %s.', 'woocommerce-gateway-paycrypto-me'), $network_config['field_label'])
+            );
             return false;
         }
 
         if (!$this->validate_network_identifier($selected_network, $network_identifier)) {
-            \WC_Admin_Settings::add_error(\sprintf(__('The %s provided is not valid for the selected network.', 'woocommerce-gateway-paycrypto-me'), $network_config['field_label']));
+            \WC_Admin_Settings::add_error(
+                \sprintf(__('The %s provided is not valid for the selected network.', 'woocommerce-gateway-paycrypto-me'), $network_config['field_label'])
+            );
             return false;
         }
 
@@ -271,11 +277,56 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         </script>';
     }
 
+    public function render_order_details_section($order)
+    {
+        $logo_path = WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-icon.png';
+
+        $paycrypto_me_payment_address = $order->get_meta('_paycrypto_me_payment_address');
+        $paycrypto_me_payment_uri = $order->get_meta('_paycrypto_me_payment_uri');
+        $paycrypto_me_fiat_amount = $order->get_meta('_paycrypto_me_fiat_amount');
+        $paycrypto_me_crypto_amount = $order->get_meta('_paycrypto_me_crypto_amount');
+        $paycrypto_me_fiat_currency = $order->get_meta('_paycrypto_me_fiat_currency');
+        $paycrypto_me_payment_expires_at = $order->get_meta('_paycrypto_me_payment_expires_at');
+        $paycrypto_me_payment_number_confirmations = $order->get_meta('_paycrypto_me_payment_number_confirmations');
+        $paycrypto_me_crypto_network = $order->get_meta('_paycrypto_me_crypto_network');
+        $paycrypto_me_crypto_currency = $order->get_meta('_paycrypto_me_crypto_currency');
+
+        $paycrypto_me_payment_qr_code = $this->qr_code_service->generate_qr_code_data_uri($paycrypto_me_payment_uri, $logo_path);
+
+        $paycrypto_me_crypto_network_label = match ($paycrypto_me_crypto_network) {
+            'mainnet' => __('On-Chain', 'woocommerce-gateway-paycrypto-me'),
+            'testnet' => __('Testnet', 'woocommerce-gateway-paycrypto-me'),
+            'lightning' => __('Lightning', 'woocommerce-gateway-paycrypto-me'),
+            default => $paycrypto_me_crypto_network,
+        };
+
+        if ($paycrypto_me_payment_address) {
+            wc_get_template(
+                'order-details/paycrypto-me-order-details.php',
+                compact(
+                    'order',
+                    'paycrypto_me_payment_address',
+                    'paycrypto_me_payment_qr_code',
+                    'paycrypto_me_payment_uri',
+                    'paycrypto_me_fiat_amount',
+                    'paycrypto_me_crypto_amount',
+                    'paycrypto_me_fiat_currency',
+                    'paycrypto_me_payment_expires_at',
+                    'paycrypto_me_payment_number_confirmations',
+                    'paycrypto_me_crypto_network_label',
+                    'paycrypto_me_crypto_network',
+                    'paycrypto_me_crypto_currency'
+                ),
+                '',
+                WC_PayCryptoMe::plugin_abspath() . 'templates/'
+            );
+        }
+    }
+
     public function generate_settings_html($form_fields = array(), $echo = true)
     {
         $html = parent::generate_settings_html($form_fields, false);
 
-        // Adicionar nonce ao formulário
         $nonce_field = wp_nonce_field('paycrypto_me_settings', 'paycrypto_me_nonce', true, false);
         $html = str_replace('</table>', $nonce_field . '</table>', $html);
 
@@ -389,6 +440,27 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 );
             }
         }
+
+        if (is_order_received_page() || is_account_page()) {
+            $css_file = WC_PayCryptoMe::plugin_url() . '/assets/css/frontend/paycrypto-me-order-details.css';
+            $css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/css/frontend/paycrypto-me-order-details.css';
+
+            if (file_exists($css_path)) {
+                wp_enqueue_style(
+                    'paycrypto-me-order-details',
+                    $css_file,
+                    array(),
+                    filemtime($css_path)
+                );
+            }
+        }
+    }
+
+    public function register_paycrypto_me_log(...$rest)
+    {
+        if ($this->debug_log === 'yes') {
+            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log(...$rest);
+        }
     }
 
     private function validate_xpub_address($network_type, $identifier)
@@ -419,16 +491,12 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             return $ok;
         }
 
-        $this->register_paycrypto_me_log(\sprintf(__('Network identifier validation failed for %s: `%s`', 'woocommerce-gateway-paycrypto-me'), $network_type, $this->mask_identifier_for_log($network_type, $identifier)), 'error');
+        $this->register_paycrypto_me_log(
+            \sprintf(__('Network identifier validation failed for %s: `%s`', 'woocommerce-gateway-paycrypto-me'), $network_type, $this->mask_identifier_for_log($network_type, $identifier)),
+            'error'
+        );
 
         return false;
-    }
-
-    public function register_paycrypto_me_log(...$rest)
-    {
-        if ($this->debug_log === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log(...$rest);
-        }
     }
 
     private function mask_identifier_for_log($network_type, $identifier)
