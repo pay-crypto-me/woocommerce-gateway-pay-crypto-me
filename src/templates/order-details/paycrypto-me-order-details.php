@@ -40,26 +40,31 @@ if ($paycrypto_me_payment_address): ?>
                     </label>
                 </div>
             </div>
-            <div class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--qr-code">
-                <small><?php esc_html_e('Scan QR Code to Pay:', 'woocommerce-gateway-paycrypto-me'); ?></small>
+            <div
+                class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--qr-code"
+                style="margin-top: 8px; justify-content: center; line-height: 1;">
+                <small
+                    style="font-weight: 700;"><?php esc_html_e('Scan QR Code to Pay:', 'woocommerce-gateway-paycrypto-me'); ?></small>
             </div>
             <div class="paycrypto-me-order-details__qr-code-image">
                 <img src="<?php echo $paycrypto_me_payment_qr_code ?>"
                     alt="<?php esc_attr_e('QR Code for Payment', 'woocommerce-gateway-paycrypto-me'); ?>" />
             </div>
             <div class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--address">
-                <small><?php esc_html_e('Payment Address:', 'woocommerce-gateway-paycrypto-me'); ?></small>
                 <small
                     class="paycrypto-me-order-details__address"><?php echo esc_html($paycrypto_me_payment_address); ?></small>
             </div>
-            <button class="paycrypto-me-order-details__copy-address-button"
-                data-address="<?php echo esc_attr($paycrypto_me_payment_address); ?>">
-                <?php esc_html_e('Copy Address', 'woocommerce-gateway-paycrypto-me'); ?>
+            <button
+                class="woocommerce-button wp-element-button paycrypto-me-order-details__button paycrypto-me-order-details__copy-address-button"
+                data-address="<?php echo esc_attr($paycrypto_me_payment_address); ?>"
+                onclick="window.navigator.clipboard.writeText(this.getAttribute('data-address')) && alert('<?php esc_html_e('Payment address copied to clipboard.', 'woocommerce-gateway-paycrypto-me'); ?>');">
+                <?php esc_html_e('Copy Payment Address', 'woocommerce-gateway-paycrypto-me'); ?>
             </button>
-            <button class="paycrypto-me-order-details__copy-uri-button"
-                data-uri="<?php echo esc_attr($paycrypto_me_payment_uri); ?>">
-                <?php esc_html_e('Open your wallet app', 'woocommerce-gateway-paycrypto-me'); ?>
-            </button>
+            <a class="woocommerce-button wp-element-button paycrypto-me-order-details__button paycrypto-me-order-details__open-wallet-button"
+                class="woocommerce-button wp-element-button paycrypto-me-order-details__button paycrypto-me-order-details__open-wallet-button"
+                href="<?php echo $paycrypto_me_payment_uri ?>" target="_blank" rel="noopener noreferrer">
+                <?php esc_html_e('Open your Wallet App', 'woocommerce-gateway-paycrypto-me'); ?>
+            </a>
         </div>
 
     </section>

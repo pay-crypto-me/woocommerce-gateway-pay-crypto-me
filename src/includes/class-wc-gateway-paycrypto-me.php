@@ -57,7 +57,8 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $this->payment_timeout_hours = $this->get_option('payment_timeout_hours', '1');
         $this->payment_number_confirmations = $this->get_option('payment_number_confirmations', '2');
 
-        add_action('woocommerce_order_details_before_order_table', array($this, 'render_order_details_section'));
+        add_action('woocommerce_admin_order_data_after_order_details', array($this, 'render_admin_order_details_section'));
+        add_action('woocommerce_order_details_before_order_table', array($this, 'render_checkout_order_details_section'));
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_checkout_styles'));
 
@@ -277,7 +278,17 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         </script>';
     }
 
-    public function render_order_details_section($order)
+    public function render_admin_order_details_section($order)
+    {
+        echo '<style>';
+        echo '.paycrypto-me-order-details { clear: both }';
+        echo '.paycrypto-me-order-details h3 { margin: 0 0 10px 0 !important; padding-top: 10px !important; }';
+        echo '</style>';
+
+        $this->render_checkout_order_details_section($order);
+    }
+
+    public function render_checkout_order_details_section($order)
     {
         $logo_path = WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-icon.png';
 
@@ -304,7 +315,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             wc_get_template(
                 'order-details/paycrypto-me-order-details.php',
                 compact(
-                    'order',
                     'paycrypto_me_payment_address',
                     'paycrypto_me_payment_qr_code',
                     'paycrypto_me_payment_uri',
@@ -340,6 +350,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     public function admin_enqueue_scripts()
     {
         $screen = get_current_screen();
+
         if ($screen && $screen->id === 'woocommerce_page_wc-settings' && isset($_GET['section']) && $_GET['section'] === $this->id) {
             wp_enqueue_style(
                 'paycrypto-me-admin',
@@ -362,6 +373,16 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 )
             );
         }
+
+        if ($screen && $screen->id === 'woocommerce_page_wc-orders' || $screen->id === 'shop_order') {
+            wp_enqueue_style(
+                'paycrypto-me-admin-order-details',
+                WC_PayCryptoMe::plugin_url() . '/assets/css/frontend/paycrypto-me-order-details.css',
+                array(),
+                filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/css/frontend/paycrypto-me-order-details.css')
+            );
+        }
+
     }
 
     public function is_available()

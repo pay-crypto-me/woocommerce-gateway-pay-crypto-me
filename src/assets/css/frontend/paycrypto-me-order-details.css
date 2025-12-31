@@ -7,10 +7,6 @@
     margin: 0 0 10px 0;
 }
 
-.paycrypto-me-order-details p {}
-
-.paycrypto-me-order-details a {}
-
 .paycrypto-me-order-details__container {
     display: flex;
     flex-direction: column;
@@ -53,4 +49,46 @@
     max-width: 100%;
     margin: 0 auto;
     height: auto;
+}
+
+.paycrypto-me-order-details__wrapper--address {
+    margin: 0 0 5px;
+    box-sizing: border-box;
+}
+
+.paycrypto-me-order-details__address {
+    width: 100%;
+    cursor: default;
+    overflow: hidden;
+    word-break: keep-all;
+    text-overflow: ellipsis;
+    flex-direction: column;
+    border: 1px dashed #d6d6d6;
+    letter-spacing: 0.035em;
+    box-sizing: border-box;
+    text-align: center;
+    user-select: all;
+    color: #242424;
+    max-width: 340px;
+    font-weight: 300;
+    padding: 14px 8px;
+    font-size: 1rem;
+    margin: 0 auto;
+}
+
+.paycrypto-me-order-details__button {
+    margin: 0 auto;
+    text-align: center;
+    width: 100%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 340px;
+    box-sizing: border-box;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 50px;
+    cursor: pointer;
+    border: none;
 }

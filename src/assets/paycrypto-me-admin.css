@@ -68,6 +68,12 @@
     height: 8px;
 }
 
+/** */
+
+.paycrypto-me-order-details > h3 {
+    margin: 1.33em 0 0;
+}
+
 @media screen and (max-width: 600px) {
     .paycrypto-support-box img {
         width: 110px;
