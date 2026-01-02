@@ -31,6 +31,6 @@ class LightningPaymentProcessor extends AbstractPaymentProcessor
 
     public function process_refund($order, $amount, $reason, $gateway): bool
     {
-        // Implement Bitcoin-specific refund processing logic here
+        //TODO: Implement refund process
     }
 }

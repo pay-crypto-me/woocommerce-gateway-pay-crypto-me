@@ -13,6 +13,7 @@ namespace PayCryptoMe\WooCommerce;
 
 use BitWasp\Bitcoin\Address\AddressCreator;
 use BitWasp\Bitcoin\Address\SegwitAddress;
+use BitWasp\Bitcoin\Script\ScriptFactory;
 use BitWasp\Bitcoin\Base58;
 use BitWasp\Bitcoin\Key\Factory\HierarchicalKeyFactory;
 use BitWasp\Bitcoin\Network\NetworkInterface;
@@ -23,42 +24,136 @@ use BitWasp\Buffertools\Buffer;
 
 class BitcoinAddressService
 {
-    private $availablePrefixes = [
-        'xpub' => '0488b21e',
-        'ypub' => '049d7cb2',
-        'zpub' => '04b24746',
-        'tpub' => '043587cf',
-        'upub' => '044a5262',
-        'vpub' => '045f1cf6',
+    private array $prefixMap = [
+        // mainnet
+        'xpub' => ['hex' => '0488b21e', 'type' => 'p2pkh'],
+        'ypub' => ['hex' => '049d7cb2', 'type' => 'p2sh-p2wpkh'],
+        'zpub' => ['hex' => '04b24746', 'type' => 'p2wpkh'],
+        // testnet
+        'tpub' => ['hex' => '043587cf', 'type' => 'p2pkh'],
+        'upub' => ['hex' => '044a5262', 'type' => 'p2sh-p2wpkh'],
+        'vpub' => ['hex' => '045f1cf6', 'type' => 'p2wpkh'],
     ];
 
-    public function generate_address_from_xPub(string $xPub, int $index, NetworkInterface $network): string
+    private $hdFactory;
+    private $addressCreator;
+
+    public function __construct(?HierarchicalKeyFactory $hdFactory = null, ?AddressCreator $addressCreator = null)
     {
-        $hdFactory = new HierarchicalKeyFactory();
+        $this->hdFactory = $hdFactory ?? new HierarchicalKeyFactory();
+        $this->addressCreator = $addressCreator ?? new AddressCreator();
+    }
 
-        $replaceHex = $this->convert_extended_pubkey_prefix($xPub);
+    /**
+     * Generate an address from an extended public key (xpub/ypub/zpub...)
+     *
+     * This method is intentionally thin: it validates inputs, derives the
+     * child public key and then delegates to small, testable generator helpers
+     * which produce the final address string.
+     *
+     * @param string $xPub Extended public key
+     * @param int $index Address index (>= 0)
+     * @param NetworkInterface $network Network object
+     * @param string|null $forceType Optional force address type (p2pkh|p2sh-p2wpkh|p2wpkh)
+     * @return string
+     */
+    public function generate_address_from_xPub(string $xPub, int $index, NetworkInterface $network, ?string $forceType = null): string
+    {
+        if ($index < 0) {
+            throw new \InvalidArgumentException('Index must be a non-negative integer');
+        }
 
-        $hdKey = $hdFactory->fromExtended($replaceHex, $network);
+        $currentPrefix = $this->get_prefix_from_xpub($xPub);
+
+        $converted = $this->convert_extended_pubkey_prefix($xPub, $network);
+        $hdKey = $this->hdFactory->fromExtended($converted, $network);
         $childKey = $hdKey->derivePath("0/{$index}");
 
         $publicKey = $childKey->getPublicKey();
         $publicKeyHash = $publicKey->getPubKeyHash();
 
+        if ($forceType !== null) {
+            $type = $forceType;
+        } else {
+            try {
+                $meta = $this->get_prefix_meta($currentPrefix);
+                $type = $meta['type'];
+            } catch (\InvalidArgumentException $e) {
+                $this->maybe_log_warn_prefix_fallback($currentPrefix);
+                $type = 'p2wpkh';
+            }
+        }
+
+        switch ($type) {
+            case 'p2pkh':
+                return $this->generate_p2pkh_from_pubhash($publicKeyHash, $network);
+
+            case 'p2sh-p2wpkh':
+                return $this->generate_p2sh_p2wpkh_from_pubhash($publicKeyHash, $network);
+
+            case 'p2wpkh':
+            default:
+                return $this->generate_p2wpkh_from_pubhash($publicKeyHash, $network);
+        }
+    }
+
+    public function get_prefix_from_xpub(string $xPub): string
+    {
+        return substr($xPub, 0, 4);
+    }
+
+    public function get_prefix_map(): array
+    {
+        return $this->prefixMap;
+    }
+
+    private function generate_p2pkh_from_pubhash($publicKeyHash, NetworkInterface $network): string
+    {
+        $scriptPubKey = ScriptFactory::scriptPubKey()->payToPubKeyHash($publicKeyHash);
+        $addr = $this->addressCreator->fromOutputScript($scriptPubKey, $network);
+        return $addr->getAddress($network);
+    }
+
+    private function generate_p2wpkh_from_pubhash($publicKeyHash, NetworkInterface $network): string
+    {
         $witnessProgram = WitnessProgram::v0($publicKeyHash);
         $address = new SegwitAddress($witnessProgram);
-
         return $address->getAddress($network);
     }
 
-    public function convert_extended_pubkey_prefix(string $xPub): string
+    private function generate_p2sh_p2wpkh_from_pubhash($publicKeyHash, NetworkInterface $network): string
+    {
+        $redeemScript = ScriptFactory::scriptPubKey()->witnessKeyHash($publicKeyHash);
+        $redeemScriptHash = $redeemScript->getScriptHash();
+        $p2shScript = ScriptFactory::scriptPubKey()->payToScriptHash($redeemScriptHash);
+        $addr = $this->addressCreator->fromOutputScript($p2shScript, $network);
+        return $addr->getAddress($network);
+    }
+
+    private function maybe_log_warn_prefix_fallback(string $prefix): void
+    {
+        if (function_exists('wc_get_logger')) {
+            $logger = wc_get_logger();
+            $logger->warning(sprintf('PayCrypto.Me: received extended pubkey with prefix %s — P2SH-wrapped segwit (ypub/upub) is not fully supported and will fallback to bech32 generation.', $prefix), ['source' => 'paycrypto_me']);
+        }
+    }
+
+    private function get_prefix_meta(string $prefix): array
+    {
+        if (!isset($this->prefixMap[$prefix])) {
+            throw new \InvalidArgumentException("Unsupported extended public key prefix: {$prefix}");
+        }
+
+        return $this->prefixMap[$prefix];
+    }
+
+    public function convert_extended_pubkey_prefix(string $xPub, ?NetworkInterface $network = null): string
     {
         $currentPrefix = substr($xPub, 0, 4);
 
-        $newHex = match ($currentPrefix) {
-            'xpub', 'ypub', 'zpub' => $this->availablePrefixes['xpub'],
-            'tpub', 'upub', 'vpub' => $this->availablePrefixes['tpub'],
-            default => throw new \InvalidArgumentException("Unsupported extended public key prefix: {$currentPrefix}"),
-        };
+        $meta = $this->get_prefix_meta($currentPrefix);
+
+        $newHex = $network !== null ? $network->getHDPubByte() : $meta['hex'];
 
         $buffer = Base58::decodeCheck($xPub);
 
@@ -86,7 +181,7 @@ class BitcoinAddressService
     {
 
         try {
-            $replaceHex = $this->convert_extended_pubkey_prefix($xPub);
+            $replaceHex = $this->convert_extended_pubkey_prefix($xPub, $network);
 
             $hdFactory = new HierarchicalKeyFactory();
             $hdFactory->fromExtended($replaceHex, $network);

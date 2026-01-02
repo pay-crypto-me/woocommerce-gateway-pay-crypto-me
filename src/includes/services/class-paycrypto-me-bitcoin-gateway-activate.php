@@ -11,6 +11,8 @@
 
 namespace PayCryptoMe\WooCommerce;
 
+\defined('ABSPATH') || exit;
+
 class PayCryptoMeBitcoinGatewayActivate
 {
     public static function activate()

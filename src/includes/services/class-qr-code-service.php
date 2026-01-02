@@ -16,6 +16,7 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelLow;
 use Endroid\QrCode\Writer\PngWriter;
 
+\defined('ABSPATH') || exit;
 
 class QrCodeService
 {

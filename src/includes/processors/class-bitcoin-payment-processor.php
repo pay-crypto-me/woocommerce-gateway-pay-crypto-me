@@ -17,11 +17,13 @@ namespace PayCryptoMe\WooCommerce;
 class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 {
     private BitcoinAddressService $bitcoin_address_service;
+    private PayCryptoMeDBStatementsService $db;
 
     public function __construct(\WC_Payment_Gateway $gateway)
     {
         parent::__construct($gateway);
         $this->bitcoin_address_service = new BitcoinAddressService();
+        $this->db = new PayCryptoMeDBStatementsService();
     }
 
     public function process(\WC_Order $order, array $payment_data): array
@@ -38,14 +40,27 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
         }
 
         try {
+            $existing = $this->db->get_by_order_id((int) $order->get_id());
 
-            $order_index = hexdec(substr(hash('sha256', $order->get_id() . $order->get_date_created() . time()), 0, 8));
+            if ($existing && !empty($existing['payment_address'])) {
+                $payment_address = $existing['payment_address'];
+                $payment_data['derivation_index'] = (int) $existing['derivation_index'];
+            } else {
 
-            $order_index %= 0x80000000;
+                $derivation_index = $this->generate_derivation_index((int) $order->get_id());
 
-            $payment_address = $this->bitcoin_address_service->generate_address_from_xPub($xPub, $order_index, $bitcoin_network);
+                $payment_address = $this->bitcoin_address_service->generate_address_from_xPub($xPub, $derivation_index, $bitcoin_network);
 
-            //TODO: Save the generated address and index to the database for future reference
+                $inserted = $this->db->insert_address((int) $order->get_id(), $xPub, $network, $derivation_index, $payment_address);
+                if ($inserted === false) {
+                    $this->gateway->register_paycrypto_me_log(
+                        \sprintf(__('Failed to persist generated address for order #%s', 'woocommerce-gateway-paycrypto-me'), $order->get_id()),
+                        'error'
+                    );
+                }
+
+                $payment_data['derivation_index'] = $derivation_index;
+            }
 
             $payment_data['payment_address'] = $payment_address;
 
@@ -64,7 +79,7 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 
         } catch (\Exception $e) {
             throw new PayCryptoMeException(
-                \sprintf(__("Bitcoin Payment Processor: %s", 'woocommerce-gateway-paycrypto-me'), $e->getMessage()),
+                sprintf(__('Bitcoin Payment Processor: %s', 'woocommerce-gateway-paycrypto-me'), $e->getMessage()),
                 0,
                 $e
             );
@@ -75,6 +90,22 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 
     public function process_refund($order, $amount, $reason, $gateway): bool
     {
-        // Implement Bitcoin-specific refund processing logic here
+        //TODO: Implement refund process
+    }
+
+    private function generate_derivation_index(int $order_id): int
+    {
+        $salt = get_option('siteurl');
+
+        if (function_exists('wp_salt')) {
+            $salt = wp_salt('auth');
+        } elseif (defined('AUTH_SALT')) {
+            $salt = AUTH_SALT;
+        }
+
+        $raw = hash_hmac('sha256', (string) $order_id, (string) $salt);
+        $derivation_index = hexdec(substr($raw, 0, 8)) % 0x80000000;
+
+        return (int) $derivation_index;
     }
 }

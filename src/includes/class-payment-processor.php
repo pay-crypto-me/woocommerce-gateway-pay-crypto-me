@@ -34,6 +34,8 @@ class PaymentProcessor
 
             $this->trigger_hook_after($order, $payment_data, $gateway);
 
+            $this->register_payment_log($order, $payment_data, $gateway);
+
             return array(
                 'result' => 'success',
                 'redirect' => $this->get_return_url($order, $payment_data)
@@ -69,6 +71,24 @@ class PaymentProcessor
     private function trigger_hook_after(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
     {
         do_action('paycrypto_me_after_payment', $order, $gateway, $payment_data);
+    }
+
+    private function register_payment_log(\WC_Order $order, array $payment_data, \WC_Payment_Gateway $gateway)
+    {
+        $order_id = $order->get_id();
+
+        $meta_data = [
+            'crypto_currency' => $payment_data['crypto_currency'] ?? 'N-A',
+            'crypto_network' => $payment_data['crypto_network'] ?? 'N-A',
+            'crypto_amount' => $payment_data['crypto_amount'] ?? 'N-A',
+            'fiat_amount' => $payment_data['fiat_amount'] ?? 'N-A',
+            'fiat_currency' => $payment_data['fiat_currency'] ?? 'N-A',
+        ];
+
+        $gateway->register_paycrypto_me_log(
+            \sprintf(__('Payment processed successfully for order #%s %s', 'woocommerce-gateway-paycrypto-me'), $order_id, json_encode($meta_data)),
+            'info'
+        );
     }
 
     private function update_order_after_payment(\WC_Order $order, array $payment_data)
@@ -134,7 +154,7 @@ class PaymentProcessor
         }
 
         $payment_data = apply_filters('paycrypto_me_payment_data', [
-            'crypto_amount' => 0,
+            'crypto_amount' => null, //TODO: Calculate crypto amount based on fiat amount and current exchange rate
             'fiat_amount' => $payment_amount,
             'fiat_currency' => $fiat_currency,
             'payment_expires_at' => $payment_expires_at,

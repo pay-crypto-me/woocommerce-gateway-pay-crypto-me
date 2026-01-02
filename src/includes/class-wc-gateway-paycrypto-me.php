@@ -201,8 +201,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'default' => '',
                 'required' => true,
                 'description' => __('Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments.', 'woocommerce-gateway-paycrypto-me'),
-                'custom_attributes' => array('maxlength' => 255),
-                2
+                'custom_attributes' => array('maxlength' => 255)
             ),
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'woocommerce-gateway-paycrypto-me'),
@@ -417,33 +416,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function process_refund($order_id, $amount = null, $reason = '')
     {
-        // Validação de nonce para operações de reembolso
-        if (!current_user_can('manage_woocommerce')) {
-            return new \WP_Error('permission_denied', __('You do not have permission to process refunds.', 'woocommerce-gateway-paycrypto-me'));
-        }
-
-        $order = wc_get_order($order_id);
-        if (!$order) {
-            return new \WP_Error('invalid_order', __('Order not found.', 'woocommerce-gateway-paycrypto-me'));
-        }
-
-        // Cryptocurrency refunds are manual process
-        $order->add_order_note(
-            sprintf(
-                __('Manual refund required: %s %s. Reason: %s', 'woocommerce-gateway-paycrypto-me'),
-                $amount ? wc_price($amount) : __('Full amount', 'woocommerce-gateway-paycrypto-me'),
-                get_woocommerce_currency(),
-                $reason ? $reason : __('No reason provided', 'woocommerce-gateway-paycrypto-me')
-            )
-        );
-
-        // Log the refund request
-        $this->register_paycrypto_me_log(
-            \sprintf(__('Refund requested for order #%s: %s', 'woocommerce-gateway-paycrypto-me'), $order_id, $reason),
-            'info'
-        );
-
-        return true;
+        //TODO: Implement refund process
     }
 
     public function enqueue_checkout_styles()
@@ -477,10 +450,10 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         }
     }
 
-    public function register_paycrypto_me_log(...$rest)
+    public function register_paycrypto_me_log($message, $level = 'info')
     {
         if ($this->debug_log === 'yes') {
-            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log(...$rest);
+            \PayCryptoMe\WooCommerce\WC_PayCryptoMe::log($message, $level);
         }
     }
 

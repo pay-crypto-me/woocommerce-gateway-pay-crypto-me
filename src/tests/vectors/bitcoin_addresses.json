@@ -1,0 +1,386 @@
+[
+    {
+        "network": "mainnet",
+        "prefix": "xpub",
+        "xpub": "xpub6BmGNiA6M7CTF1nDvz7muM4HrK4dYGu3V36jsUDZTnqo7tCyyVRoVYz6nhhC2HHGXoTcZzEWC7KLAykkTutVFq3r3zHktaoRgQ4PyZyBULh",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "1Bu5Dxprxc1uajCcdVWDDKpUdatG1T7nPB",
+                "type": "p2pkh"
+            },
+            {
+                "index": 1,
+                "address": "148DggsWCYd9mV5ZmM3qpSfAbNnzCNaQxc",
+                "type": "p2pkh"
+            },
+            {
+                "index": 2,
+                "address": "1BPxAYpmUwzktskWJnWfoPow3omqweqnVP",
+                "type": "p2pkh"
+            },
+            {
+                "index": 3,
+                "address": "1KAv2xHceHzmdyZJGuzGBYTHTQjPCLroNM",
+                "type": "p2pkh"
+            },
+            {
+                "index": 4,
+                "address": "14AMYC9cg4PhC3E6QNV41dBhBxYNosANxT",
+                "type": "p2pkh"
+            }
+        ]
+    },
+    {
+        "network": "mainnet",
+        "prefix": "ypub",
+        "xpub": "ypub6WbXgNq1Vnjw6JyLmLuQ7S9o2HD5UttYQ9cxes7SqoDgAz2DE9bN7ceEouen2BwBwSaRKTq4emft4GNKBcJW44jSvKzBUVcux883N97vuwa",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "35cBsVskArmDqEhzHtx885JvYWw2PsEoMq",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "34BD9tsfYUGbewQR9mZcCJict63DwBcTcZ",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "3LW8P9n25x8KqfzSHjfZU3jaKRfpMYrxf3",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "398pMmZKq2e627VU2GPVbXx6Xg7vZpfBzf",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "32grCDZwBHdUSGG9grs5ha8XPDtfZsCCQS",
+                "type": "p2sh-p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "mainnet",
+        "prefix": "zpub",
+        "xpub": "zpub6qRnz3VveUHQwcATbhh2KXFJCFMXRWt3KG9BSG1LDobZE5qSUokvjgJNq7cN26b7M5hE4wRd7S2RwYysuJiWrJR3nfgc4QSQDrBgkg6VVFZ",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "bc1qw79xn4m4le2f5k9evfhvrhpqkunpywtxr552gz",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "bc1qyfz7pxa5380akhp3efhjee5jwdt5wgeava4frv",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "bc1qwgy823hf4h7wxmky0dt8keng7ll9dda2qnss9x",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "bc1qcafywts7cqkzf86rrqg9ya2xt7eptcr963erus",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "bc1qy2k58htrghk6dcz4l8dv90uvmy2xyw6rmfcmhn",
+                "type": "p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "mainnet",
+        "prefix": "tpub",
+        "xpub": "tpubDC8ttwyn4P9uWoy5PB6s7GPfBSAHXfQ72fh3E2GhohbgsAsh3iGtdzew2jmyYnEWKhzXBZkNjD9NsAFMrmjj9GW97b34a7TfGMeojdK6oRT",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "1Bu5Dxprxc1uajCcdVWDDKpUdatG1T7nPB",
+                "type": "p2pkh"
+            },
+            {
+                "index": 1,
+                "address": "148DggsWCYd9mV5ZmM3qpSfAbNnzCNaQxc",
+                "type": "p2pkh"
+            },
+            {
+                "index": 2,
+                "address": "1BPxAYpmUwzktskWJnWfoPow3omqweqnVP",
+                "type": "p2pkh"
+            },
+            {
+                "index": 3,
+                "address": "1KAv2xHceHzmdyZJGuzGBYTHTQjPCLroNM",
+                "type": "p2pkh"
+            },
+            {
+                "index": 4,
+                "address": "14AMYC9cg4PhC3E6QNV41dBhBxYNosANxT",
+                "type": "p2pkh"
+            }
+        ]
+    },
+    {
+        "network": "mainnet",
+        "prefix": "upub",
+        "xpub": "upub5DGUTi9Lu4a1h8CsRukuH5mnLQdHiQvYjhY5XHXuKmi9xamJDWw7dN1gj5pS2ZKWJt7CKZSpp8FgX7v4JpeSs813SyCV8rLxsDsTos9YUXY",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "35cBsVskArmDqEhzHtx885JvYWw2PsEoMq",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "34BD9tsfYUGbewQR9mZcCJict63DwBcTcZ",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "3LW8P9n25x8KqfzSHjfZU3jaKRfpMYrxf3",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "398pMmZKq2e627VU2GPVbXx6Xg7vZpfBzf",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "32grCDZwBHdUSGG9grs5ha8XPDtfZsCCQS",
+                "type": "p2sh-p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "mainnet",
+        "prefix": "vpub",
+        "xpub": "vpub5Y6jmNpG3k7VYRPzGGYXVAsHWNmjf2v3ep4JJgRnhn631gaXUB6gFRfpkHn22TyRiXE1533PGncEQQXd2X4TfMgeKJtuimAT8ww7CSUexQB",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "bc1qw79xn4m4le2f5k9evfhvrhpqkunpywtxr552gz",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "bc1qyfz7pxa5380akhp3efhjee5jwdt5wgeava4frv",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "bc1qwgy823hf4h7wxmky0dt8keng7ll9dda2qnss9x",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "bc1qcafywts7cqkzf86rrqg9ya2xt7eptcr963erus",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "bc1qy2k58htrghk6dcz4l8dv90uvmy2xyw6rmfcmhn",
+                "type": "p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "xpub",
+        "xpub": "xpub6CDjEdEgkddSTM73gevtpyNqHCrd8153Kc4w1AjrmBE8skFDMiL4HoBUC46mmcqPipcg1krrAEsvyWgN8asgJ4wRQJfXgR6F1yLggq3PW6D",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "msohpncHRZ77VqoVmw8M4sNoM5zkfZCJNX",
+                "type": "p2pkh"
+            },
+            {
+                "index": 1,
+                "address": "n4WSPjiigUZQBgdrhwM2vMK1Uef4Gc4NnN",
+                "type": "p2pkh"
+            },
+            {
+                "index": 2,
+                "address": "mtESjA1UXmgMeFVCy9MzYvCd1FtKSTrvVG",
+                "type": "p2pkh"
+            },
+            {
+                "index": 3,
+                "address": "mfyyFpGXPsTizgfVoRVwhucLUqMA2CEcCD",
+                "type": "p2pkh"
+            },
+            {
+                "index": 4,
+                "address": "mh4gn3hWVSqyx6Bh5J6ngVNBRsQdxaCKb7",
+                "type": "p2pkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "ypub",
+        "xpub": "ypub6X3zYHubuKAvJeJAX1iX34ULTB154d4YEib9nZdk9Bc1vr4ScNVcurqcDG4MmXVK8TjUmETQcuEUroHvrHHh6Jd2GeMxGKujHhQL5SFETcC",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "2My8Gvp3pqVUtvuUuY5YDRdVFKGbqHDB13U",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "2MtD915F3UgsecwNDEREjrybjcdBnNrY3Q4",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "2N7ei1k7wGU7Fuv9MFJ6mQTY2t3H1P5t222",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "2NBvjPm6uTN8KMY58HMLc1QGPAvu14xqddk",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "2MxHQT4Dr4ATCKAkkCfHBEVppWE3qUfU84W",
+                "type": "p2sh-p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "zpub",
+        "xpub": "zpub6qtFqxaX3ziQ9wVHMNW9F9Zqd99X1F439q7NZxXdXBytywsfs2fBXvVkEU1wmS9EY6rHWi3y5Zb2k5uVZyhhtYJd8z4NrEjDZRTyTzM5XJz",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "tb1qsmxgquqxahuf8jz7pneyv7savjy7jv7gk6v7j4",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "tb1qlsc7a8g6l6dl0p0nyvy65x646v3j593q2tjw78",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "tb1q3dayccqwry9vdwl83lg9rxn4pzfrct06vkcz4f",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "tb1qq5wq39zg89695q0vsmgxu7uu0n99u686yglmgk",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "tb1qzru8hweq7f4fjfpf6z2x820027e6hes67lcknu",
+                "type": "p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "tpub",
+        "xpub": "tpubDCbMks4NTuatj9Hu8quz2tiCcKxH7Pa6sEfEMio175z2d2uvRwB9SErJS6BZJ7ndWj9adLNihLhyfhAyXSivBWPiTuQqMwkUbvw6SrTrZoT",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "msohpncHRZ77VqoVmw8M4sNoM5zkfZCJNX",
+                "type": "p2pkh"
+            },
+            {
+                "index": 1,
+                "address": "n4WSPjiigUZQBgdrhwM2vMK1Uef4Gc4NnN",
+                "type": "p2pkh"
+            },
+            {
+                "index": 2,
+                "address": "mtESjA1UXmgMeFVCy9MzYvCd1FtKSTrvVG",
+                "type": "p2pkh"
+            },
+            {
+                "index": 3,
+                "address": "mfyyFpGXPsTizgfVoRVwhucLUqMA2CEcCD",
+                "type": "p2pkh"
+            },
+            {
+                "index": 4,
+                "address": "mh4gn3hWVSqyx6Bh5J6ngVNBRsQdxaCKb7",
+                "type": "p2pkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "upub",
+        "xpub": "upub5DiwKdDwJazzuTXhBaa2Ci6KmJRHJ96YaGWGez4CdA6ViSoXbjqNRcD48SE1mtsdVuGFmL5AnFpHKeqfyVdduMtcoHaFvgdnCo9kX6H5LgW",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "2My8Gvp3pqVUtvuUuY5YDRdVFKGbqHDB13U",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "2MtD915F3UgsecwNDEREjrybjcdBnNrY3Q4",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "2N7ei1k7wGU7Fuv9MFJ6mQTY2t3H1P5t222",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "2NBvjPm6uTN8KMY58HMLc1QGPAvu14xqddk",
+                "type": "p2sh-p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "2MxHQT4Dr4ATCKAkkCfHBEVppWE3qUfU84W",
+                "type": "p2sh-p2wpkh"
+            }
+        ]
+    },
+    {
+        "network": "testnet",
+        "prefix": "vpub",
+        "xpub": "vpub5YZCdHtrTGYUkkip1wMeQoBpwGZjEm63VP2VSNx61AUNmYckrPzw3fsC9eBbmoXYuYP4WofjEvAqCwTEhC3ehbaDfdGgWbTGUXDPuhXgQg2",
+        "addresses": [
+            {
+                "index": 0,
+                "address": "tb1qsmxgquqxahuf8jz7pneyv7savjy7jv7gk6v7j4",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 1,
+                "address": "tb1qlsc7a8g6l6dl0p0nyvy65x646v3j593q2tjw78",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 2,
+                "address": "tb1q3dayccqwry9vdwl83lg9rxn4pzfrct06vkcz4f",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 3,
+                "address": "tb1qq5wq39zg89695q0vsmgxu7uu0n99u686yglmgk",
+                "type": "p2wpkh"
+            },
+            {
+                "index": 4,
+                "address": "tb1qzru8hweq7f4fjfpf6z2x820027e6hes67lcknu",
+                "type": "p2wpkh"
+            }
+        ]
+    }
+]
