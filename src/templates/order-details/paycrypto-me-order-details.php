@@ -3,18 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
-    'order',
-    'paycrypto_me_paycrypto_me_payment_address',
-    'paycrypto_me_payment_uri',
-    'paycrypto_me_fiat_amount',
-    'paycrypto_me_fiat_currency',
-    'paycrypto_me_payment_expires_at',
-    'paycrypto_me_payment_number_confirmations',
-    'paycrypto_me_crypto_network',
-    'paycrypto_me_crypto_currency'
- */
-
 if ($paycrypto_me_payment_address): ?>
     <section class="wc-block-order-confirmation-billing-address paycrypto-me-order-details">
         <h3><?php esc_html_e('Payment Details', 'woocommerce-gateway-paycrypto-me'); ?></h3>
@@ -22,14 +10,20 @@ if ($paycrypto_me_payment_address): ?>
         <div class="paycrypto-me-order-details__container">
             <div class="paycrypto-me-order-details__wrapper">
                 <small><?php esc_html_e('Fiat Amount:', 'woocommerce-gateway-paycrypto-me'); ?></small>
-                <small><?php echo wc_price($paycrypto_me_fiat_amount, ['currency' => $paycrypto_me_fiat_currency]); ?></small>
+                <small><?php echo wp_kses_post( wc_price( $paycrypto_me_fiat_amount, array( 'currency' => $paycrypto_me_fiat_currency ) ) ); ?></small>
             </div>
-            <div class="paycrypto-me-order-details__wrapper">
-                <small>
-                    <?php esc_html_e('Crypto Amount:', 'woocommerce-gateway-paycrypto-me'); ?>
-                </small>
-                <small><?php echo wc_price($paycrypto_me_crypto_amount, ['currency' => $paycrypto_me_crypto_currency]); ?></small>
-            </div>
+            <?php
+            if (!empty($paycrypto_me_crypto_amount)) {
+                ?>
+                <div class="paycrypto-me-order-details__wrapper">
+                    <small>
+                        <?php esc_html_e('Crypto Amount:', 'woocommerce-gateway-paycrypto-me'); ?>
+                    </small>
+                    <small><?php echo esc_html( number_format_i18n( (float) $paycrypto_me_crypto_amount, 8 ) . ' ' . $paycrypto_me_crypto_currency ); ?></small>
+                </div>
+                <?php
+                }
+            ?>
             <div class="paycrypto-me-order-details__wrapper">
                 <small>
                     <?php esc_html_e('Crypto Network:', 'woocommerce-gateway-paycrypto-me'); ?>

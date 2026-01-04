@@ -39,15 +39,30 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
             throw new PayCryptoMeException(__('Bitcoin xPub is not configured in the payment gateway settings.', 'woocommerce-gateway-paycrypto-me'));
         }
 
+        if (!$this->bitcoin_address_service->validate_extended_pubkey($xPub, $bitcoin_network)) {
+            throw new PayCryptoMeException(
+                \sprintf(
+                    __('Invalid Bitcoin extended public key configured: %s. Please provide a valid.', 'woocommerce-gateway-paycrypto-me'),
+                    esc_html(substr($xPub, 0, 4) . '...' . substr($xPub, -3))
+                )
+            );
+        }
+
         try {
             $existing = $this->db->get_by_order_id((int) $order->get_id());
 
             if ($existing && !empty($existing['payment_address'])) {
                 $payment_address = $existing['payment_address'];
-                $payment_data['derivation_index'] = (int) $existing['derivation_index'];
+                $derivation_index = $existing['derivation_index'];
             } else {
 
-                $derivation_index = $this->generate_derivation_index((int) $order->get_id());
+                $derivation_index = $this->db->insert_derivation_index($xPub, $network);
+
+                if ($derivation_index === false) {
+                    throw new PayCryptoMeException(
+                        \sprintf(__('Failed to generate derivation index for order #%s', 'woocommerce-gateway-paycrypto-me'), $order->get_id())
+                    );
+                }
 
                 $payment_address = $this->bitcoin_address_service->generate_address_from_xPub($xPub, $derivation_index, $bitcoin_network);
 
@@ -58,11 +73,10 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
                         'error'
                     );
                 }
-
-                $payment_data['derivation_index'] = $derivation_index;
             }
 
             $payment_data['payment_address'] = $payment_address;
+            $payment_data['derivation_index'] = $derivation_index;
 
             $message = \sprintf(
                 __('Payment sent to %s, Order Reference #%s', 'woocommerce-gateway-paycrypto-me'),
@@ -79,7 +93,7 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 
         } catch (\Exception $e) {
             throw new PayCryptoMeException(
-                sprintf(__('Bitcoin Payment Processor: %s', 'woocommerce-gateway-paycrypto-me'), $e->getMessage()),
+                \sprintf(__('Bitcoin Payment Processor: %s', 'woocommerce-gateway-paycrypto-me'), $e->getMessage()),
                 0,
                 $e
             );
@@ -91,21 +105,5 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
     public function process_refund($order, $amount, $reason, $gateway): bool
     {
         //TODO: Implement refund process
-    }
-
-    private function generate_derivation_index(int $order_id): int
-    {
-        $salt = get_option('siteurl');
-
-        if (function_exists('wp_salt')) {
-            $salt = wp_salt('auth');
-        } elseif (defined('AUTH_SALT')) {
-            $salt = AUTH_SALT;
-        }
-
-        $raw = hash_hmac('sha256', (string) $order_id, (string) $salt);
-        $derivation_index = hexdec(substr($raw, 0, 8)) % 0x80000000;
-
-        return (int) $derivation_index;
     }
 }

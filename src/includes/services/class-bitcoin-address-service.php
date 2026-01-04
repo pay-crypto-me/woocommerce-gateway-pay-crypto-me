@@ -60,16 +60,32 @@ class BitcoinAddressService
     public function generate_address_from_xPub(string $xPub, int $index, NetworkInterface $network, ?string $forceType = null): string
     {
         if ($index < 0) {
-            throw new \InvalidArgumentException('Index must be a non-negative integer');
+            throw new \InvalidArgumentException('Derivation index must be a non-negative integer.');
         }
 
         $currentPrefix = $this->get_prefix_from_xpub($xPub);
 
         $converted = $this->convert_extended_pubkey_prefix($xPub, $network);
         $hdKey = $this->hdFactory->fromExtended($converted, $network);
-        $childKey = $hdKey->derivePath("0/{$index}");
 
+        // Do NOT attempt to derive hardened paths (those with a trailing ').
+        // Hardened derivation requires the private key; deriving hardened
+        // children from an extended public key will fail. Instead, assume the
+        // provided extended pubkey is at (or above) the account/external level
+        // and derive the external chain child `0/{index}` non-hardened.
+        $childKey = $hdKey->derivePath("0/{$index}");
         $publicKey = $childKey->getPublicKey();
+
+        // Ensure the provided extended pubkey is an account-level key.
+        // Account-level keys typically have depth >= 3 (e.g. m/84'/1'/0').
+
+        // $depth = $hdKey->getDepth();
+        // if ($depth < 3) {
+        //     // Continue deriving from the provided node (external chain 0). This
+        //     // allows using vpub/upub/etc. even when they are not account-level,
+        //     // but wallets may not recognise these addresses as the same account.
+        // }
+
         $publicKeyHash = $publicKey->getPubKeyHash();
 
         if ($forceType !== null) {
@@ -79,7 +95,7 @@ class BitcoinAddressService
                 $meta = $this->get_prefix_meta($currentPrefix);
                 $type = $meta['type'];
             } catch (\InvalidArgumentException $e) {
-                $this->maybe_log_warn_prefix_fallback($currentPrefix);
+                $network->register_paycrypto_me_log(\sprintf('Unsupported extended public key prefix: %s. Falling back to bech32 address generation.', $currentPrefix), 'warning');
                 $type = 'p2wpkh';
             }
         }
@@ -128,14 +144,6 @@ class BitcoinAddressService
         $p2shScript = ScriptFactory::scriptPubKey()->payToScriptHash($redeemScriptHash);
         $addr = $this->addressCreator->fromOutputScript($p2shScript, $network);
         return $addr->getAddress($network);
-    }
-
-    private function maybe_log_warn_prefix_fallback(string $prefix): void
-    {
-        if (function_exists('wc_get_logger')) {
-            $logger = wc_get_logger();
-            $logger->warning(sprintf('PayCrypto.Me: received extended pubkey with prefix %s — P2SH-wrapped segwit (ypub/upub) is not fully supported and will fallback to bech32 generation.', $prefix), ['source' => 'paycrypto_me']);
-        }
     }
 
     private function get_prefix_meta(string $prefix): array

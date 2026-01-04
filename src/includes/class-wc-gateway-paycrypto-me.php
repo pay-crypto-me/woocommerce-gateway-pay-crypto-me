@@ -107,7 +107,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'xpub_prefix' => array('xpub', 'ypub', 'zpub'),
                 'testnet' => false,
                 'field_type' => 'text',
-                'field_label' => __('Wallet address or xPub', 'woocommerce-gateway-paycrypto-me'),
+                'field_label' => __('Wallet xPub', 'woocommerce-gateway-paycrypto-me'),
                 'field_placeholder' => 'e.g., xpub6, ypub6, zpub6...',
             ),
             'testnet' => array(
@@ -116,7 +116,7 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 'xpub_prefix' => array('tpub', 'upub', 'vpub'),
                 'testnet' => true,
                 'field_type' => 'text',
-                'field_label' => __('Testnet Wallet address or xPub', 'woocommerce-gateway-paycrypto-me'),
+                'field_label' => __('Testnet Wallet xPub', 'woocommerce-gateway-paycrypto-me'),
                 'field_placeholder' => 'e.g., tpub6, upub6, vpub6...',
             ),
             'lightning' => array(
@@ -465,10 +465,6 @@ class WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         try {
             if ($ok = $this->bitcoin_address_service->validate_extended_pubkey($identifier, $network)) {
-                return $ok;
-            }
-
-            if ($ok = $this->bitcoin_address_service->validate_bitcoin_address($identifier, $network)) {
                 return $ok;
             }
         } catch (\Throwable $th) {
