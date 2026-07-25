@@ -225,6 +225,7 @@ class QrCodeService
     /** @return mixed */
     private function load_image(string $path)
     {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reads a bundled plugin asset (local logo file), not remote/user input.
         $raw = @file_get_contents($path);
 
         if (!is_string($raw)) {
@@ -246,6 +247,7 @@ class QrCodeService
         imagepng($image);
         $png = (string) ob_get_clean();
 
+        // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- building a data: URI, not obfuscating code.
         return 'data:image/png;base64,' . base64_encode($png);
     }
 

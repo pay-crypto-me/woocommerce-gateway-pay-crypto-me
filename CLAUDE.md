@@ -5,6 +5,7 @@
 - [docs/RELEASE.md](docs/RELEASE.md) — how to submit to WordPress.org (SVN or direct upload)
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%)
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway
+- [docs/WORDPRESS-ORG-REVIEW-FIXES.md](docs/WORDPRESS-ORG-REVIEW-FIXES.md) — plan to resolve the pending WordPress.org review (enqueue assets, nonce sanitization, composer.json in package, i18n loading)
 
 **Status:** v0.1.0 ready for WordPress.org. All gateways functional, 243 tests passing, translations complete. Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
 

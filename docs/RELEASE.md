@@ -245,7 +245,7 @@ Este comando executa na ordem:
    - Campo `"version"` em `composer.json` e `package.json`
 5. **rsync para build dir** — copia o `src/trunk/` para um diretório temporário **sem** `vendor/` e `node_modules/`.
 6. **Composer de produção (no container)** — `composer install --no-dev --optimize-autoloader --prefer-dist` no build dir via `docker compose run`. Resultado: vendor sem dependências de desenvolvimento e com autoloader classmap otimizado.
-7. **Limpeza do vendor** — remove arquivos residuais não necessários em runtime: diretórios `.git/`, `tests/`, `examples/`, `bin/`, arquivos `.md`, `.yml`, fontes pesadas do `endroid/qr-code`.
+7. **Limpeza do vendor** — remove arquivos residuais não necessários em runtime: diretórios `.git/`, `tests/`, `examples/`, `bin/`, arquivos `.md`, `.yml`, fontes pesadas do `endroid/qr-code`. **`composer.json`/`composer.lock`/`package.json` do plugin são mantidos no pacote** (transparência open-source — requisito do WordPress.org).
 8. **Criação do zip** — `releases/paycrypto-me-for-woocommerce-1.2.0.zip`.
 9. **Git** (com `--git`) — commit dos arquivos de versão + tag `v1.2.0`. **Não faz push automaticamente.**
 10. **Cleanup** — o diretório temporário de build é removido automaticamente (inclusive em caso de erro).

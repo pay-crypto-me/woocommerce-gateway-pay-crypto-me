@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/paycrypto-me/paycrypto-me-for-woocommerce
  * Description: PayCrypto.Me for WooCommerce lets your store accept Bitcoin payments — On-Chain and Lightning Network — directly into wallets and nodes you control.
  * Version: 0.1.0
- * Requires at least: 5.3
+ * Requires at least: 6.5
  * Tested up to: 7.0
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
@@ -50,6 +50,22 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             add_filter('woocommerce_available_payment_gateways', [AvailablePaymentGatewaysFilter::class, 'filter']);
             add_action('before_woocommerce_init', [$this, 'declare_wc_compatibility']);
             add_action('woocommerce_blocks_loaded', [$this, 'load_blocks_support']);
+            add_action('init', [$this, 'load_textdomain']);
+        }
+
+        public function load_textdomain()
+        {
+            // Deliberate: WordPress.org's automatic loading only covers language packs delivered via
+            // translate.wordpress.org; it does not load the .mo files bundled in this plugin's own
+            // /languages folder. We ship 7 complete locales maintained in-house and want them available
+            // immediately on activation, so we load them explicitly. Plugin Check flags this call as
+            // discouraged (its guidance assumes only language-pack translations); the directive doesn't
+            // apply to bundled files, and there's no inline suppression for this specific PCP check.
+            load_plugin_textdomain(
+                'paycrypto-me-for-woocommerce',
+                false,
+                dirname(plugin_basename(__FILE__)) . '/languages/'
+            );
         }
 
         public static function instance()
@@ -126,8 +142,6 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
 
             return $links;
         }
-
-        // Translation loading is handled by WordPress when the plugin is hosted on wordpress.org.
 
         protected function includes()
         {

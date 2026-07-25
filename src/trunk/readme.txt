@@ -2,7 +2,7 @@
 Contributors: paycryptome, lucasrosa95
 Tags: woocommerce, payments, crypto, bitcoin, lightning-network
 Donate link: https://paycrypto.me/
-Requires at least: 5.3
+Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
 Requires Plugins: woocommerce

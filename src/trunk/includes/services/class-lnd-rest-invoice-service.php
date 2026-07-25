@@ -42,6 +42,7 @@ class LndRestInvoiceService extends AbstractLightningInvoiceService
 
         $payment_request = (string) ($data['payment_request'] ?? '');
         $r_hash_b64      = (string) ($data['r_hash'] ?? '');
+        // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decoding r_hash from the trusted lnd REST response, not obfuscating code.
         $invoice_id      = bin2hex(base64_decode(strtr($r_hash_b64, '-_', '+/')));
 
         return new LightningInvoiceResponse($invoice_id, $payment_request, 'OPEN');

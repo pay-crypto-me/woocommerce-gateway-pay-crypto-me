@@ -27,7 +27,6 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     protected $express_icon_position;
     protected $express_icon;
     protected $support_btc_address = 'bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw';
-    protected $support_btc_payment_address = 'PM8TJdrkRoSqkCWmJwUMojQCG1rEXsuCTQ4GG7Gub7SSMYxaBx7pngJjhV8GUeXbaJujy8oq5ybpazVpNdotFftDX7f7UceYodNGmffUUiS5NZFu4wq4';
     protected PaymentDisplayDataBuilder $display_data_builder;
 
     public function __construct()
@@ -72,7 +71,6 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function render_admin_order_details_section($order)
     {
-        echo '<style>.paycrypto-me-order-details { clear: both } .paycrypto-me-order-details h3 { margin: 0 0 10px 0 !important; padding-top: 10px !important; }</style>';
         $this->render_checkout_order_details_section($order);
     }
 
@@ -95,6 +93,19 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             $order,
             $this
         );
+
+        // Enqueued here (not enqueue_checkout_styles, which only runs on wp_enqueue_scripts) because
+        // this section renders on both the frontend order-received page and the admin order-edit screen.
+        $js_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/paycrypto-me-order-details.js';
+        if (file_exists($js_path)) {
+            wp_enqueue_script(
+                'paycrypto-me-order-details',
+                WC_PayCryptoMe::plugin_url() . '/assets/js/paycrypto-me-order-details.js',
+                array(),
+                filemtime($js_path),
+                true
+            );
+        }
 
         wc_get_template(
             'order-details/paycrypto-me-order-details.php',
@@ -135,6 +146,23 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                 )
             );
         }
+
+        // Shared by both gateways (unlike admin_enqueue_scripts_content, which each gateway overrides
+        // independently) so the order-details admin styling applies regardless of which gateway paid
+        // the order. Enqueued here, not from render_admin_order_details_section(), because that hook
+        // fires mid-page (after admin_print_styles already ran) and would be too late to print.
+        if ($screen && ($screen->id === 'woocommerce_page_wc-orders' || $screen->id === 'shop_order')) {
+            $css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/css/admin/paycrypto-me-order-details-admin.css';
+            if (file_exists($css_path)) {
+                wp_enqueue_style(
+                    'paycrypto-me-order-details-admin',
+                    WC_PayCryptoMe::plugin_url() . '/assets/css/admin/paycrypto-me-order-details-admin.css',
+                    array(),
+                    filemtime($css_path)
+                );
+            }
+        }
+
         $this->admin_enqueue_scripts_content($screen);
     }
 
@@ -300,17 +328,6 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     public function enqueue_checkout_styles()
     {
         if (is_checkout() || is_wc_endpoint_url('order-pay')) {
-            $css_file = WC_PayCryptoMe::plugin_url() . '/assets/css/frontend/paycrypto-me-styles.css';
-            $css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/css/frontend/paycrypto-me-styles.css';
-
-            if (file_exists($css_path)) {
-                wp_enqueue_style(
-                    'paycrypto-me-checkout',
-                    $css_file,
-                    array(),
-                    filemtime($css_path)
-                );
-            }
             // Enqueue block styles only on checkout to avoid layout break elsewhere.
             $block_css = WC_PayCryptoMe::plugin_abspath() . 'assets/blocks/paycrypto_me-blocks.css';
             if (file_exists($block_css)) {

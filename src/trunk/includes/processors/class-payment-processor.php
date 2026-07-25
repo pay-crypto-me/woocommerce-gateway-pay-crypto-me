@@ -143,18 +143,18 @@ class PaymentProcessor
         $payment_amount = $modified_total ?? $order->get_total();
         $payment_expires_at = $gateway->get_option('payment_timeout_hours');
 
-        // Ensure POST data is unslashed before processing
-        $post = wp_unslash( $_POST );
-
-        if (isset($post['woocommerce-process-checkout-nonce'])) {
-            $checkout_nonce = $post['woocommerce-process-checkout-nonce'];
+        if (isset($_POST['woocommerce-process-checkout-nonce'])) {
+            $checkout_nonce = sanitize_text_field(wp_unslash($_POST['woocommerce-process-checkout-nonce']));
             if (!wp_verify_nonce($checkout_nonce, 'woocommerce-process_checkout')) {
                 throw new PayCryptoMePaymentException('Security check failed during checkout.');
             }
         }
 
-        if (!empty($post['paycrypto_me_crypto_currency'])) {
-            $selected_crypto = strtoupper(sanitize_text_field($post['paycrypto_me_crypto_currency']));
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the checkout nonce above is
+        // verified when present; Blocks/Store API checkout uses its own REST nonce and doesn't post
+        // this classic field, so the check can't be made unconditional without breaking that flow.
+        if (!empty($_POST['paycrypto_me_crypto_currency'])) {
+            $selected_crypto = strtoupper(sanitize_text_field(wp_unslash($_POST['paycrypto_me_crypto_currency'])));
         } else {
             // Express payment flows may not POST this field; fall back to the gateway default.
             $fallback = $gateway->get_available_cryptocurrencies()[0] ?? '';

@@ -339,11 +339,9 @@ if [[ -d "$BUILD_DIR/$SLUG/vendor" && $DRY_RUN -eq 0 ]]; then
   rm -f "$BUILD_DIR/$SLUG/LICENSE" || true
   rm -rf "$BUILD_DIR/$SLUG/examples" || true
 
-  # Remove build/dev metadata not needed at runtime (the optimized
-  # vendor/autoload.php is self-contained; nothing reads these at runtime)
-  rm -f "$BUILD_DIR/$SLUG/composer.json" \
-        "$BUILD_DIR/$SLUG/composer.lock" \
-        "$BUILD_DIR/$SLUG/package.json" || true
+  # composer.json/composer.lock/package.json are kept in the package (transparency for
+  # WordPress.org review — nothing at runtime reads them, but users should be able to
+  # inspect/reproduce the dependency tree from the distributed zip).
 
   # Remove leftover backup and temp files
   find "$BUILD_DIR/$SLUG" -name '*~' -type f -delete || true

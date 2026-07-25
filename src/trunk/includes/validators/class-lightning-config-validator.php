@@ -35,9 +35,9 @@ class LightningConfigValidator
     public function validate_btcpay_url($value, bool $is_lnd_rest_selected): string
     {
         if ($is_lnd_rest_selected || is_null($value) || $value === '') {
-            return is_null($value) ? '' : esc_url_raw(trim(stripslashes($value)));
+            return is_null($value) ? '' : esc_url_raw(trim(wp_unslash($value)));
         }
-        $val = trim(stripslashes($value));
+        $val = trim(wp_unslash($value));
         $url = esc_url_raw($val);
         if (empty($url)) {
             return '';
@@ -85,9 +85,9 @@ class LightningConfigValidator
     public function validate_lnd_rest_url($value, bool $is_lnd_rest_selected): string
     {
         if (!$is_lnd_rest_selected || is_null($value) || $value === '') {
-            return is_null($value) ? '' : esc_url_raw(trim(stripslashes($value)));
+            return is_null($value) ? '' : esc_url_raw(trim(wp_unslash($value)));
         }
-        $val = trim(stripslashes($value));
+        $val = trim(wp_unslash($value));
         $url = esc_url_raw($val);
         if (empty($url)) {
             return '';
