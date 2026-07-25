@@ -30,9 +30,9 @@ class LightningConnectionTester
         $this->ensure_permission();
         check_ajax_referer('paycrypto_btcpay_test', 'security');
 
-        $url = esc_url_raw(wp_unslash($this->gateway->get_option('btcpay_url', '')));
-        $api = esc_attr($this->gateway->get_option('btcpay_api_key', ''));
-        $store = esc_attr($this->gateway->get_option('btcpay_store_id', ''));
+        $url = isset($_POST['btcpay_url']) ? esc_url_raw(wp_unslash($_POST['btcpay_url'])) : '';
+        $api = isset($_POST['btcpay_api_key']) ? sanitize_text_field(wp_unslash($_POST['btcpay_api_key'])) : '';
+        $store = isset($_POST['btcpay_store_id']) ? sanitize_text_field(wp_unslash($_POST['btcpay_store_id'])) : '';
 
         if (empty($url)) {
             /* translators: %s: field label, e.g. "BTCPay Server URL". */

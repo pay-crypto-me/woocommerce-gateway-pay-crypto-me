@@ -133,7 +133,10 @@ function lightning_fields_renderer() {
             btn.textContent = 'Testing...';
             var postData = {
                 action: 'paycrypto_test_btcpay_connection',
-                security: data.btcpayNonce
+                security: data.btcpayNonce,
+                btcpay_url: document.querySelector('[name="' + data.btcpayUrlName + '"]') ? document.querySelector('[name="' + data.btcpayUrlName + '"]').value : '',
+                btcpay_api_key: document.querySelector('[name="' + data.btcpayApiName + '"]') ? document.querySelector('[name="' + data.btcpayApiName + '"]').value : '',
+                btcpay_store_id: document.querySelector('[name="' + data.btcpayStoreName + '"]') ? document.querySelector('[name="' + data.btcpayStoreName + '"]').value : ''
             };
 
             var xhr = new XMLHttpRequest();

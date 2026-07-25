@@ -86,21 +86,38 @@ class LightningConnectionTesterTest extends TestCase
     public function test_btcpay_missing_url_returns_error_without_http_call()
     {
         $http = FakeHttpClient::respondingToGet(http_ok(['ok' => true]));
-        $tester = new LightningConnectionTester($http, $this->make_gateway(['btcpay_url' => '']));
+        $tester = new LightningConnectionTester($http, $this->make_gateway());
 
         $this->expectJsonError('BTCPay Server URL is required for test.');
         $tester->test_btcpay_connection();
     }
 
+    public function test_btcpay_uses_unsaved_posted_values_instead_of_saved_options()
+    {
+        $_POST['btcpay_url'] = 'https://btcpay.example.com';
+        $_POST['btcpay_api_key'] = 'sk_live_12345';
+        $_POST['btcpay_store_id'] = 'store1';
+
+        $http = FakeHttpClient::respondingToGet(http_ok(['id' => 'store1']));
+        $gateway = $this->make_gateway(['btcpay_url' => 'https://saved-and-stale.example.com']);
+        $tester = new LightningConnectionTester($http, $gateway);
+
+        $this->expectJsonSuccess('Connection OK (HTTP 200)');
+        try {
+            $tester->test_btcpay_connection();
+        } finally {
+            $this->assertSame('https://btcpay.example.com/api/v1/stores/store1', $http->lastGetUrl);
+        }
+    }
+
     public function test_btcpay_success_uses_store_endpoint_and_auth_header_when_store_id_present()
     {
+        $_POST['btcpay_url'] = 'https://btcpay.example.com';
+        $_POST['btcpay_api_key'] = 'sk_live_12345';
+        $_POST['btcpay_store_id'] = 'store1';
+
         $http = FakeHttpClient::respondingToGet(http_ok(['id' => 'store1']));
-        $gateway = $this->make_gateway([
-            'btcpay_url' => 'https://btcpay.example.com',
-            'btcpay_api_key' => 'sk_live_12345',
-            'btcpay_store_id' => 'store1',
-        ]);
-        $tester = new LightningConnectionTester($http, $gateway);
+        $tester = new LightningConnectionTester($http, $this->make_gateway());
 
         $this->expectJsonSuccess('Connection OK (HTTP 200)');
         try {
@@ -113,9 +130,10 @@ class LightningConnectionTesterTest extends TestCase
 
     public function test_btcpay_success_lists_stores_when_store_id_missing()
     {
+        $_POST['btcpay_url'] = 'https://btcpay.example.com';
+
         $http = FakeHttpClient::respondingToGet(http_ok([]));
-        $gateway = $this->make_gateway(['btcpay_url' => 'https://btcpay.example.com']);
-        $tester = new LightningConnectionTester($http, $gateway);
+        $tester = new LightningConnectionTester($http, $this->make_gateway());
 
         $this->expectJsonSuccess('Connection OK (HTTP 200)');
         try {
@@ -128,8 +146,10 @@ class LightningConnectionTesterTest extends TestCase
 
     public function test_btcpay_http_error_logs_and_returns_trimmed_body_message()
     {
+        $_POST['btcpay_url'] = 'https://btcpay.example.com';
+
         $http = FakeHttpClient::respondingToGet(http_error(404, 'Not Found', 'store not found'));
-        $gateway = $this->make_gateway(['btcpay_url' => 'https://btcpay.example.com']);
+        $gateway = $this->make_gateway();
         $tester = new LightningConnectionTester($http, $gateway);
 
         $this->expectJsonError('Request failed (HTTP 404). store not found');
