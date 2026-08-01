@@ -20,15 +20,14 @@ header() { echo -e "\n${BLUE}${BOLD}=== $* ===${NC}"; }
 step()   { echo -e "${CYAN}  →${NC} $*"; }
 
 # === DOCKER CONFIGURATION ===
-DOCKER_SERVICE="wordpress"
-CONTAINER_PLUGIN_DIR="/var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce"
+# Build runs in the dedicated, ephemeral `release` compose service (profile-gated,
+# no MySQL, no long-lived stack). It shares the image and the ./src/trunk bind mount
+# with the dev `wordpress` service, so the dev stack does not need to be up.
+RELEASE_SERVICE="release"
 
-docker_running() {
-    docker compose ps --status running 2>/dev/null | grep -q "$DOCKER_SERVICE"
-}
-
+# Run a command in a throwaway `release` container (working dir /plugin = src/trunk).
 docker_exec() {
-    docker compose exec -w "$CONTAINER_PLUGIN_DIR" "$DOCKER_SERVICE" bash -c "$1"
+    docker compose run --rm "$RELEASE_SERVICE" bash -c "$1"
 }
 
 # === HELP ===
@@ -143,19 +142,21 @@ else
   warn "Uncommitted changes detected. Proceeding anyway, but consider committing first."
 fi
 
-# Check Docker
+# Check Docker — the `release` service is ephemeral (built/run on demand), so the dev
+# stack does NOT need to be up; we only need the Docker CLI + Compose available.
 if [[ $USE_DOCKER -eq 1 ]]; then
-  if docker_running; then
-    log "Docker service '$DOCKER_SERVICE' is running."
-  else
-    if [[ $DO_BUILD -eq 1 || $DO_TESTS -eq 1 ]]; then
-      error "Docker service '$DOCKER_SERVICE' is not running. Start with: docker compose up -d"
-      error "Or pass --no-docker to run build/tests on the host (requires local Node.js, PHP, Composer)."
-      exit 1
-    else
-      warn "Docker not running, but --no-build and --no-tests are set — continuing."
-      USE_DOCKER=0
+  if docker compose version >/dev/null 2>&1; then
+    log "Build/tests will run in the ephemeral '$RELEASE_SERVICE' service (dev stack not required)."
+    # Forward the repo-root auth.json to Composer inside the container (avoids GitHub
+    # rate limits when resolving the private bitcoin fork). Optional — safe if absent.
+    if [[ -f "$ROOT_DIR/auth.json" ]]; then
+      export COMPOSER_AUTH="$(cat "$ROOT_DIR/auth.json")"
+      log "Forwarding auth.json to Composer via COMPOSER_AUTH."
     fi
+  else
+    error "Docker Compose is not available. Install Docker (with Compose), or pass --no-docker"
+    error "to run build/tests on the host (requires local Node.js, PHP, Composer)."
+    exit 1
   fi
 fi
 
@@ -291,8 +292,9 @@ if [[ $DRY_RUN -eq 0 ]]; then
   if [[ $USE_DOCKER -eq 1 ]]; then
     docker compose run --rm \
       -v "$BUILD_DIR/$SLUG:/release-build" \
-      "$DOCKER_SERVICE" bash -c \
-      "cd /release-build && composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction 2>&1"
+      -w /release-build \
+      "$RELEASE_SERVICE" bash -c \
+      "composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction 2>&1"
   else
     if command -v composer &>/dev/null; then
       (cd "$BUILD_DIR/$SLUG" && composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction)

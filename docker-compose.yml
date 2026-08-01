@@ -1,8 +1,15 @@
+# Imagem única compartilhada por `wordpress` (dev) e `release`: mesmo Dockerfile,
+# mesma tag e mesmo cache de camadas — o toolchain PHP/Node/Composer não é duplicado.
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: paycrypto-me-for-woocommerce:local
+
 services:
 
   wordpress:
-    build:
-      dockerfile: Dockerfile
+    <<: *app-build
     restart: always
     ports:
       - 8080:80
@@ -22,6 +29,23 @@ services:
     volumes:
       - wordpress:/var/www/html
       - ./src/trunk:/var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce
+    networks:
+      - wp_network
+
+  # Container efêmero de build/empacotamento do release (usado por scripts/release.sh
+  # via `docker compose run --rm release`). Reutiliza a MESMA imagem do serviço wordpress
+  # (build único, cache de camadas compartilhado) e monta ./src/trunk em /plugin — vendor/
+  # e node_modules/ ficam no host, reaproveitados entre execuções. NÃO usa os volumes de
+  # WP core/MySQL, NÃO tem depends_on e fica atrás de um profile: nunca sobe com
+  # `docker compose up` e nunca liga o banco.
+  release:
+    <<: *app-build
+    profiles: ["release"]
+    working_dir: /plugin
+    environment:
+      COMPOSER_AUTH: ${COMPOSER_AUTH:-}
+    volumes:
+      - ./src/trunk:/plugin
     networks:
       - wp_network
 

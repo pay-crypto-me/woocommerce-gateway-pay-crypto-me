@@ -26,7 +26,8 @@ O script `scripts/release.sh` automatiza as etapas 1 e 2 de ponta a ponta.
 | **Diretório raiz** | `paycrypto-me-for-woocommerce/` (raiz do repositório) |
 | **Arquivo principal do plugin** | `src/trunk/paycrypto-me-for-woocommerce.php` |
 | **SVN URL** | `https://plugins.svn.wordpress.org/paycrypto-me-for-woocommerce` |
-| **Serviço Docker** | `wordpress` |
+| **Serviço Docker (dev)** | `wordpress` |
+| **Serviço Docker (release)** | `release` (efêmero, atrás do profile `release`) |
 
 O parâmetro `-s SLUG` do script existe para reutilização em outros projetos, mas **neste repositório sempre será `-s paycrypto-me-for-woocommerce`**. Nunca altere esse valor.
 
@@ -146,14 +147,14 @@ Antes de executar o release, verifique:
 | Requisito | Como verificar |
 |---|---|
 | Está na raiz do repositório | `ls docker-compose.yml scripts/ src/trunk/` |
-| Docker em execução com container `wordpress` | `docker compose ps` |
+| Docker + Compose disponíveis (o release roda em container efêmero `release`; o stack de dev **não** precisa estar no ar) | `docker compose version` |
 | Branch `main` limpa (sem changes pendentes) | `git status` |
 | `readme.txt` atualizado com changelog da nova versão | Ver seção acima |
 | Todos os testes passando | `./scripts/release.sh ... --no-zip` primeiro |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
 | Credenciais SVN configuradas (se for submeter ao WP.org) | Ver seção "Configurando Credenciais SVN" abaixo |
 
-> **Por que Docker?** O projeto roda em container (WordPress + PHP + Node.js + Composer). O script executa o `npm run build` e o `composer install --no-dev` dentro do container para garantir que o ambiente de build é idêntico ao ambiente de execução do plugin.
+> **Por que Docker?** O `release.sh` executa `npm run build`, `phpunit` e `composer install --no-dev` dentro de um **container efêmero** (serviço `release` do `docker-compose.yml`, invocado via `docker compose run --rm release`). Esse serviço reutiliza a **mesma imagem** e o **mesmo bind mount `./src/trunk`** do serviço de dev `wordpress` — mas sem WordPress/MySQL, sem `depends_on` e atrás de um profile. Assim o ambiente de build é idêntico ao de execução do plugin **sem** depender do stack de dev no ar (e sem ligar o banco).
 
 ---
 
@@ -244,7 +245,7 @@ Este comando executa na ordem:
    - `Stable tag` em `readme.txt`
    - Campo `"version"` em `composer.json` e `package.json`
 5. **rsync para build dir** — copia o `src/trunk/` para um diretório temporário **sem** `vendor/` e `node_modules/`.
-6. **Composer de produção (no container)** — `composer install --no-dev --optimize-autoloader --prefer-dist` no build dir via `docker compose run`. Resultado: vendor sem dependências de desenvolvimento e com autoloader classmap otimizado.
+6. **Composer de produção (no container efêmero `release`)** — `composer install --no-dev --optimize-autoloader --prefer-dist` no build dir via `docker compose run --rm release`. Resultado: vendor sem dependências de desenvolvimento e com autoloader classmap otimizado.
 7. **Limpeza do vendor** — remove arquivos residuais não necessários em runtime: diretórios `.git/`, `tests/`, `examples/`, `bin/`, arquivos `.md`, `.yml`, fontes pesadas do `endroid/qr-code`. **`composer.json`/`composer.lock`/`package.json` do plugin são mantidos no pacote** (transparência open-source — requisito do WordPress.org).
 8. **Criação do zip** — `releases/paycrypto-me-for-woocommerce-1.2.0.zip`.
 9. **Git** (com `--git`) — commit dos arquivos de versão + tag `v1.2.0`. **Não faz push automaticamente.**
@@ -478,17 +479,16 @@ O `webpack.config.js` define as duas entradas. O script `npm run build` usa `--c
 
 ## Solução de Problemas
 
-### Container Docker não está rodando
+### Docker Compose não disponível
 
 ```
-[ERROR] Docker service 'wordpress' is not running.
+[ERROR] Docker Compose is not available.
 ```
 
-**Solução:**
-```bash
-docker compose up -d
-# Aguardar o container inicializar (~10s) e tentar novamente
-```
+**Solução:** instale o Docker (com o plugin Compose) e confirme com `docker compose version`.
+O release **não** exige o stack de dev no ar — ele sobe o serviço efêmero `release` sob
+demanda (`docker compose run --rm release`). Alternativa: passar `--no-docker` para rodar
+build/testes no host (requer Node.js, PHP e Composer locais).
 
 ---
 
@@ -496,11 +496,8 @@ docker compose up -d
 
 **Diagnóstico:**
 ```bash
-# Verificar logs do container
-docker compose logs wordpress
-
-# Testar o build manualmente no container
-docker compose exec -w /var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce wordpress bash -c "npm ci && npm run build"
+# Testar o build manualmente no container efêmero de release
+docker compose run --rm release bash -c "npm ci && npm run build"
 ```
 
 ---
@@ -512,7 +509,7 @@ O projeto usa dependências de repositórios privados GitHub (`lucas-rosa95/bitc
 **Solução:** Garantir que o container tem acesso à internet e que `composer.lock` está atualizado:
 ```bash
 # No host, atualizar o lock file
-docker compose exec -w /var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce wordpress bash -c "composer update --lock"
+docker compose run --rm release bash -c "composer update --lock"
 ```
 
 ---

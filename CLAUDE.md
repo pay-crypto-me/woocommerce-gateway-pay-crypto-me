@@ -52,7 +52,7 @@ paycrypto-me-for-woocommerce/
 │   └── composer.json
 ├── scripts/                      ← shell scripts (build-translations, release, etc.)
 ├── docs/
-└── docker-compose.yml            ← local dev environment
+└── docker-compose.yml            ← dev stack (`wordpress`+`wp_db`+`cron`) + ephemeral `release` build service (profile `release`)
 ```
 
 **Critical rule:** Never edit files under `src/trunk/assets/blocks/` directly — they are webpack output. Edit the JS sources in `src/trunk/includes/blocks/js/` and run `npm run build`.
