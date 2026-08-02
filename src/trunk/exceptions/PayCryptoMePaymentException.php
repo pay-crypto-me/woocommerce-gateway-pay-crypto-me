@@ -19,7 +19,7 @@ class PayCryptoMePaymentException extends PayCryptoMeException
         return $this->user_friendly_message;
     }
 
-    public static function convertToMyself(\Exception $e): PayCryptoMePaymentException
+    public static function convertToMyself(\Throwable $e): PayCryptoMePaymentException
     {
         if ($e instanceof PayCryptoMePaymentException) {
             return $e;

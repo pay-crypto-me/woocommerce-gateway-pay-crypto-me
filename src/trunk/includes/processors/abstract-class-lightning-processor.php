@@ -27,11 +27,26 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
 
     final public function process(\WC_Order $order, array $payment_data): array
     {
+        $order_id = $order->get_id();
+        $existing = $this->db->get_by_order_id($order_id);
+
+        $payment_data['crypto_network'] = "lightning:{$this->node_type()}";
+
+        // WooCommerce reuses the same order across checkout retries and the order-pay endpoint.
+        // Mirrors the on-chain resolve_derived_address() reuse branch: if the order already has
+        // a still-valid invoice, return it instead of creating another one at the node — creating
+        // a second invoice here would otherwise silently orphan the first (see replace_invoice()).
+        if ($existing && !$this->invoice_expired($existing['expires_at'])) {
+            $response = new LightningInvoiceResponse($existing['invoice_id'], $existing['payment_request'], $existing['status']);
+
+            return $this->finalize_payment_data($payment_data, $response, $order, $this->remaining_expiry_hours($existing['expires_at']));
+        }
+
         $args = apply_filters(
             // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- concrete implementations return prefixed 'paycryptome_lightning_*_invoice_args'.
             $this->invoice_args_filter(),
             array_merge($this->base_invoice_args($order), [
-                'order_id' => (string) $order->get_id(),
+                'order_id' => (string) $order_id,
                 'memo'     => apply_filters('paycryptome_lightning_invoice_memo', '', $order, $this->gateway),
                 'expiry'   => apply_filters(
                     'paycryptome_lightning_invoice_expiry',
@@ -44,29 +59,39 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
             $this->gateway
         );
 
-        $payment_data['crypto_network'] = "lightning:{$this->node_type()}";
-
         $response = $this->service->create_invoice($args);
 
         if ($response->payment_request === '') {
             $response = $this->resolve_payment_request($response, $order);
         }
 
-        $expiry_seconds  = (int) ($args['expiry'] ?? 3600);
-        $expires_at      = gmdate('Y-m-d H:i:s', time() + $expiry_seconds);
+        $expiry_seconds = (int) ($args['expiry'] ?? 3600);
+        $expires_at     = gmdate('Y-m-d H:i:s', time() + $expiry_seconds);
+        $amount_sats    = isset($args['amount_sats']) ? (int) $args['amount_sats'] : null;
 
-        $this->db->insert_invoice(
-            $order->get_id(),
-            $this->node_type(),
-            $response->invoice_id,
-            $response->payment_request,
-            $expires_at,
-            isset($args['amount_sats']) ? (int) $args['amount_sats'] : null
-        );
+        $persisted = $existing
+            ? $this->db->replace_invoice($order_id, $this->node_type(), $response->invoice_id, $response->payment_request, $expires_at, $amount_sats)
+            : $this->db->insert_invoice($order_id, $this->node_type(), $response->invoice_id, $response->payment_request, $expires_at, $amount_sats);
+
+        if (!$persisted) {
+            throw new PayCryptoMePaymentException(
+                \sprintf(
+                    'Failed to persist Lightning invoice for order #%s (node_type=%s, invoice=%s)',
+                    esc_html((string) $order_id),
+                    esc_html($this->node_type()),
+                    esc_html($response->invoice_id)
+                ),
+                esc_html__('We could not save your Lightning invoice. Please try again or contact the store.', 'paycrypto-me-for-woocommerce')
+            );
+        }
 
         // Align WC payment expiry with the actual Lightning invoice expiry.
-        $payment_data['payment_expires_at'] = (string) ceil($expiry_seconds / 3600);
+        return $this->finalize_payment_data($payment_data, $response, $order, (string) ceil($expiry_seconds / 3600));
+    }
 
+    private function finalize_payment_data(array $payment_data, LightningInvoiceResponse $response, \WC_Order $order, string $expires_at_hours): array
+    {
+        $payment_data['payment_expires_at']   = $expires_at_hours;
         $payment_data['payment_request']      = $response->payment_request;
         $payment_data['lightning_invoice_id'] = $response->invoice_id;
 
@@ -74,6 +99,25 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
         $payment_data['payment_uri'] = 'lightning:' . $response->payment_request;
 
         return apply_filters('paycryptome_lightning_payment_data', $payment_data, $response, $order, $this->gateway);
+    }
+
+    private function invoice_expired(string $expires_at): bool
+    {
+        return $this->expires_at_timestamp($expires_at) <= time();
+    }
+
+    private function remaining_expiry_hours(string $expires_at): string
+    {
+        $remaining_seconds = max(0, $this->expires_at_timestamp($expires_at) - time());
+
+        return (string) ceil($remaining_seconds / 3600);
+    }
+
+    private function expires_at_timestamp(string $expires_at): int
+    {
+        $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $expires_at, new \DateTimeZone('UTC'));
+
+        return $dt ? $dt->getTimestamp() : 0;
     }
 
     private function resolve_payment_request(LightningInvoiceResponse $response, \WC_Order $order): LightningInvoiceResponse

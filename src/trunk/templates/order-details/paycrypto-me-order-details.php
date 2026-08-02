@@ -60,15 +60,17 @@ if ($payment_display_data['payment_identifier']): ?>
                     </label>
                 </div>
             </div>
-            <div
-                class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--qr-code"
-                style="margin-top: 8px; justify-content: center; line-height: 1;">
-                <small style="font-weight: 700;"><?php esc_html_e('Scan QR Code to Pay:', 'paycrypto-me-for-woocommerce'); ?></small>
-            </div>
-            <div class="paycrypto-me-order-details__qr-code-image">
-                <img src="<?php echo esc_attr( $payment_display_data['payment_qr_code'] ); ?>"
-                    alt="<?php esc_attr_e( 'QR Code for Payment', 'paycrypto-me-for-woocommerce' ); ?>" />
-            </div>
+            <?php if (!empty($payment_display_data['payment_qr_code'])): ?>
+                <div
+                    class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--qr-code"
+                    style="margin-top: 8px; justify-content: center; line-height: 1;">
+                    <small style="font-weight: 700;"><?php esc_html_e('Scan QR Code to Pay:', 'paycrypto-me-for-woocommerce'); ?></small>
+                </div>
+                <div class="paycrypto-me-order-details__qr-code-image">
+                    <img src="<?php echo esc_attr( $payment_display_data['payment_qr_code'] ); ?>"
+                        alt="<?php esc_attr_e( 'QR Code for Payment', 'paycrypto-me-for-woocommerce' ); ?>" />
+                </div>
+            <?php endif; ?>
             <div class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--address">
                 <small class="paycrypto-me-order-details__address"><?php echo esc_html($payment_display_data['payment_identifier']); ?></small>
                 <button

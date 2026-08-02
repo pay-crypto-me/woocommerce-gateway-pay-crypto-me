@@ -26,22 +26,36 @@ class BitcoinAddressService
 {
     private array $prefixMap = [
         // mainnet
-        'xpub' => ['hex' => '0488b21e', 'type' => 'p2pkh'],
-        'ypub' => ['hex' => '049d7cb2', 'type' => 'p2sh-p2wpkh'],
-        'zpub' => ['hex' => '04b24746', 'type' => 'p2wpkh'],
+        'xpub' => ['hex' => '0488b21e', 'type' => 'p2pkh', 'testnet' => false],
+        'ypub' => ['hex' => '049d7cb2', 'type' => 'p2sh-p2wpkh', 'testnet' => false],
+        'zpub' => ['hex' => '04b24746', 'type' => 'p2wpkh', 'testnet' => false],
         // testnet
-        'tpub' => ['hex' => '043587cf', 'type' => 'p2pkh'],
-        'upub' => ['hex' => '044a5262', 'type' => 'p2sh-p2wpkh'],
-        'vpub' => ['hex' => '045f1cf6', 'type' => 'p2wpkh'],
+        'tpub' => ['hex' => '043587cf', 'type' => 'p2pkh', 'testnet' => true],
+        'upub' => ['hex' => '044a5262', 'type' => 'p2sh-p2wpkh', 'testnet' => true],
+        'vpub' => ['hex' => '045f1cf6', 'type' => 'p2wpkh', 'testnet' => true],
     ];
 
-    private $hdFactory;
-    private $addressCreator;
+    private ?HierarchicalKeyFactory $hdFactory;
+    private ?AddressCreator $addressCreator;
 
     public function __construct(?HierarchicalKeyFactory $hdFactory = null, ?AddressCreator $addressCreator = null)
     {
-        $this->hdFactory = $hdFactory ?? new HierarchicalKeyFactory();
-        $this->addressCreator = $addressCreator ?? new AddressCreator();
+        // Deliberately NOT instantiated here: both factories need the GMP extension (via the
+        // underlying EC adapter), and this service is constructed eagerly in the gateway's
+        // constructor, which WooCommerce runs on every request. Defer construction until an
+        // actual on-chain operation needs them, so hosts without GMP don't fatal on every page load.
+        $this->hdFactory = $hdFactory;
+        $this->addressCreator = $addressCreator;
+    }
+
+    private function get_hd_factory(): HierarchicalKeyFactory
+    {
+        return $this->hdFactory ??= new HierarchicalKeyFactory();
+    }
+
+    private function get_address_creator(): AddressCreator
+    {
+        return $this->addressCreator ??= new AddressCreator();
     }
 
     /**
@@ -66,7 +80,7 @@ class BitcoinAddressService
         $currentPrefix = $this->get_prefix_from_xpub($xPub);
 
         $converted = $this->convert_extended_pubkey_prefix($xPub, $network);
-        $hdKey = $this->hdFactory->fromExtended($converted, $network);
+        $hdKey = $this->get_hd_factory()->fromExtended($converted, $network);
 
         // Do NOT attempt to derive hardened paths (those with a trailing ').
         // Hardened derivation requires the private key; deriving hardened
@@ -131,10 +145,29 @@ class BitcoinAddressService
         return $this->prefixMap;
     }
 
+    /**
+     * Whether an extended-pubkey-shaped identifier's prefix belongs to the given network.
+     *
+     * `convert_extended_pubkey_prefix()` rewrites version bytes to the target network before
+     * validating, so a testnet key always passes validation against mainnet (and vice-versa)
+     * unless this is checked first. Returns true for identifiers whose prefix isn't a known
+     * extended-pubkey prefix (e.g. a static address) — this guard has nothing to say about them.
+     */
+    public function prefix_matches_network(string $identifier, string $network_type): bool
+    {
+        $prefix = $this->get_prefix_from_xpub($identifier);
+
+        if (!isset($this->prefixMap[$prefix])) {
+            return true;
+        }
+
+        return $this->prefixMap[$prefix]['testnet'] === ($network_type === 'testnet');
+    }
+
     private function generate_p2pkh_from_pubhash($publicKeyHash, NetworkInterface $network): string
     {
         $scriptPubKey = ScriptFactory::scriptPubKey()->payToPubKeyHash($publicKeyHash);
-        $addr = $this->addressCreator->fromOutputScript($scriptPubKey, $network);
+        $addr = $this->get_address_creator()->fromOutputScript($scriptPubKey, $network);
         return $addr->getAddress($network);
     }
 
@@ -150,7 +183,7 @@ class BitcoinAddressService
         $redeemScript = ScriptFactory::scriptPubKey()->witnessKeyHash($publicKeyHash);
         $redeemScriptHash = $redeemScript->getScriptHash();
         $p2shScript = ScriptFactory::scriptPubKey()->payToScriptHash($redeemScriptHash);
-        $addr = $this->addressCreator->fromOutputScript($p2shScript, $network);
+        $addr = $this->get_address_creator()->fromOutputScript($p2shScript, $network);
         return $addr->getAddress($network);
     }
 
@@ -188,7 +221,7 @@ class BitcoinAddressService
             $addressCreator->fromString($address, $network);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($logger !== null) {
                 $logger(
                     \sprintf('Bitcoin address validation failed: %s', esc_html( wp_strip_all_tags( $e->getMessage() ) )),
@@ -209,7 +242,7 @@ class BitcoinAddressService
             $hdFactory->fromExtended($replaceHex, $network);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($logger !== null) {
                 $logger(
                     \sprintf('Extended pubkey validation failed: %s', esc_html( wp_strip_all_tags( $e->getMessage() ) )),

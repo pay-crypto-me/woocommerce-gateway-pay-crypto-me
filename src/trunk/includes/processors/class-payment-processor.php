@@ -48,7 +48,7 @@ class PaymentProcessor
                 'redirect' => $this->get_return_url($order, $payment_data)
             );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             $e = PayCryptoMePaymentException::convertToMyself($e);
 

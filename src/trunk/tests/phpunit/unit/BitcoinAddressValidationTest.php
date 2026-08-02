@@ -67,6 +67,34 @@ class BitcoinAddressValidationTest extends TestCase
         $this->assertSame('debug', $logged[0][1]);
     }
 
+    // --- prefix_matches_network() ------------------------------------------------------
+
+    public function test_prefix_matches_network_accepts_matching_mainnet_xpub()
+    {
+        $this->assertTrue($this->svc->prefix_matches_network(self::MAINNET_XPUB, 'mainnet'));
+    }
+
+    public function test_prefix_matches_network_accepts_matching_testnet_tpub()
+    {
+        $this->assertTrue($this->svc->prefix_matches_network(self::TESTNET_TPUB, 'testnet'));
+    }
+
+    public function test_prefix_matches_network_rejects_testnet_tpub_on_mainnet()
+    {
+        $this->assertFalse($this->svc->prefix_matches_network(self::TESTNET_TPUB, 'mainnet'));
+    }
+
+    public function test_prefix_matches_network_rejects_mainnet_xpub_on_testnet()
+    {
+        $this->assertFalse($this->svc->prefix_matches_network(self::MAINNET_XPUB, 'testnet'));
+    }
+
+    public function test_prefix_matches_network_ignores_unknown_prefix()
+    {
+        $this->assertTrue($this->svc->prefix_matches_network('not-an-xpub-at-all', 'mainnet'));
+        $this->assertTrue($this->svc->prefix_matches_network(self::MAINNET_P2PKH_ADDRESS, 'testnet'));
+    }
+
     // --- validate_bitcoin_address() ---------------------------------------------------
 
     public function test_validate_bitcoin_address_accepts_mainnet_p2pkh_on_mainnet()

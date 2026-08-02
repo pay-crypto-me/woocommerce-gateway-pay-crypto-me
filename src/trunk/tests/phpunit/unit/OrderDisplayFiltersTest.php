@@ -67,6 +67,27 @@ class OrderDisplayFiltersTest extends TestCase
         $this->assertSame($gateway, $post[0]['args'][2]);
     }
 
+    public function test_render_catches_throwable_and_logs_instead_of_fatal()
+    {
+        // Regression test for C6's final safety net: any failure while building/rendering the
+        // order-details section must be caught and logged, never allowed to fatal the order
+        // page. Using \Error (not \Exception) proves the catch is \Throwable-wide.
+        $gateway = $this->getMockBuilder(WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['build_order_display_args', 'register_paycrypto_me_log'])
+            ->getMock();
+        $gateway->id = 'paycrypto_me';
+        $gateway->method('build_order_display_args')->willThrowException(new \Error('boom'));
+        $gateway->expects($this->once())->method('register_paycrypto_me_log');
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(99);
+
+        $gateway->render_checkout_order_details_section($order);
+
+        $this->assertCount(0, hook_spy_calls('paycryptome_order_display_args'));
+    }
+
     public function test_render_bails_without_firing_filters_when_no_payment()
     {
         $gateway = $this->make_gateway();

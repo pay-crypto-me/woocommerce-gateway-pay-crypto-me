@@ -22,6 +22,7 @@ class WCGatewayValidationTest extends TestCase
             ->getMock();
 
         $svc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $svc->method('prefix_matches_network')->willReturn(true);
         $svc->method('validate_extended_pubkey')->willReturn(true);
         $svc->method('validate_bitcoin_address')->willReturn(false);
 
@@ -65,6 +66,7 @@ class WCGatewayValidationTest extends TestCase
         $gateway->expects($this->once())->method('register_paycrypto_me_log');
 
         $svc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $svc->method('prefix_matches_network')->willReturn(true);
         $svc->method('validate_extended_pubkey')->willReturn(false);
         $svc->method('validate_bitcoin_address')->willReturn(false);
 
@@ -75,6 +77,77 @@ class WCGatewayValidationTest extends TestCase
 
         $ok = $m->invoke($gateway, 'mainnet', 'notavalidid');
         $this->assertFalse($ok, 'Expected invalid identifier to be rejected');
+    }
+
+    public function test_validate_network_identifier_rejects_testnet_xpub_on_mainnet()
+    {
+        // Regression test for C1: convert_extended_pubkey_prefix() used to rewrite the
+        // version bytes to the target network *before* validating, so a testnet tpub was
+        // silently accepted as a valid mainnet key. prefix_matches_network() must catch this.
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['register_paycrypto_me_log'])
+            ->getMock();
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', new \PayCryptoMe\WooCommerce\BitcoinAddressService());
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'validate_network_identifier');
+        $m->setAccessible(true);
+
+        $tpub = 'tpubDCbMks4NTuatj9Hu8quz2tiCcKxH7Pa6sEfEMio175z2d2uvRwB9SErJS6BZJ7ndWj9adLNihLhyfhAyXSivBWPiTuQqMwkUbvw6SrTrZoT';
+        $ok = $m->invoke($gateway, 'mainnet', $tpub);
+        $this->assertFalse($ok, 'A testnet tpub must be rejected when Mainnet is the selected network');
+    }
+
+    public function test_validate_network_identifier_rejects_mainnet_xpub_on_testnet()
+    {
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['register_paycrypto_me_log'])
+            ->getMock();
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', new \PayCryptoMe\WooCommerce\BitcoinAddressService());
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'validate_network_identifier');
+        $m->setAccessible(true);
+
+        $xpub = 'xpub6BmGNiA6M7CTF1nDvz7muM4HrK4dYGu3V36jsUDZTnqo7tCyyVRoVYz6nhhC2HHGXoTcZzEWC7KLAykkTutVFq3r3zHktaoRgQ4PyZyBULh';
+        $ok = $m->invoke($gateway, 'testnet', $xpub);
+        $this->assertFalse($ok, 'A mainnet xpub must be rejected when Testnet is the selected network');
+    }
+
+    public function test_is_xpub_network_mismatch_detects_wrong_network_only()
+    {
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', new \PayCryptoMe\WooCommerce\BitcoinAddressService());
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'is_xpub_network_mismatch');
+        $m->setAccessible(true);
+
+        $tpub = 'tpubDCbMks4NTuatj9Hu8quz2tiCcKxH7Pa6sEfEMio175z2d2uvRwB9SErJS6BZJ7ndWj9adLNihLhyfhAyXSivBWPiTuQqMwkUbvw6SrTrZoT';
+        $this->assertTrue($m->invoke($gateway, 'mainnet', $tpub));
+        $this->assertFalse($m->invoke($gateway, 'testnet', $tpub));
+        $this->assertFalse($m->invoke($gateway, 'mainnet', 'not-an-xpub-at-all'));
+    }
+
+    public function test_admin_enqueue_scripts_content_handles_null_screen_without_fatal()
+    {
+        // Regression test (Part 4 one-liner): `&&` binds tighter than `||`, so
+        // `$screen && $screen->id === 'x' || $screen->id === 'y'` only guarded the first
+        // half — a null $screen (a real case: admin hooks can fire outside a screen context)
+        // still dereferenced $screen->id in the second half and fatal'd.
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'admin_enqueue_scripts_content');
+        $m->setAccessible(true);
+
+        $m->invoke($gateway, null);
+        $this->addToAssertionCount(1);
     }
 
     public function test_mask_identifier_for_log_behaviour()

@@ -23,8 +23,8 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
     protected $debug_log;
     protected $payment_timeout_hours;
     protected $payment_number_confirmations;
-    private BitcoinAddressService $bitcoin_address_service;
-    private PayCryptoMeDBStatementsService $db_statements_service;
+    private ?BitcoinAddressService $bitcoin_address_service = null;
+    private ?PayCryptoMeDBStatementsService $db_statements_service = null;
 
     public function __construct()
     {
@@ -46,10 +46,47 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         $this->enable_express_payment = $this->get_option('enable_express_payment', 'yes') === 'yes';
         $this->express_payment_text = $this->get_option('express_payment_text', '') ?: __('Buy with', 'paycrypto-me-for-woocommerce');
 
-        $this->bitcoin_address_service = new BitcoinAddressService();
-        $this->db_statements_service = new PayCryptoMeDBStatementsService();
+        // Deliberately NOT instantiated here: WooCommerce constructs every registered gateway on
+        // every request (frontend, admin, cron, REST, AJAX), but these services are only needed
+        // when saving settings or resetting the derivation index. See the lazy accessors below.
 
         parent::__construct();
+
+        // Registered here, not in the abstract constructor: ajax_reset_derivation_index() only
+        // exists on this (On-Chain) gateway — the Lightning gateway has no derivation index to
+        // reset, so registering it on the abstract class made Lightning register a callback
+        // pointing at a method that doesn't exist there.
+        add_action('wp_ajax_paycryptome_reset_derivation_index', array($this, 'ajax_reset_derivation_index'));
+
+        if ('yes' === $this->enabled && !extension_loaded('gmp')) {
+            add_action('admin_notices', [$this, 'render_gmp_missing_notice']);
+        }
+    }
+
+    public function render_gmp_missing_notice()
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-warning"><p>%s</p></div>',
+            wp_kses_post(sprintf(
+                /* translators: %s is the payment gateway's title, e.g. "Bitcoin Payments (On-Chain)". */
+                __('%s is enabled but hidden from checkout: this server is missing the PHP GMP extension, which is required to derive Bitcoin addresses. Ask your host to enable it. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
+                esc_html($this->method_title)
+            ))
+        );
+    }
+
+    private function get_bitcoin_address_service(): BitcoinAddressService
+    {
+        return $this->bitcoin_address_service ??= new BitcoinAddressService();
+    }
+
+    private function get_db_statements_service(): PayCryptoMeDBStatementsService
+    {
+        return $this->db_statements_service ??= new PayCryptoMeDBStatementsService();
     }
 
     public function ajax_reset_derivation_index()
@@ -60,7 +97,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         check_ajax_referer('paycrypto_me_nonce', 'security');
 
-        $reset = $this->db_statements_service->reset_derivation_indexes();
+        $reset = $this->get_db_statements_service()->reset_derivation_indexes();
 
         if ($reset === false) {
             $this->register_paycrypto_me_log('Failed to reset derivation indexes via admin panel.', 'error');
@@ -101,6 +138,14 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         }
 
         if (!$this->validate_network_identifier($selected_network, $network_identifier)) {
+            if ($this->is_xpub_network_mismatch($selected_network, $network_identifier)) {
+                $wrong_network = $selected_network === 'testnet' ? 'mainnet' : 'testnet';
+                /* translators: 1: network the key actually belongs to, 2: network selected in settings. */
+                $format = esc_html__('This key belongs to %1$s, but the selected network is %2$s. Please provide a key for the selected network.', 'paycrypto-me-for-woocommerce');
+                \WC_Admin_Settings::add_error(sprintf($format, esc_html($wrong_network), esc_html($selected_network)));
+                return false;
+            }
+
             /* translators: %s is the field label being validated, e.g. "Wallet xPub". */
             $format = esc_html__('The %s provided is not valid for the selected network.', 'paycrypto-me-for-woocommerce');
             \WC_Admin_Settings::add_error(sprintf($format, esc_html($network_config['field_label'])));
@@ -200,6 +245,12 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             return false;
         }
 
+        // Address derivation/validation goes through bitwasp/bitcoin's EC adapter, which
+        // requires GMP. Without it, offer Lightning only instead of fataling the whole site.
+        if (!extension_loaded('gmp')) {
+            return false;
+        }
+
         if (empty($this->get_option('selected_network'))) {
             return false;
         }
@@ -264,7 +315,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
     protected function admin_enqueue_scripts_content($screen)
     {
-        if ($screen && $screen->id === 'woocommerce_page_wc-orders' || $screen->id === 'shop_order') {
+        if ($screen && ($screen->id === 'woocommerce_page_wc-orders' || $screen->id === 'shop_order')) {
             $css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/css/frontend/paycrypto-me-order-details.css';
             if (file_exists($css_path)) {
                 wp_enqueue_style(
@@ -279,6 +330,22 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
     private function validate_xpub_address($network_type, $identifier)
     {
+        // Checked before any conversion: convert_extended_pubkey_prefix() rewrites version
+        // bytes to the target network, so a testnet key would otherwise always validate
+        // successfully against mainnet (and vice-versa).
+        if (!$this->get_bitcoin_address_service()->prefix_matches_network($identifier, $network_type)) {
+            $this->register_paycrypto_me_log(
+                \sprintf(
+                    'xpub network mismatch for %s: `%s`',
+                    $network_type,
+                    $this->mask_identifier_for_log($network_type, $identifier)
+                ),
+                'error'
+            );
+
+            return false;
+        }
+
         $network = $network_type === 'testnet'
             ? NetworkFactory::bitcoinTestnet()
             : NetworkFactory::bitcoin();
@@ -288,7 +355,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         // internal parse error would only be noise. A genuine failure is still
         // reported by validate_network_identifier's final `error` log.
         try {
-            if ($ok = $this->bitcoin_address_service->validate_extended_pubkey($identifier, $network)) {
+            if ($ok = $this->get_bitcoin_address_service()->validate_extended_pubkey($identifier, $network)) {
                 return $ok;
             }
         } catch (\Throwable $th) {
@@ -296,6 +363,19 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
                 \sprintf('xpub validation threw: %s', esc_html( wp_strip_all_tags( $th->getMessage() ) )),
                 'error'
             );
+        }
+
+        return false;
+    }
+
+    private function address_prefix_matches_network($network_type, $identifier)
+    {
+        $networks = $this->get_available_networks();
+
+        foreach ($networks[$network_type]['address_prefix'] ?? [] as $prefix) {
+            if (str_starts_with($identifier, $prefix)) {
+                return true;
+            }
         }
 
         return false;
@@ -311,7 +391,10 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         $logger = fn($message, $level) => $this->register_paycrypto_me_log($message, $level);
 
-        if ($this->bitcoin_address_service->validate_bitcoin_address($identifier, $network, $logger)) {
+        if (
+            $this->address_prefix_matches_network($network_type, $identifier)
+            && $this->get_bitcoin_address_service()->validate_bitcoin_address($identifier, $network, $logger)
+        ) {
             $this->register_paycrypto_me_log(
                 esc_html__('A fixed Bitcoin address was saved. Payments will work, but every order is paid to this same address. For better privacy, we recommend using an extended public key (xpub/ypub/zpub) instead, which automatically creates a new address for each order.', 'paycrypto-me-for-woocommerce'),
                 'notice'
@@ -326,6 +409,15 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         );
 
         return false;
+    }
+
+    /**
+     * Whether a failed validate_network_identifier() call was specifically caused by an
+     * extended-pubkey network mismatch, so process_admin_options() can show a clearer error.
+     */
+    private function is_xpub_network_mismatch($network_type, $identifier)
+    {
+        return !$this->get_bitcoin_address_service()->prefix_matches_network($identifier, $network_type);
     }
 
     private function mask_identifier_for_log($network_type, $identifier)

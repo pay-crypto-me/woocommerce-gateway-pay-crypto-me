@@ -32,7 +32,8 @@ class AbstractLightningProcessorTest extends TestCase
         $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
         $db->expects($this->once())
             ->method('insert_invoice')
-            ->with(42, 'btcpay', 'inv1', 'lnbc1resolved', $this->anything(), null);
+            ->with(42, 'btcpay', 'inv1', 'lnbc1resolved', $this->anything(), null)
+            ->willReturn(true);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
         $result    = $processor->process($order, []);
@@ -53,7 +54,8 @@ class AbstractLightningProcessorTest extends TestCase
         $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
         $db->expects($this->once())
             ->method('insert_invoice')
-            ->with(43, 'btcpay', 'inv2', 'lnbc1direct', $this->anything(), null);
+            ->with(43, 'btcpay', 'inv2', 'lnbc1direct', $this->anything(), null)
+            ->willReturn(true);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
         $result    = $processor->process($order, []);
@@ -77,6 +79,7 @@ class AbstractLightningProcessorTest extends TestCase
             ->willReturn(new LightningInvoiceResponse('inv4', 'lnbc1test', 'New', null));
 
         $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('insert_invoice')->willReturn(true);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
         $processor->process($order, []);
@@ -110,11 +113,93 @@ class AbstractLightningProcessorTest extends TestCase
         $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv5', 'lnbc1test', 'OPEN', null));
 
         $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('insert_invoice')->willReturn(true);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
         $result    = $processor->process($order, []);
 
         $this->assertSame('lightning:btcpay', $result['crypto_network'], 'node_type is folded into crypto_network so PaymentProcessor::register_payment_log() and order meta surface it without adding a bare node_type key that On-Chain orders would show as N-A');
+    }
+
+    public function test_reuses_valid_existing_invoice_without_creating_a_new_one(): void
+    {
+        // Regression test for C2: a second process_payment() call for the same order (checkout
+        // retry / order-pay) must reuse the still-valid invoice instead of creating another one
+        // at the node, which would otherwise diverge the order meta from the DB row.
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(50);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->expects($this->never())->method('create_invoice');
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn([
+            'order_id'        => 50,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_existing',
+            'payment_request' => 'lnbc1existing',
+            'status'          => 'New',
+            'expires_at'      => gmdate('Y-m-d H:i:s', time() + 3600),
+            'amount_sats'     => null,
+        ]);
+        $db->expects($this->never())->method('insert_invoice');
+        $db->expects($this->never())->method('replace_invoice');
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        $this->assertSame('lnbc1existing', $result['payment_request']);
+        $this->assertSame('lightning:lnbc1existing', $result['payment_uri']);
+    }
+
+    public function test_replaces_expired_invoice_instead_of_diverging_meta_and_db(): void
+    {
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(51);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv_new', 'lnbc1new', 'New', null));
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn([
+            'order_id'        => 51,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_old',
+            'payment_request' => 'lnbc1old',
+            'status'          => 'New',
+            'expires_at'      => gmdate('Y-m-d H:i:s', time() - 3600),
+            'amount_sats'     => null,
+        ]);
+        $db->expects($this->never())->method('insert_invoice');
+        $db->expects($this->once())
+            ->method('replace_invoice')
+            ->with(51, 'btcpay', 'inv_new', 'lnbc1new', $this->anything(), null)
+            ->willReturn(true);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        $this->assertSame('lnbc1new', $result['payment_request']);
+    }
+
+    public function test_throws_when_invoice_persistence_fails(): void
+    {
+        // insert_invoice() can return false on a race (UNIQUE KEY unique_order hit between the
+        // get_by_order_id() check and the insert) — this must never be swallowed silently.
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(52);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv6', 'lnbc1six', 'New', null));
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_invoice')->willReturn(false);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+
+        $this->expectException(PayCryptoMePaymentException::class);
+        $processor->process($order, []);
     }
 
     public function test_retry_constants_are_two_attempts_750ms_apart(): void

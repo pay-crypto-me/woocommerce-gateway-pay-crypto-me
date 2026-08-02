@@ -60,6 +60,7 @@ Notes:
 - The plugin is not responsible for the data provided or who accesses it — safeguarding your xPub, API keys and macaroons is the store administrator's responsibility.
 - Only Bitcoin is currently supported (on-chain and Lightning). Support for additional networks may be considered in future updates.
 - Payment confirmation is currently a manual, admin-driven step — see "What this plugin intentionally does not do" above.
+- **PHP extensions:** the Bitcoin On-Chain gateway requires the `gmp` extension to derive addresses — without it, On-Chain is hidden from checkout (with an admin notice) but Lightning keeps working normally. The payment QR code requires `gd`; if it's missing, the order-details page still shows the address/invoice and a copy button, just without the QR image.
 
 == Screenshots ==
 
@@ -106,7 +107,9 @@ This plugin stores the following data needed to process Bitcoin payments:
 
 None of this data leaves your WordPress installation: the plugin only talks to your own wallet-derivation logic and to the BTCPay Server/lnd node you configure, never to a third-party API.
 
-**Uninstalling the plugin does not remove this data.** The custom database tables and both gateways' settings remain in your database after deactivation/uninstallation, so historical order data stays intact. Remove them manually (via your database) if you no longer need them.
+**On uninstall, both gateways' settings are deleted** — including the Lightning node credentials (API key, macaroon, TLS certificate), so those secrets are not left behind in your database.
+
+**The payment record tables are deliberately kept** (`{prefix}paycrypto_me_bitcoin_wallet_xpubkeys`, `{prefix}paycrypto_me_bitcoin_derivation_indexes`, `{prefix}paycrypto_me_bitcoin_transactions_data`, `{prefix}paycrypto_me_lightning_invoices`), so the payment history of past orders stays intact for accounting and reconciliation after the plugin is removed. Drop them manually (via your database) if you no longer need them.
 
 == Changelog ==
 

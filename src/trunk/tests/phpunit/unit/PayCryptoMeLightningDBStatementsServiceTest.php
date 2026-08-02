@@ -232,4 +232,44 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
 
         $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
     }
+
+    public function test_replace_invoice_overwrites_existing_row_and_returns_true()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(20, 'btcpay', 'inv_old', 'lnbc_old', '2026-01-01 00:00:00', 1000);
+
+        $result = $svc->replace_invoice(20, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00', 2000);
+
+        $this->assertTrue($result);
+        $this->assertSame([
+            'order_id'        => 20,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_new',
+            'payment_request' => 'lnbc_new',
+            'expires_at'      => '2026-02-01 00:00:00',
+            'status'          => 'New',
+            'amount_sats'     => 2000,
+        ], $wpdb->rows[20]);
+    }
+
+    public function test_replace_invoice_returns_false_when_order_missing()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+
+        $this->assertFalse($svc->replace_invoice(999, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00'));
+    }
+
+    public function test_replace_invoice_invalidates_cache()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(21, 'btcpay', 'inv_old', 'lnbc_old', '2026-01-01 00:00:00');
+        $svc->get_by_order_id(21); // warm the cache
+
+        $svc->replace_invoice(21, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00');
+
+        $fresh = $svc->get_by_order_id(21);
+        $this->assertSame('inv_new', $fresh['invoice_id']);
+    }
 }

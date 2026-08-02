@@ -137,6 +137,75 @@ class BitcoinPaymentProcessorTest extends TestCase
         $this->assertSame($gateway, $data_calls[0]['args'][2]);
     }
 
+    public function test_releases_derivation_index_when_persistence_fails()
+    {
+        // Regression test for C3: a failure between reserving the index and persisting the
+        // address must release the index, or systemic failures burn indexes and eventually
+        // blow past the wallet's BIP-44 gap limit.
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => 'xpub_fake',
+            'selected_network'   => 'mainnet',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(77);
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('get_wallet_xpubkey_id')->willReturn(9);
+        $db->method('reserve_derivation_index_for_wallet')->willReturn(3);
+        $db->method('insert_address')->willReturn(false);
+        $db->expects($this->once())
+            ->method('release_derivation_index')
+            ->with(9, 3)
+            ->willReturn(true);
+
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_extended_pubkey')->willReturn(true);
+        $btcSvc->method('generate_address_from_xPub')->willReturn('1NewAddr');
+
+        $processor = new BitcoinPaymentProcessor($gateway, $btcSvc, $db);
+
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMeException::class);
+        $processor->process($order, ['crypto_amount' => 0.1]);
+    }
+
+    public function test_releases_derivation_index_when_address_generation_throws_an_error()
+    {
+        // \Error (e.g. "Call to undefined function gmp_init()" on a host without GMP) is not
+        // an \Exception — the outer catch must be \Throwable, or this propagates uncaught.
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => 'xpub_fake',
+            'selected_network'   => 'mainnet',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(78);
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('get_wallet_xpubkey_id')->willReturn(9);
+        $db->method('reserve_derivation_index_for_wallet')->willReturn(3);
+        $db->expects($this->once())
+            ->method('release_derivation_index')
+            ->with(9, 3)
+            ->willReturn(true);
+        $db->expects($this->never())->method('insert_address');
+
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_extended_pubkey')->willReturn(true);
+        $btcSvc->method('generate_address_from_xPub')->willThrowException(new \Error('Call to undefined function gmp_init()'));
+
+        $processor = new BitcoinPaymentProcessor($gateway, $btcSvc, $db);
+
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMeException::class);
+        $processor->process($order, ['crypto_amount' => 0.1]);
+    }
+
     public function test_process_preserves_original_exception_as_previous()
     {
         $gateway = new class extends \WC_Payment_Gateway {

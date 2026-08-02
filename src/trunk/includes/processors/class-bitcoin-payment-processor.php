@@ -70,7 +70,7 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
             $payment_data['payment_address']  = $payment_address;
             $payment_data['derivation_index'] = $derivation_index;
             $payment_data['payment_uri']      = $this->build_payment_uri($order, $payment_address, $payment_data['crypto_amount']);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $clean = wp_strip_all_tags( $e->getMessage() );
             throw new PayCryptoMeException(
                 \sprintf('Bitcoin Payment Processor: %s', esc_html( $clean )),
@@ -125,27 +125,43 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
 
         $derivation_index = (int) $this->db->reserve_derivation_index_for_wallet((int) $wallet_xpub_id);
 
-        $gateway = $this->gateway;
-        $payment_address = $this->bitcoin_address_service->generate_address_from_xPub(
-            $xPub,
-            $derivation_index,
-            $bitcoin_network,
-            null,
-            static function (string $msg, string $level) use ($gateway): void {
-                $gateway->register_paycrypto_me_log($msg, $level);
+        // Derivation + persistence run in the same try/catch as the reservation above so that
+        // ANY failure in between (missing GMP, invalid xpub, a write failure) releases the
+        // index instead of burning it — see release_derivation_index() docblock.
+        try {
+            $gateway = $this->gateway;
+            $payment_address = $this->bitcoin_address_service->generate_address_from_xPub(
+                $xPub,
+                $derivation_index,
+                $bitcoin_network,
+                null,
+                static function (string $msg, string $level) use ($gateway): void {
+                    $gateway->register_paycrypto_me_log($msg, $level);
+                }
+            );
+
+            $inserted = $this->db->insert_address((int) $order->get_id(), $derivation_index, $payment_address, $wallet_xpub_id);
+
+            if ($inserted === false) {
+                throw new PayCryptoMeException(
+                    \sprintf('Failed to persist generated address for order #%s', esc_html( (string) $order->get_id() ))
+                );
             }
-        );
+        } catch (\Throwable $e) {
+            $this->db->release_derivation_index($wallet_xpub_id, $derivation_index);
 
-        $inserted = $this->db->insert_address((int) $order->get_id(), $derivation_index, $payment_address, $wallet_xpub_id);
-
-        if ($inserted === false) {
             $this->gateway->register_paycrypto_me_log(
-                \sprintf('Failed to persist generated address for order #%s', $order->get_id()),
+                \sprintf(
+                    'Released derivation index %d for wallet #%d after failure for order #%s: %s',
+                    $derivation_index,
+                    $wallet_xpub_id,
+                    $order->get_id(),
+                    esc_html( wp_strip_all_tags( $e->getMessage() ) )
+                ),
                 'error'
             );
-            throw new PayCryptoMeException(
-                \sprintf('Failed to persist generated address for order #%s', esc_html( (string) $order->get_id() ))
-            );
+
+            throw $e;
         }
 
         return [$payment_address, $derivation_index];

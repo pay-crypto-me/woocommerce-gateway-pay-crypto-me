@@ -9,6 +9,12 @@ use PayCryptoMe\WooCommerce\PaymentOrderValidator;
 if (!function_exists('wc_get_order')) {
     function wc_get_order($order_id)
     {
+        // Sentinel: order id 0 simulates wc_get_order() returning false for a
+        // stale/invalid order id (WooCommerce's real return type when no order matches).
+        if ($order_id === 0) {
+            return false;
+        }
+
         // $TEST_ORDER_PAYMENT_METHOD lets tests exercise the express payment-method
         // variant (`{gateway_id}_express`) without a second order stub.
         global $TEST_ORDER_PAYMENT_METHOD;
@@ -242,6 +248,20 @@ class PaymentProcessorTest extends TestCase
         $result = $processor->process_payment(123, $gateway);
 
         $this->assertSame('success', $result['result'], 'validate_order() must accept the {gateway_id}_express payment method');
+    }
+
+    public function test_process_payment_handles_wc_get_order_returning_false_without_fatal()
+    {
+        // Regression test for C5: wc_get_order() returning false used to fatal with
+        // "Call to a member function get_total() on bool" — a \TypeError/\Error, not an
+        // \Exception, so the old catch(\Exception) let it escape as an uncaught white screen.
+        $gateway = new GatewayStub();
+        $processor = new PaymentProcessor();
+
+        $result = $processor->process_payment(0, $gateway);
+
+        $this->assertSame('failure', $result['result']);
+        $this->assertSame('https://example.org/checkout', $result['redirect']);
     }
 
     public function test_get_return_url_falls_back_to_checkout_received_url_without_redirect_key()

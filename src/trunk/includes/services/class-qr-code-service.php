@@ -68,24 +68,32 @@ class QrCodeService
 
     private function generate_native(string $data, ?string $logo_src): string
     {
-        $result = Builder::create()
-            ->writer(new PngWriter())
-            ->writerOptions([])
-            ->validateResult(false)
-            ->data($data);
+        // This is the fallback path generate_with_bordered_logo() falls through to on GD
+        // failure, but it depends on GD (PngWriter), fileinfo (mime_content_type for the logo)
+        // and iconv (hard requirement of bacon/bacon-qr-code) just the same — any of those
+        // missing must degrade to "no QR" rather than fatal the order-details page.
+        try {
+            $result = Builder::create()
+                ->writer(new PngWriter())
+                ->writerOptions([])
+                ->validateResult(false)
+                ->data($data);
 
-        if ($logo_src) {
-            $result = $result->logoPath($logo_src)
-                ->logoResizeToWidth(self::DEFAULT_LOGO_SIZE);
+            if ($logo_src) {
+                $result = $result->logoPath($logo_src)
+                    ->logoResizeToWidth(self::DEFAULT_LOGO_SIZE);
+            }
+
+            $result = $result->errorCorrectionLevel($logo_src ? new ErrorCorrectionLevelHigh() : new ErrorCorrectionLevelLow())
+                ->encoding(new Encoding('UTF-8'))
+                ->size(self::QR_SIZE)
+                ->margin(0)
+                ->build();
+
+            return $result->getDataUri();
+        } catch (\Throwable $e) {
+            return '';
         }
-
-        $result = $result->errorCorrectionLevel($logo_src ? new ErrorCorrectionLevelHigh() : new ErrorCorrectionLevelLow())
-            ->encoding(new Encoding('UTF-8'))
-            ->size(self::QR_SIZE)
-            ->margin(0)
-            ->build();
-
-        return $result->getDataUri();
     }
 
     private function generate_with_bordered_logo(string $data, string $logo_src, array $border): ?string

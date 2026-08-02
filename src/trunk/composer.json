@@ -30,6 +30,8 @@
         }
     },
     "require": {
+        "ext-gmp": "*",
+        "ext-gd": "*",
         "endroid/qr-code": "^4.6",
         "lucas-rosa95/bitcoin": "dev-master"
     },

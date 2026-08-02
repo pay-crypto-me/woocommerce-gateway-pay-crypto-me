@@ -151,10 +151,51 @@ Antes de executar o release, verifique:
 | Branch `main` limpa (sem changes pendentes) | `git status` |
 | `readme.txt` atualizado com changelog da nova versão | Ver seção acima |
 | Todos os testes passando | `./scripts/release.sh ... --no-zip` primeiro |
+| Smoke de host mínimo passando (**stack de dev precisa estar no ar** — diferente do resto do release) | `docker compose up -d wordpress` e depois `./scripts/smoke-minimal-host.sh` — ver seção abaixo |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
 | Credenciais SVN configuradas (se for submeter ao WP.org) | Ver seção "Configurando Credenciais SVN" abaixo |
 
 > **Por que Docker?** O `release.sh` executa `npm run build`, `phpunit` e `composer install --no-dev` dentro de um **container efêmero** (serviço `release` do `docker-compose.yml`, invocado via `docker compose run --rm release`). Esse serviço reutiliza a **mesma imagem** e o **mesmo bind mount `./src/trunk`** do serviço de dev `wordpress` — mas sem WordPress/MySQL, sem `depends_on` e atrás de um profile. Assim o ambiente de build é idêntico ao de execução do plugin **sem** depender do stack de dev no ar (e sem ligar o banco).
+
+---
+
+## Smoke de Host Mínimo (passo obrigatório antes de gerar release)
+
+`./scripts/smoke-minimal-host.sh` existe para fechar a classe de bug que motivou o
+`docs/PRODUCTION-HARDENING.md`: um fatal de ativação (`gmp_init` indefinida) que só aparece em
+hosts sem certas extensões PHP — nosso container de dev (e o do serviço `release`) tem *todas*
+as extensões instaladas, então nenhum PHPUnit consegue detectar esse tipo de regressão.
+
+O script reutiliza a mesma técnica que reproduziu o bug original — desabilitar uma função
+específica via `php -d disable_functions=...` para simular a extensão correspondente ausente —
+contra o serviço de dev `wordpress` (que, ao contrário do resto do `release.sh`, **precisa
+estar no ar**):
+
+```bash
+docker compose up -d wordpress   # se ainda não estiver no ar
+./scripts/smoke-minimal-host.sh
+```
+
+Cobre, cada combinação isoladamente e sem fatal:
+
+| Extensão simulada ausente | O que deve acontecer |
+|---|---|
+| `gmp` | Listagem/construção dos gateways não fatala (construção é lazy) |
+| `gd` | Geração de QR degrada para vazio, sem fatal |
+| `iconv` | Idem (dependência obrigatória do `bacon/bacon-qr-code`) |
+| `fileinfo` | Idem (`mime_content_type`, usado pelo logo do QR) |
+| `gd` (novamente) | A página de detalhes do pedido ainda renderiza (endereço presente), mesmo sem QR |
+
+O script sai com código != 0 se qualquer combinação produzir um fatal. Cria arquivos PHP
+temporários em `src/trunk/.smoke-minimal-host-tmp/` (necessário para rodar via
+`wp eval-file` dentro do container) e sempre os remove ao final, mesmo em caso de erro.
+
+> **Limitação conhecida:** `disable_functions` bloqueia a *função*, não a extensão — por isso
+> o check de `gmp` não consegue validar o guard `extension_loaded('gmp')` de `is_available()`
+> (que continua reportando `true` nesse cenário simulado). Esse guard só é verificável de fato
+> num host que realmente não tenha a extensão compilada (como o WordPress Playground do
+> revisor) — o smoke test cobre a parte que É simulável: a construção/listagem dos gateways
+> nunca deve tocar `gmp_init` diretamente.
 
 ---
 
@@ -551,6 +592,8 @@ PRÉ-RELEASE
 [ ] src/trunk/readme.txt atualizado: nova entrada em == Changelog == e == Upgrade Notice ==
 [ ] src/trunk/CHANGELOG.md sincronizado: movido item de Unreleased para nova seção de versão
 [ ] Docker rodando: docker compose ps
+[ ] Smoke de host mínimo passando:
+    docker compose up -d wordpress && ./scripts/smoke-minimal-host.sh
 
 BUILD E VALIDAÇÃO
 [ ] Dry-run sem erros:

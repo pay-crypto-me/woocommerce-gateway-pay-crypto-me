@@ -133,6 +133,18 @@ class PaymentDisplayDataBuilderTest extends TestCase
         $this->assertNull($data['expires_at_formatted']);
     }
 
+    public function test_build_tolerates_qr_code_service_returning_empty_string()
+    {
+        // Regression test for C6: an unavailable QR (GD/fileinfo/iconv missing on the host)
+        // must not prevent the rest of the payment display data from being built — the
+        // address, uri and copy button are what's essential for the customer to still pay.
+        $data = $this->make_builder('')->build($this->make_order(), $this->sample_args());
+
+        $this->assertSame('', $data['payment_qr_code']);
+        $this->assertSame('bc1qexampleaddress', $data['payment_identifier']);
+        $this->assertSame('bitcoin:bc1qexampleaddress?amount=0.01', $data['payment_uri']);
+    }
+
     public function test_crypto_label_maps_btc_to_bitcoin()
     {
         $data = $this->make_builder()->build(

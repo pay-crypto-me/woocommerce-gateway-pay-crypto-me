@@ -6,8 +6,9 @@
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%)
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway
 - [docs/WORDPRESS-ORG-REVIEW-FIXES.md](docs/WORDPRESS-ORG-REVIEW-FIXES.md) — plan to resolve the pending WordPress.org review (enqueue assets, nonce sanitization, composer.json in package, i18n loading)
+- [docs/PRODUCTION-HARDENING.md](docs/PRODUCTION-HARDENING.md) — **implemented and verified**: fixes for the GMP activation fatal + deep-audit findings (3 money-loss bugs, environment-dependent fatals, schema integrity). Read for the *why* behind several non-obvious patterns (lazy service construction, `\Throwable` catches at checkout/render boundaries, dbDelta's `IF NOT EXISTS` trap). Verification complete: 277 tests, Plugin Check clean, `scripts/smoke-minimal-host.sh` passing, and manual browser smoke test (checkout both gateways, order-details page, admin xpub-network-mismatch rejection) confirmed working.
 
-**Status:** v0.1.0 ready for WordPress.org. All gateways functional, 243 tests passing, translations complete. Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
+**Status:** v0.1.0 submitted to WordPress.org; production-hardening round complete and fully verified (277 tests passing, 7 locales at 100%, manual smoke test passed). Ready for release build. Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
 
 ---
 
@@ -47,10 +48,11 @@ paycrypto-me-for-woocommerce/
 │   ├── templates/                ← WooCommerce PHP templates (checkout, order-details)
 │   ├── exceptions/               ← PayCryptoMeException, PayCryptoMePaymentException
 │   ├── tests/                    ← PHPUnit (unit-only, custom WP shims, no real WP)
+│   ├── uninstall.php             ← deletes settings options (incl. secrets); deliberately KEEPS the 4 tables (payment records)
 │   ├── package.json              ← npm scripts for JS build
 │   ├── webpack.config.js
 │   └── composer.json
-├── scripts/                      ← shell scripts (build-translations, release, etc.)
+├── scripts/                      ← shell scripts (build-translations, release, smoke-minimal-host, etc.)
 ├── docs/
 └── docker-compose.yml            ← dev stack (`wordpress`+`wp_db`+`cron`) + ephemeral `release` build service (profile `release`)
 ```
@@ -89,10 +91,11 @@ Namespace: `PayCryptoMe\WooCommerce`. Autoloaded via Composer classmap from `inc
 1. `WC_Gateway_PayCryptoMe_Lightning::process_payment($order_id)` → `PaymentProcessor::process_payment()` → `ProcessorStrategiesFactory::create($gateway)`
 2. Factory maps `paycrypto_me_lightning` → `LightningProcessorStrategiesFactory` (composition root), which routes by the `node_type` setting (`btcpay` or `lnd_rest`) and builds `new BtcpayLightningProcessor($gateway, new BtcpayInvoiceService($http, $gateway), $db)` or the lnd equivalent — both processors extend `AbstractLightningProcessor`. Same nullable-with-fallback constructor pattern as the Bitcoin side.
 3. `AbstractLightningProcessor::process()` (template method, `final`):
-   - Builds invoice args (order_id, memo, expiry + `base_invoice_args($order)`), applies `paycryptome_lightning_btcpay_invoice_args` / `paycryptome_lightning_lnd_invoice_args`
+   - First checks `$this->db->get_by_order_id()`: a still-valid (unexpired) existing invoice is reused as-is — no new invoice is created at the node. This mirrors the on-chain `resolve_derived_address()` reuse branch and matters because WooCommerce reuses the same order across checkout retries and the `order-pay` endpoint.
+   - Otherwise builds invoice args (order_id, memo, expiry + `base_invoice_args($order)`), applies `paycryptome_lightning_btcpay_invoice_args` / `paycryptome_lightning_lnd_invoice_args`
    - Calls `$this->service->create_invoice($args)` — service is `BtcpayInvoiceService` or `LndRestInvoiceService`, both extending `AbstractLightningInvoiceService` (shared constructor + `parse_response()`) and implementing `LightningInvoiceServiceContract`
    - If `payment_request` comes back empty (BTCPay may generate the BOLT11 asynchronously), `resolve_payment_request()` retries a fixed 2 times with 750ms delay before giving up with `PayCryptoMePaymentException`
-   - Persists the invoice via `PayCryptoMeLightningDBStatementsService`
+   - Persists the invoice via `PayCryptoMeLightningDBStatementsService::insert_invoice()` (new order) or `replace_invoice()` (order had an expired invoice) — the persistence result is always checked, raising `PayCryptoMePaymentException` on failure rather than diverging order meta from the DB row
 4. `PaymentProcessor` saves order meta and sets status to `pending`, same as On-Chain
 
 ### Order-details rendering (shared between gateways)
@@ -101,19 +104,21 @@ Namespace: `PayCryptoMe\WooCommerce`. Autoloaded via Composer classmap from `inc
 
 ### Custom DB tables (created on plugin activation)
 
-All prefixed with `{$wpdb->prefix}`:
-- `paycrypto_me_bitcoin_wallet_xpubkeys` — (id, xpub, network)
-- `paycrypto_me_bitcoin_derivation_indexes` — (derivation_index, wallet_xpubkeys_id)
+All prefixed with `{$wpdb->prefix}`, created via `dbDelta()` in `PayCryptoMeBitcoinGatewayActivate`/`PayCryptoMeLightningGatewayActivate` — **no `IF NOT EXISTS`** (it breaks dbDelta's table-name extraction, turning every future schema change into a silent no-op) and **no `FOREIGN KEY`** (dbDelta doesn't manage FKs; composite PKs enforce integrity instead):
+- `paycrypto_me_bitcoin_wallet_xpubkeys` — (id, xpub `VARCHAR(191)`, network)
+- `paycrypto_me_bitcoin_derivation_indexes` — (derivation_index, wallet_xpubkeys_id) — composite PK
 - `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id)
 - `paycrypto_me_lightning_invoices` — (order_id, node_type, invoice_id, payment_request, status, expires_at, amount_sats)
+
+Schema changes are tracked via the `paycrypto_me_db_version` option, checked in `WC_PayCryptoMe::maybe_upgrade_db()` on `plugins_loaded` (re-runs both `*GatewayActivate::activate()` calls when the code's `WC_PayCryptoMe::DB_VERSION` differs — the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check; failures accumulate in the `paycrypto_me_db_activation_errors` option and surface via an `admin_notices` callback (dbDelta itself never checks its own error state). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
 
 ### Key services
 
 | Class | File | Does |
 |-------|------|------|
 | `BitcoinAddressService` | `services/class-bitcoin-address-service.php` | Generate/validate Bitcoin addresses (p2pkh, p2sh-p2wpkh, p2wpkh) from xpub/ypub/zpub using `bitwasp/bitcoin` |
-| `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock |
-| `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices` (insert/update status/lookup by order or by invoice id) |
+| `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock; `release_derivation_index()` refunds a reserved index if derivation/persistence fails afterward, so a systemic failure (missing GMP, invalid xpub) can't burn through the wallet's BIP-44 gap limit |
+| `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices` (insert/update status/lookup by order or by invoice id); `replace_invoice()` overwrites an expired row instead of the silent no-op `insert_invoice()` gives when a row already exists — used when `AbstractLightningProcessor::process()` finds and reuses/replaces an existing invoice for the order (checkout retries, `order-pay`) |
 | `AbstractLightningInvoiceService` | `services/abstract-class-lightning-invoice-service.php` | Base for the two Lightning invoice services: shared constructor (`HttpClientContract`, `WC_Payment_Gateway`) + `parse_response()`, parameterized by `error_log_label()`/`payment_failed_message()` |
 | `BtcpayInvoiceService` | `services/class-btcpay-invoice-service.php` | Creates/resolves/checks BTCPay Server invoices via REST |
 | `LndRestInvoiceService` | `services/class-lnd-rest-invoice-service.php` | Creates/checks lnd invoices via its REST API (macaroon auth, optional TLS cert via `request_with_cert()`) |
@@ -166,7 +171,16 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 243 tests, 550 assertions, 0 errors.
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 277 tests, 623 assertions, 0 errors.
+
+### Smoke test for environment-dependent fatals
+
+```bash
+docker compose up -d wordpress   # if not already up
+./scripts/smoke-minimal-host.sh
+```
+
+Runs against the real `wordpress` dev container (unlike PHPUnit, which needs no real WP) with specific PHP functions disabled via `-d disable_functions=...` to simulate a host missing `gmp`/`gd`/`iconv`/`fileinfo` — the class of bug that got past every other check because our dev image has every extension installed. Mandatory before cutting a release (see [docs/RELEASE.md](docs/RELEASE.md)).
 
 ### Translations
 

@@ -23,8 +23,10 @@ class PayCryptoMeLightningGatewayActivate
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
+        // No "IF NOT EXISTS" — see the docblock on PayCryptoMeBitcoinGatewayActivate for why:
+        // dbDelta() would otherwise capture "IF" as the table name and never diff/ALTER again.
         $table_name = $wpdb->prefix . 'paycrypto_me_lightning_invoices';
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        $sql = "CREATE TABLE $table_name (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             order_id BIGINT(20) UNSIGNED NOT NULL,
             node_type VARCHAR(20) NOT NULL,
@@ -40,5 +42,13 @@ class PayCryptoMeLightningGatewayActivate
         ) $charset_collate;";
 
         dbDelta($sql);
+
+        // See PayCryptoMeBitcoinGatewayActivate::record_error_if_any() — dbDelta() never
+        // checks $wpdb->last_error itself, so a failed CREATE would otherwise report success.
+        if (!empty($wpdb->last_error)) {
+            $errors   = get_option('paycrypto_me_db_activation_errors', []);
+            $errors[] = \sprintf('%s: %s', $table_name, $wpdb->last_error);
+            update_option('paycrypto_me_db_activation_errors', $errors);
+        }
     }
 }

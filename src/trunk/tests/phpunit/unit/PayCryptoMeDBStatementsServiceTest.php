@@ -62,6 +62,14 @@ class FakeWPDB
         return 1;
     }
 
+    public array $delete_calls = [];
+
+    public function delete($table, $where, $where_format = null)
+    {
+        $this->delete_calls[] = ['table' => $table, 'where' => $where];
+        return 1;
+    }
+
     public function query($query)
     {
         $this->last_query = $query;
@@ -137,5 +145,20 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
         $svc = new PayCryptoMeDBStatementsService();
         $res = $svc->reset_derivation_indexes();
         $this->assertTrue($res);
+    }
+
+    public function test_release_derivation_index_deletes_the_reserved_row()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeDBStatementsService();
+
+        $result = $svc->release_derivation_index(1, 5);
+
+        $this->assertTrue($result);
+        $this->assertCount(1, $wpdb->delete_calls);
+        $this->assertSame(
+            ['derivation_index' => 5, 'wallet_xpubkeys_id' => 1],
+            $wpdb->delete_calls[0]['where']
+        );
     }
 }

@@ -69,6 +69,19 @@ class QrCodeServiceTest extends TestCase
         @unlink($tmp);
     }
 
+    public function test_generate_native_degrades_to_empty_string_instead_of_fatal_on_failure()
+    {
+        // Regression test for C6: the guard used to be inverted — a GD failure in
+        // generate_with_bordered_logo() fell through to generate_native(), which had no
+        // try/catch of its own, so any of its dependencies failing (GD/fileinfo/iconv, or
+        // here, an unreadable logo path) fatal'd the order-details page instead of degrading.
+        $svc = new QrCodeService();
+
+        $uri = $svc->generate_qr_code_data_uri('hello world', '/nonexistent/path/to/logo.png');
+
+        $this->assertSame('', $uri);
+    }
+
     public function test_logo_footprint_is_clamped_to_stay_scannable()
     {
         $svc = new QrCodeService();

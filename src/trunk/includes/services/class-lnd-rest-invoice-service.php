@@ -87,8 +87,9 @@ class LndRestInvoiceService extends AbstractLightningInvoiceService
         $temp_cert = '';
         if (!empty($certificate)) {
             $temp_cert = tempnam(sys_get_temp_dir(), 'lnd_cert_');
-            file_put_contents($temp_cert, $certificate);
-            $http_args['sslcertificates'] = $temp_cert;
+            if ($temp_cert && file_put_contents($temp_cert, $certificate)) {
+                $http_args['sslcertificates'] = $temp_cert;
+            }
         } else {
             $http_args['sslverify'] = ($verify_ssl === 'yes');
         }

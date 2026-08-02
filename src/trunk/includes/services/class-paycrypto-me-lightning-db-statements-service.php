@@ -118,6 +118,49 @@ class PayCryptoMeLightningDBStatementsService
         return $inserted !== false;
     }
 
+    /**
+     * Overwrites an existing (expired) invoice row with a freshly created one.
+     *
+     * Used instead of insert_invoice() when the order already has a row — insert_invoice()
+     * would silently return false (UNIQUE KEY unique_order) and the caller would otherwise
+     * diverge: the customer pays the new invoice while the DB (and any webhook lookup) still
+     * points at the old one.
+     */
+    public function replace_invoice(
+        int $order_id,
+        string $node_type,
+        string $invoice_id,
+        string $payment_request,
+        string $expires_at,
+        ?int $amount_sats = null
+    ): bool {
+        global $wpdb;
+
+        $table = esc_sql($this->table_name);
+
+        $data = [
+            'node_type'       => $node_type,
+            'invoice_id'      => $invoice_id,
+            'payment_request' => $payment_request,
+            'expires_at'      => $expires_at,
+            'status'          => 'New',
+        ];
+        $formats = ['%s', '%s', '%s', '%s', '%s'];
+
+        if ($amount_sats !== null) {
+            $data['amount_sats'] = $amount_sats;
+            $formats[]           = '%d';
+        }
+
+        $updated = $wpdb->update($table, $data, ['order_id' => $order_id], $formats, ['%d']);
+
+        if (function_exists('wp_cache_delete')) {
+            wp_cache_delete('paycrypto_lightning_order_' . $order_id, 'paycrypto_me');
+        }
+
+        return $updated !== false;
+    }
+
     public function update_status(int $order_id, string $status): bool
     {
         global $wpdb;

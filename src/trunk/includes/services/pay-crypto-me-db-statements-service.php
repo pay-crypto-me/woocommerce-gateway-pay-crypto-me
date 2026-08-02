@@ -176,6 +176,31 @@ class PayCryptoMeDBStatementsService
 		}
 	}
 
+	/**
+	 * Releases a derivation index reserved by reserve_derivation_index_for_wallet() when a
+	 * failure happens between reservation and persistence (address derivation/insert_address),
+	 * so the index isn't burned without a corresponding order. Left unreleased, systemic
+	 * failures (missing GMP, invalid xpub, a write failure) would consume 20 consecutive
+	 * indexes and blow past the wallet's BIP-44 gap limit.
+	 */
+	public function release_derivation_index(int $wallet_xpubkeys_id, int $derivation_index): bool
+	{
+		global $wpdb;
+
+		$indexes = esc_sql( $this->indexes_table );
+
+		$deleted = $wpdb->delete(
+			$indexes,
+			[
+				'derivation_index'   => $derivation_index,
+				'wallet_xpubkeys_id' => $wallet_xpubkeys_id,
+			],
+			['%d', '%d']
+		);
+
+		return $deleted !== false;
+	}
+
 	public function insert_address(int $order_id, int $derivation_index, string $payment_address, int $wallet_xpub_id): bool
 	{
 		global $wpdb;

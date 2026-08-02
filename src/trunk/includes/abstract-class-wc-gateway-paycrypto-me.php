@@ -52,11 +52,9 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         do_action('paycryptome_for_woocommerce_gateway_loaded', $this);
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
-
-        add_action('wp_ajax_paycryptome_reset_derivation_index', array($this, 'ajax_reset_derivation_index'));
     }
 
-    abstract protected function admin_enqueue_scripts_content(WP_Screen|null $screen);
+    abstract protected function admin_enqueue_scripts_content(\WP_Screen|null $screen);
     abstract public function get_available_networks();
     abstract public function get_available_cryptocurrencies($network = null);
     abstract protected function init_form_fields_items();
@@ -76,43 +74,57 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
     public function render_checkout_order_details_section($order)
     {
-        $args = $this->build_order_display_args($order);
+        // This hook fires on both the customer's order-received/order-view page and the admin
+        // order screen right after a payment is made — it must never fatal either one, even if
+        // a third-party filter or a rendering dependency (e.g. the QR code path) misbehaves.
+        try {
+            $args = $this->build_order_display_args($order);
 
-        if ($args === null) {
-            return;
-        }
+            if ($args === null) {
+                return;
+            }
 
-        // Third-party seam (pre-build): lets an add-on flip show_expiry, set crypto_amount, etc.
-        // before PaymentDisplayDataBuilder computes the final display array.
-        $args = apply_filters('paycryptome_order_display_args', $args, $order, $this);
+            // Third-party seam (pre-build): lets an add-on flip show_expiry, set crypto_amount, etc.
+            // before PaymentDisplayDataBuilder computes the final display array.
+            $args = apply_filters('paycryptome_order_display_args', $args, $order, $this);
 
-        // Third-party seam (post-build): lets an add-on adjust already-computed fields (QR, labels).
-        $payment_display_data = apply_filters(
-            'paycryptome_order_display_data',
-            $this->display_data_builder->build($order, $args),
-            $order,
-            $this
-        );
+            // Third-party seam (post-build): lets an add-on adjust already-computed fields (QR, labels).
+            $payment_display_data = apply_filters(
+                'paycryptome_order_display_data',
+                $this->display_data_builder->build($order, $args),
+                $order,
+                $this
+            );
 
-        // Enqueued here (not enqueue_checkout_styles, which only runs on wp_enqueue_scripts) because
-        // this section renders on both the frontend order-received page and the admin order-edit screen.
-        $js_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/paycrypto-me-order-details.js';
-        if (file_exists($js_path)) {
-            wp_enqueue_script(
-                'paycrypto-me-order-details',
-                WC_PayCryptoMe::plugin_url() . '/assets/js/paycrypto-me-order-details.js',
-                array(),
-                filemtime($js_path),
-                true
+            // Enqueued here (not enqueue_checkout_styles, which only runs on wp_enqueue_scripts) because
+            // this section renders on both the frontend order-received page and the admin order-edit screen.
+            $js_path = WC_PayCryptoMe::plugin_abspath() . 'assets/js/paycrypto-me-order-details.js';
+            if (file_exists($js_path)) {
+                wp_enqueue_script(
+                    'paycrypto-me-order-details',
+                    WC_PayCryptoMe::plugin_url() . '/assets/js/paycrypto-me-order-details.js',
+                    array(),
+                    filemtime($js_path),
+                    true
+                );
+            }
+
+            wc_get_template(
+                'order-details/paycrypto-me-order-details.php',
+                compact('payment_display_data'),
+                '',
+                WC_PayCryptoMe::plugin_abspath() . 'templates/'
+            );
+        } catch (\Throwable $e) {
+            $this->register_paycrypto_me_log(
+                \sprintf(
+                    'Order-details rendering failed for order #%s: %s',
+                    esc_html( (string) $order->get_id() ),
+                    esc_html( wp_strip_all_tags( $e->getMessage() ) )
+                ),
+                'error'
             );
         }
-
-        wc_get_template(
-            'order-details/paycrypto-me-order-details.php',
-            compact('payment_display_data'),
-            '',
-            WC_PayCryptoMe::plugin_abspath() . 'templates/'
-        );
     }
 
     public function admin_enqueue_scripts()
@@ -123,19 +135,26 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         $section = isset($_GET['section']) ? sanitize_text_field(wp_unslash($_GET['section'])) : '';
 
         if ($screen && $screen->id === 'woocommerce_page_wc-settings' && strpos($section, 'paycrypto_me') === 0) {
-            wp_enqueue_style(
-                'paycrypto-me-admin',
-                WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-admin.css',
-                array(),
-                filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-admin.css')
-            );
-            wp_enqueue_script(
-                'paycrypto-me-admin',
-                WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-admin.js',
-                array(),
-                filemtime(WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-admin.js'),
-                true
-            );
+            $admin_css_path = WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-admin.css';
+            if (file_exists($admin_css_path)) {
+                wp_enqueue_style(
+                    'paycrypto-me-admin',
+                    WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-admin.css',
+                    array(),
+                    filemtime($admin_css_path)
+                );
+            }
+
+            $admin_js_path = WC_PayCryptoMe::plugin_abspath() . 'assets/paycrypto-me-admin.js';
+            if (file_exists($admin_js_path)) {
+                wp_enqueue_script(
+                    'paycrypto-me-admin',
+                    WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-admin.js',
+                    array(),
+                    filemtime($admin_js_path),
+                    true
+                );
+            }
             wp_localize_script(
                 'paycrypto-me-admin',
                 'PayCryptoMeAdminData',
