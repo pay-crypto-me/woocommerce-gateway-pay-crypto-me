@@ -2,13 +2,14 @@
 
 ## Context and guides
 
-- [docs/RELEASE.md](docs/RELEASE.md) — how to submit to WordPress.org (SVN or direct upload)
+- [docs/RELEASE.md](docs/RELEASE.md) — how to submit to WordPress.org (SVN or direct upload). **Its SVN section documents a broken flow** — see `docs/SVN-PUBLISH-FIX.md` before touching `--svn`.
+- [docs/SVN-PUBLISH-FIX.md](docs/SVN-PUBLISH-FIX.md) — **implemented and verified (offline) 2026-08-08**: diagnosis + fix for why `release.sh --svn` was broken (the working copy used to live inside the `mktemp` its own `trap` deleted). Documents the 12 defects that were fixed, including two former silent-data-loss modes (`svn cp` into an existing tag nesting instead of erroring; an unscoped `!` sweep that could have scheduled deletion of every published tag), plus the design decisions: publish from the **approved zip** rather than a fresh build (the private composer forks make rebuilds non-reproducible), persistent working copy at `releases/svn/`, server-side tag copy, opt-in `--svn-commit`. Offline rehearsal (fake SVN repo) passed all acceptance criteria. **The first real push to WordPress.org (Phase 3) is still pending** — maintainer-only (personal password + irreversible public commit).
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%)
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway
 - [docs/WORDPRESS-ORG-REVIEW-FIXES.md](docs/WORDPRESS-ORG-REVIEW-FIXES.md) — plan to resolve the pending WordPress.org review (enqueue assets, nonce sanitization, composer.json in package, i18n loading)
 - [docs/PRODUCTION-HARDENING.md](docs/PRODUCTION-HARDENING.md) — **implemented and verified**: fixes for the GMP activation fatal + deep-audit findings (3 money-loss bugs, environment-dependent fatals, schema integrity). Read for the *why* behind several non-obvious patterns (lazy service construction, `\Throwable` catches at checkout/render boundaries, dbDelta's `IF NOT EXISTS` trap). Verification complete: 277 tests, Plugin Check clean, `scripts/smoke-minimal-host.sh` passing, and manual browser smoke test (checkout both gateways, order-details page, admin xpub-network-mismatch rejection) confirmed working.
 
-**Status:** v0.1.0 submitted to WordPress.org; production-hardening round complete and fully verified (277 tests passing, 7 locales at 100%, manual smoke test passed). Ready for release build. Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
+**Status:** v0.1.0 approved on WordPress.org (2026-08-04); production-hardening round complete and fully verified (277 tests passing, 7 locales at 100%, manual smoke test passed). `release.sh --svn`/`--svn-commit` fixed and offline-verified — the only remaining step is the maintainer running the actual first SVN push (see [docs/SVN-PUBLISH-FIX.md](docs/SVN-PUBLISH-FIX.md), Fase 3). Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
 
 ---
 

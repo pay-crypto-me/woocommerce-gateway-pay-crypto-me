@@ -241,7 +241,8 @@ paycrypto-me-for-woocommerce/
 | `--no-tests` | PHPUnit ativo por padrão | Em hotfixes urgentes (não recomendado em releases normais) |
 | `--no-zip` | Zip criado por padrão | Para testar apenas o bump de versão e build |
 | `--git` | Git desligado por padrão | Para commitar o bump e criar a tag `vX.Y.Z` automaticamente |
-| `--svn` | SVN desligado por padrão | Para preparar o trunk do repositório SVN do WP.org |
+| `--svn` | SVN desligado por padrão | Prepara o working copy SVN a partir do zip aprovado e mostra o gate de revisão — **não commita**. Exige `--no-build --no-tests --no-zip` |
+| `--svn-commit` | SVN desligado por padrão | Igual a `--svn`, mas também commita `trunk/`+`assets/` e cria a tag da versão |
 | `--no-docker` | Docker ativo por padrão | Para rodar em CI/CD sem container (requer Node.js e Composer locais) |
 | `--dry-run` | Execução real | Para visualizar todos os passos sem aplicar nenhuma mudança |
 
@@ -347,6 +348,18 @@ git push origin v1.2.0
 
 #### Opção B — SVN (método oficial recomendado pelo WP.org)
 
+##### Como funciona (leia antes de rodar)
+
+- **Working copy persistente em `releases/svn/`** (fora do diretório de build efêmero; já coberto pelo `.gitignore`). Não é apagado automaticamente ao final — fica disponível para inspeção entre execuções. Staging intermediário em `releases/.svn-stage/`.
+- **A fonte da verdade é o zip aprovado** em `releases/{slug}-{version}.zip`, nunca um rebuild. O WP.org **reconstrói** o download a partir da tag SVN — o requisito é fidelidade de **conteúdo dos arquivos**, não do `.zip` em si. Ainda assim publicamos a partir do zip já validado: re-rodar `composer install` contra os forks privados (`lucas-rosa95/bitcoin`, `bitwasp/buffertools`) é risco real de divergência ou falha de resolução.
+- **`--svn`/`--svn-commit` exigem `--no-build --no-tests --no-zip`.** O script recusa rodar (erro duro) se qualquer flag de build estiver ativa — garante que nunca se publique algo diferente do zip já aprovado.
+- **Commit é opt-in.** `--svn` sozinho prepara o working copy e imprime um resumo do que mudaria (gate de revisão) — **nada é commitado**. `--svn-commit` faz o ciclo completo: commit de `trunk/` + `assets/`, depois cria a tag por cópia server-side.
+- **Tags do WP.org são imutáveis por convenção.** Rodar `--svn-commit` de novo na mesma versão falha com erro claro — nunca sobrescreve nem aninha a tag existente (`svn cp` para um destino já existente aninharia em vez de falhar, por isso o script checa antes). Para republicar, bump a versão e rode de novo.
+- **`assets/` (banner, ícone, screenshots) agora é automático** — todo `--svn-commit` espelha `src/assets/` para o `assets/` do SVN junto com `trunk/`. Deixou de ser um passo manual separado.
+- **`git clean -xdf` apaga tanto `releases/svn/` quanto o zip aprovado** em `releases/` (ambos ignorados pelo git). Se isso acontecer, gere o zip de novo antes de publicar.
+
+Ver [docs/SVN-PUBLISH-FIX.md](SVN-PUBLISH-FIX.md) para o diagnóstico completo e a lista de defeitos corrigidos nesse fluxo.
+
 ##### Configurando Credenciais SVN
 
 As credenciais SVN são as mesmas do seu login em **wordpress.org** (não do wp-admin do seu site). Na primeira vez, o SVN solicitará usuário e senha interativamente e poderá salvá-las em cache.
@@ -365,65 +378,52 @@ svn info https://plugins.svn.wordpress.org/paycrypto-me-for-woocommerce \
 
 > As credenciais SVN do WP.org são **diferentes** da senha do painel de administração do WordPress. São as credenciais de login em `wordpress.org/login/`.
 
-##### Executando o Release via SVN
+##### Ensaio offline (recomendado antes do primeiro push real ou de qualquer mudança no script)
 
-Use a flag `--svn` no script, que automatiza o checkout e a cópia:
+Valida o fluxo inteiro contra um repositório SVN local fake — sem tocar no WP.org:
 
 ```bash
+svnadmin create /tmp/fake-wporg
+svn mkdir -m init \
+  file:///tmp/fake-wporg/trunk file:///tmp/fake-wporg/tags \
+  file:///tmp/fake-wporg/branches file:///tmp/fake-wporg/assets
+
+# prepara e mostra o gate de revisão — nada é commitado
+SVN_URL=file:///tmp/fake-wporg ./scripts/release.sh \
+  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn
+(cd releases/svn && svn status)
+
+# publica de verdade, mas no repositório fake
+SVN_URL=file:///tmp/fake-wporg ./scripts/release.sh \
+  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn-commit
+
+rm -rf releases/svn releases/.svn-stage   # descarta o WC do ensaio antes do push real
+```
+
+Roteiro completo de ensaio, com critérios de aceite (2a–2h): [docs/SVN-PUBLISH-FIX.md](SVN-PUBLISH-FIX.md#fase-2--ensaio-offline-obrigatório).
+
+##### Executando o Release via SVN (push real)
+
+```bash
+# 1. preparar sem commitar — inspeciona o que vai mudar (gate de revisão)
 ./scripts/release.sh \
   -v 1.2.0 \
   -s paycrypto-me-for-woocommerce \
-  --no-build \
-  --no-tests \
-  --svn
+  --no-build --no-tests --no-zip --svn
+
+# 2. revisar manualmente
+(cd releases/svn && svn status | head -40)
+
+# 3. publicar (pede a senha SVN do wordpress.org — não a do wp-admin)
+./scripts/release.sh \
+  -v 1.2.0 \
+  -s paycrypto-me-for-woocommerce \
+  --no-build --no-tests --no-zip --svn-commit
 ```
 
-> `--no-build` e `--no-tests` aqui porque o zip já foi validado na etapa anterior. Esta execução apenas prepara o diretório SVN.
-
-O script fará o checkout do repositório SVN em um diretório temporário, copiará o build para `svn-checkout/trunk/` e exibirá o caminho. Em seguida, você executa manualmente:
-
-```bash
-cd /caminho/exibido/svn-checkout
-
-# Verificar o que vai ser enviado
-svn status
-
-# Adicionar arquivos novos (arquivos modificados já estão marcados)
-svn add --force .
-
-# Criar tag da versão no SVN (WP.org usa tags SVN para cada versão)
-svn cp trunk tags/1.2.0
-
-# Commitar tudo (solicitará suas credenciais do WP.org se não estiverem em cache)
-svn commit -m "Release 1.2.0"
-```
+O passo 3 executa duas revisões no SVN: commit de `trunk/` + `assets/`, depois `svn copy` server-side para `tags/1.2.0` (custa 0 bytes, não depende do working copy). Se o commit passar e a cópia da tag falhar, **rode o passo 3 de novo** — o script detecta que não há nada a commitar e refaz só a cópia da tag, sem duplicar o commit.
 
 Após o commit SVN, o WP.org processa a nova versão em alguns minutos e ela aparece disponível para atualização nos sites que têm o plugin instalado.
-
-##### Enviando banner, ícone e screenshots (`src/assets/`) ao SVN
-
-A pasta `assets/` do SVN (banner, ícone e screenshots exibidos na página do plugin no WP.org) é
-**independente** do ciclo de release de código: não faz parte do build (`trunk/`) e por isso
-`scripts/release.sh` não mexe nela. Só é preciso repetir estes passos quando os arquivos em
-`src/assets/` realmente mudarem (não é obrigatório em todo release):
-
-```bash
-# 1. O checkout do --svn já existe em /caminho/exibido/svn-checkout (populado só com trunk/)
-# Copiar os assets atuais do repositório para a pasta assets/ do checkout SVN
-cp src/assets/* /caminho/exibido/svn-checkout/assets/
-
-cd /caminho/exibido/svn-checkout
-
-# 2. Verificar o que vai ser enviado
-svn status assets/
-
-# 3. Adicionar arquivos novos/alterados
-svn add --force assets/
-
-# 4. Commitar (pode ser no mesmo commit do trunk/tags, se ambos mudaram na mesma sessão,
-#    ou em um commit separado se só os assets mudaram sem bump de versão de código)
-svn commit -m "Update plugin assets (banner/icon/screenshots)"
-```
 
 ---
 
@@ -484,7 +484,7 @@ Em pipelines onde o container não está disponível (e Node.js + Composer estã
 | `git push origin main` | Evitar push acidental; deve ser revisado antes |
 | `git push origin vX.Y.Z` | Idem |
 | Atualizar `readme.txt` com changelog | Conteúdo editorial, não automatizável |
-| Atualizar screenshots no WP.org | Upload manual no painel do plugin |
+| Editar os arquivos em `src/assets/` (banner/ícone/screenshots) | Conteúdo editorial; o **upload** ao SVN já é automático via `--svn-commit` (ver seção SVN acima) |
 | Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [TRANSLATION.md](./TRANSLATION.md)) |
 
 ---
@@ -608,8 +608,21 @@ BUILD E VALIDAÇÃO
 GIT E PUBLICAÇÃO
 [ ] git push origin main
 [ ] git push origin vX.Y.Z
-[ ] zip submetido ao WordPress.org (upload manual ou SVN)
-[ ] Nova versão visível na página do plugin no WP.org
+
+SVN (só na primeira vez que mexer no script, ou antes do primeiro push real)
+[ ] Ensaio offline completo (2a-2h), ver seção "Ensaio offline" acima e
+    docs/SVN-PUBLISH-FIX.md — critérios de aceite todos OK
+[ ] rm -rf releases/svn releases/.svn-stage (descarta o WC do ensaio)
+
+SVN (todo release)
+[ ] Preparar sem commitar: ./scripts/release.sh -v X.Y.Z -s paycrypto-me-for-woocommerce
+    --no-build --no-tests --no-zip --svn
+[ ] Gate de revisão inspecionado: (cd releases/svn && svn status)
+[ ] Publicar: ./scripts/release.sh -v X.Y.Z -s paycrypto-me-for-woocommerce
+    --no-build --no-tests --no-zip --svn-commit
+[ ] svn ls https://plugins.svn.wordpress.org/paycrypto-me-for-woocommerce/tags/
+    mostra X.Y.Z/
+[ ] Nova versão visível na página do plugin no WP.org (indexação completa até 72h)
 ```
 
 ---

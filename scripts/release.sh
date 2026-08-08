@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Release helper for PayCrypto.Me plugin
-# Usage: ./scripts/release.sh -v VERSION -s SLUG [--no-build] [--no-tests] [--no-zip] [--git] [--svn] [--no-docker] [--dry-run]
+# Usage: ./scripts/release.sh -v VERSION -s SLUG [--no-build] [--no-tests] [--no-zip] [--git]
+#                             [--svn | --svn-commit] [--no-docker] [--dry-run]
 
 # === COLOR OUTPUT ===
 RED='\033[0;31m'
@@ -44,7 +45,8 @@ Options:
   --no-tests      Skip phpunit tests
   --no-zip        Skip creating the zip
   --git           Commit version bumps and create git tag
-  --svn           Prepare SVN trunk/tags (requires SVN credentials)
+  --svn           Prepare the SVN working copy from the approved zip (no commit)
+  --svn-commit    Same as --svn, then commit trunk/assets and create the SVN tag
   --no-docker     Run build/test commands on host instead of Docker container
   --dry-run       Print steps without executing them
   -h|--help       Show this help
@@ -64,6 +66,7 @@ DO_TESTS=1
 DO_ZIP=1
 DO_GIT=0
 DO_SVN=0
+DO_SVN_COMMIT=0
 USE_DOCKER=1
 DRY_RUN=0
 
@@ -75,7 +78,8 @@ while [[ $# -gt 0 ]]; do
     --no-tests)  DO_TESTS=0; shift;;
     --no-zip)    DO_ZIP=0; shift;;
     --git)       DO_GIT=1; shift;;
-    --svn)       DO_SVN=1; shift;;
+    --svn)        DO_SVN=1; shift;;
+    --svn-commit) DO_SVN=1; DO_SVN_COMMIT=1; shift;;
     --no-docker) USE_DOCKER=0; shift;;
     --dry-run)   DRY_RUN=1; shift;;
     -h|--help)   show_help; exit 0;;
@@ -95,6 +99,24 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
+# Publishing by re-running the build would re-resolve the private Composer forks
+# and diverge from the approved bytes. --svn publishes the zip that already
+# exists, period.
+if [[ $DO_SVN -eq 1 && ( $DO_BUILD -eq 1 || $DO_TESTS -eq 1 || $DO_ZIP -eq 1 ) ]]; then
+  error "--svn/--svn-commit publishes the already-built zip and must not rebuild it."
+  error "Re-run with: --no-build --no-tests --no-zip"
+  exit 1
+fi
+
+# A publish run never bumps versions, so --git would have nothing to commit or
+# tag. Refusing is clearer than silently doing nothing. Tag during the build run.
+if [[ $DO_SVN -eq 1 && $DO_GIT -eq 1 ]]; then
+  error "--git has no effect with --svn/--svn-commit: a publish run does not bump versions."
+  error "Create the git tag during the build run, before publishing."
+  exit 1
+fi
+PUBLISH_ONLY=$DO_SVN
+
 # === DRY RUN WRAPPER ===
 # Wraps commands so they are printed but not executed in --dry-run mode.
 run() {
@@ -102,15 +124,6 @@ run() {
     step "[dry-run] $*"
   else
     "$@"
-  fi
-}
-
-run_shell() {
-  local desc="$1"; shift
-  if [[ $DRY_RUN -eq 1 ]]; then
-    step "[dry-run] $desc"
-  else
-    eval "$desc"
   fi
 }
 
@@ -127,6 +140,7 @@ fi
 
 PLUGIN_FILE="$TRUNK/paycrypto-me-for-woocommerce.php"
 README_FILE="$TRUNK/readme.txt"
+ZIP_PATH="$ROOT_DIR/releases/${SLUG}-${VERSION}.zip"
 
 log "Trunk: $TRUNK"
 log "Preparing release ${BOLD}$SLUG v$VERSION${NC}"
@@ -209,6 +223,8 @@ if [[ $DO_TESTS -eq 1 ]]; then
     run bash -c "cd '$TRUNK' && ./vendor/bin/phpunit --configuration phpunit.xml.dist"
   fi
 fi
+
+if [[ $PUBLISH_ONLY -eq 0 ]]; then
 
 # === VERSION BUMPS ===
 header "Version bumps → $VERSION"
@@ -356,10 +372,9 @@ fi
 if [[ $DO_ZIP -eq 1 ]]; then
   header "Creating zip"
   mkdir -p "$ROOT_DIR/releases"
-  ZIP_PATH="$ROOT_DIR/releases/${SLUG}-${VERSION}.zip"
-  rm -f "$ZIP_PATH" || true
   log "Zipping → releases/${SLUG}-${VERSION}.zip"
   if [[ $DRY_RUN -eq 0 ]]; then
+    rm -f "$ZIP_PATH" || true
     (cd "$BUILD_DIR" && zip -r "$ZIP_PATH" "$SLUG") >/dev/null
     log "Zip created: $ZIP_PATH"
     log "Size: $(du -sh "$ZIP_PATH" | cut -f1)"
@@ -367,6 +382,8 @@ if [[ $DO_ZIP -eq 1 ]]; then
     step "[dry-run] zip $ZIP_PATH"
   fi
 fi
+
+fi # PUBLISH_ONLY
 
 # === GIT ===
 if [[ $DO_GIT -eq 1 ]]; then
@@ -387,22 +404,220 @@ if [[ $DO_GIT -eq 1 ]]; then
   fi
 fi
 
-# === SVN ===
-if [[ $DO_SVN -eq 1 ]]; then
-  header "SVN export"
-  svn_dir="$BUILD_DIR/svn-checkout"
-  svn_url="https://plugins.svn.wordpress.org/${SLUG}"
-  log "Checking out $svn_url"
-  if [[ $DRY_RUN -eq 0 ]]; then
-    svn checkout "$svn_url" "$svn_dir" || true
-    log "Clearing SVN trunk..."
-    find "$svn_dir/trunk" -mindepth 1 -delete || true
-    log "Copying files to SVN trunk..."
-    rsync -a "$BUILD_DIR/$SLUG/" "$svn_dir/trunk/"
-    log "SVN checkout at: $svn_dir"
-    log "Run: cd $svn_dir && svn add --force . && svn commit -m 'Release $VERSION'"
+# === SVN PUBLISH (WordPress.org) ===
+# A fonte da verdade é o ZIP APROVADO, nunca o BUILD_DIR efêmero.
+svn_publish() {
+  local payload bad left st rev existing wc_url out
+  local containers=()
+
+  mkdir -p "$ROOT_DIR/releases"
+
+  # ---- 1. working copy esparso: checkout novo, ou reset de um existente ----
+  if [[ -e "$SVN_DIR" ]] && ! svn info "$SVN_DIR" >/dev/null 2>&1; then
+    error "$SVN_DIR existe mas não é um working copy SVN."
+    error "Remova e rode de novo:  rm -rf \"$SVN_DIR\""
+    return 1
+  fi
+
+  if svn info "$SVN_DIR" >/dev/null 2>&1; then
+    # Sem esta assertiva, um ensaio (SVN_URL=file://...) rodado depois de um run
+    # real reusaria um WC apontado para o plugins.svn.wordpress.org de verdade —
+    # e com --svn-commit publicaria lá achando que estava ensaiando.
+    wc_url="$(svn info --show-item url --no-newline "$SVN_DIR")"
+    if [[ "$wc_url" != "$SVN_URL" ]]; then
+      error "O working copy em $SVN_DIR aponta para:"
+      error "  $wc_url"
+      error "mas SVN_URL é:"
+      error "  $SVN_URL"
+      error "Remova e rode de novo:  rm -rf \"$SVN_DIR\""
+      return 1
+    fi
+    step "Resetando o working copy para o estado pristino"
+    svn cleanup "$SVN_DIR"                                        # solta locks
+    svn revert -R --remove-added "$SVN_DIR"                       # mods E schedule-adds
+    svn cleanup --remove-unversioned --remove-ignored "$SVN_DIR"  # cruft
+    svn update "$SVN_DIR" "${SVN_RO[@]}"                          # cura '!' incomplete
   else
-    step "[dry-run] svn checkout + rsync to $svn_dir/trunk/"
+    step "Checkout esparso de $SVN_URL"
+    svn checkout --depth immediates "$SVN_URL" "$SVN_DIR" "${SVN_RO[@]}"
+  fi
+
+  # trunk PRECISA estar completo: um trunk esparso commitaria deleções falsas.
+  if [[ ! -d "$SVN_DIR/trunk" ]]; then
+    error "Não há trunk/ em $SVN_URL — slug errado?"; return 1
+  fi
+  svn update --set-depth infinity "$SVN_DIR/trunk" "${SVN_RO[@]}"
+  if [[ "$(svn info --show-item depth --no-newline "$SVN_DIR/trunk")" != "infinity" ]]; then
+    error "trunk/ não está em depth=infinity; abortando."; return 1
+  fi
+
+  if [[ -d "$SVN_DIR/assets" ]]; then
+    svn update --set-depth infinity "$SVN_DIR/assets" "${SVN_RO[@]}"
+  else
+    warn "assets/ ausente no repositório — será criado por este commit."
+    mkdir -p "$SVN_DIR/assets"
+    svn add --depth empty "$SVN_DIR/assets"
+  fi
+  # tags/ fica em depth=empty de propósito: a tag é criada server-side, então
+  # nada local consegue aninhar dentro de um tags/<versão>/ já existente.
+
+  # ---- 2. payload vem do ZIP APROVADO -------------------------------------
+  step "Extraindo $ZIP_PATH"
+  rm -rf "$SVN_STAGE"; mkdir -p "$SVN_STAGE"
+  unzip -q "$ZIP_PATH" -d "$SVN_STAGE"
+  payload="$SVN_STAGE/$SLUG"
+  if [[ ! -d "$payload" ]]; then
+    error "O zip não tem o diretório de topo '$SLUG/'."; return 1
+  fi
+  # O zip precisa ser o artefato DESTA versão, senão publicaríamos um readme cujo
+  # Stable tag discorda da tag que estamos prestes a criar.
+  if ! grep -qE "^Stable tag:[[:space:]]*${VERSION}[[:space:]]*$" "$payload/readme.txt"; then
+    error "readme.txt do zip não declara 'Stable tag: $VERSION'."; return 1
+  fi
+  if ! grep -qE "^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*${VERSION}[[:space:]]*$" \
+                "$payload/${SLUG}.php"; then
+    error "Header do plugin no zip não é 'Version: $VERSION'."; return 1
+  fi
+
+  # ---- 3. espelhar payload em trunk/ e assets/ ----------------------------
+  # -c: compara por checksum, então arquivos iguais mantêm mtime e o svn status
+  # fica O(mudanças). --exclude='.svn/': no-op hoje (svn 1.7+ mantém um único
+  # .svn na raiz do WC, que está ACIMA de trunk/) — mantido como seguro caso
+  # alguém reancore o WC em trunk/. NUNCA adicionar --delete-excluded.
+  step "Espelhando payload -> trunk/"
+  rsync -a -c --delete --exclude='.svn/' "$payload/" "$SVN_DIR/trunk/"
+  step "Espelhando src/assets -> assets/"
+  rsync -a -c --delete --exclude='.svn/' "$ASSETS_SRC/" "$SVN_DIR/assets/"
+
+  # ---- 4. reconciliar metadados do SVN com o filesystem -------------------
+  # GUARD PRIMEIRO: '!' também significa "incomplete" (svn help status), então um
+  # update interrompido faria o sweep abaixo agendar a deleção de TODAS as tags.
+  containers=( "$SVN_DIR" "$SVN_DIR/trunk" "$SVN_DIR/assets" )
+  if [[ -d "$SVN_DIR/tags" ]];     then containers+=( "$SVN_DIR/tags" ); fi
+  if [[ -d "$SVN_DIR/branches" ]]; then containers+=( "$SVN_DIR/branches" ); fi
+  bad="$( svn status --depth empty "${containers[@]}" | { grep -E '^[!~]' || true; } )"
+  if [[ -n "$bad" ]]; then
+    error "Working copy inconsistente (dirs de topo missing/obstructed):"
+    printf '%s\n' "$bad" >&2
+    error "Remova e rode de novo para um checkout limpo:  rm -rf \"$SVN_DIR\""
+    return 1
+  fi
+
+  # Deleções: '!' = versionado mas sumiu do disco. ESCOPADO a trunk+assets.
+  # O '|| true' é obrigatório: grep sai 1 quando nada falta, e pipefail
+  # transformaria isso em abort DEPOIS do WC já ter sido mutado.
+  # (xargs -r -d é GNU — ok em Linux/WSL, não em macOS/BSD.)
+  step "Agendando deleções"
+  ( cd "$SVN_DIR" \
+    && svn status trunk assets | { grep '^!' || true; } | cut -c9- \
+       | xargs -r -d '\n' svn rm --force )
+
+  # Adições: alvos explícitos apenas — nunca `svn add .` na raiz do WC, que
+  # entraria nos tags/<versão-antiga>/ depth-empty e colidiria no commit.
+  # --no-ignore: global-ignores (*.a *.so *~ .DS_Store ...) descartaria arquivos
+  # do payload em silêncio. --no-auto-props: bytes publicados verbatim.
+  step "Agendando adições"
+  svn add --force --no-ignore --no-auto-props --depth infinity -q \
+          "$SVN_DIR/trunk" "$SVN_DIR/assets"
+
+  # Pós-condição: nada não-reconciliado pode sobreviver (?=unversioned,
+  # !=missing, ~=obstructed, C=conflito).
+  left="$( svn status "$SVN_DIR/trunk" "$SVN_DIR/assets" \
+           | { grep -E '^[?!~]|^.C|^.{6}C' || true; } )"
+  if [[ -n "$left" ]]; then
+    error "Estado não reconciliado no working copy:"
+    printf '%s\n' "$left" >&2
+    return 1
+  fi
+
+  # ---- 5. gate de revisão -------------------------------------------------
+  header "Mudanças SVN pendentes para $VERSION → $SVN_URL"
+  st="$(svn status -q "$SVN_DIR")"
+  if [[ -z "$st" ]]; then
+    warn "Nenhuma mudança versionada: trunk/ e assets/ já batem com este release."
+  else
+    # Nada de `| head`: SIGPIPE (141) + pipefail abortaria com o WC já preparado.
+    awk '{print substr($0,1,2)}' <<<"$st" | sort | uniq -c | sort -rn
+    awk 'NR<=30' <<<"$st"
+    log "$(wc -l <<<"$st") caminho(s) alterado(s)"
+  fi
+
+  if [[ $DO_SVN_COMMIT -eq 0 ]]; then
+    log "Nada commitado (gate de revisão)."
+    log "Inspecionar:  (cd $SVN_DIR && svn status)"
+    log "Publicar:     $0 -v $VERSION -s $SLUG --no-build --no-tests --no-zip --svn-commit"
+    return 0
+  fi
+
+  # ---- 6. commit de trunk+assets, depois tag por cópia server-side --------
+  # A tag NÃO pode existir: `svn help copy` — "If DST is an existing directory,
+  # the sources will be added as children of DST" — então re-taggear criaria
+  # tags/$VERSION/trunk/ silenciosamente em vez de falhar. Capturar antes, para
+  # que uma falha do `svn ls` aborte em vez de ser engolida pelo exit do grep.
+  existing="$(svn ls "$SVN_URL/tags/" "${SVN_RO[@]}")"
+  if printf '%s\n' "$existing" | grep -qx "${VERSION}/"; then
+    error "tags/$VERSION já existe em $SVN_URL."
+    error "Tags do WP.org são imutáveis por convenção — bumpe a versão e rode de novo."
+    return 1
+  fi
+
+  step "Commitando trunk/ + assets/"
+  out="$(LC_ALL=C svn commit "$SVN_DIR" -m "Release $VERSION" "${SVN_RW[@]}" | tee /dev/stderr)"
+  rev="$(sed -n 's/^Committed revision \([0-9]\{1,\}\)\.$/\1/p' <<<"$out" | tail -n1)"
+  if [[ -z "$rev" ]]; then
+    # Nada a commitar — acontece ao re-rodar depois de um `svn copy` que falhou.
+    # Taggeia o trunk atual em vez de morrer com uma revisão vazia.
+    rev="$(svn info --show-item revision --no-newline "$SVN_URL/trunk" "${SVN_RO[@]}")"
+    warn "Nada a commitar; taggeando o trunk existente @$rev."
+  fi
+
+  step "Taggeando trunk@$rev -> tags/$VERSION (cópia server-side, 0 bytes)"
+  svn copy "$SVN_URL/trunk@$rev" "$SVN_URL/tags/$VERSION" \
+           -m "Tag $VERSION (copy of trunk@$rev)" "${SVN_RW[@]}"
+
+  svn update "$SVN_DIR" "${SVN_RO[@]}" >/dev/null
+  log "Publicado $VERSION: trunk@$rev + tags/$VERSION"
+}
+
+if [[ $DO_SVN -eq 1 ]]; then
+  header "SVN publish -> WordPress.org"
+
+  SVN_URL="${SVN_URL:-https://plugins.svn.wordpress.org/${SLUG}}"  # env-overridable p/ ensaio
+  SVN_DIR="$ROOT_DIR/releases/svn"            # persistente, gitignored, FORA do BUILD_DIR
+  SVN_STAGE="$ROOT_DIR/releases/.svn-stage"   # limpo no início do run
+  ASSETS_SRC="$ROOT_DIR/src/assets"           # NÃO src/trunk/assets (esse é runtime, vai no zip)
+  SVN_USER="${SVN_USER:-paycryptome}"
+
+  # Sempre visível: num working copy reusado nada mais imprimiria o destino, e
+  # este é um passo que escreve em público.
+  log "Repositório de destino: ${BOLD}$SVN_URL${NC}"
+  log "Working copy:           $SVN_DIR"
+
+  # Fixar auto-props=no torna os bytes publicados independentes do
+  # ~/.subversion/config do operador (que poderia aplicar svn:eol-style /
+  # svn:keywords). RO pode rodar desassistido; RW precisa poder pedir a senha,
+  # por isso NÃO leva --non-interactive.
+  SVN_RO=( --username "$SVN_USER" --non-interactive
+           --config-option "config:miscellany:enable-auto-props=no" )
+  SVN_RW=( --username "$SVN_USER"
+           --config-option "config:miscellany:enable-auto-props=no" )
+
+  for _bin in svn unzip rsync; do
+    command -v "$_bin" >/dev/null 2>&1 || { error "'$_bin' não encontrado no PATH."; exit 1; }
+  done
+  [[ -f "$ZIP_PATH" ]] || { error "Zip aprovado não encontrado: $ZIP_PATH"; exit 1; }
+  # Protege contra confundir src/assets (banner/ícone/screenshots do diretório)
+  # com src/trunk/assets (assets de runtime, que vão dentro do zip).
+  [[ -f "$ASSETS_SRC/banner-1544x500.png" ]] \
+    || { error "Assets de diretório do WP.org não encontrados em $ASSETS_SRC"; exit 1; }
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    step "[dry-run] svn checkout --depth immediates $SVN_URL $SVN_DIR (+ set-depth infinity trunk/assets)"
+    step "[dry-run] unzip $ZIP_PATH -> $SVN_STAGE; rsync --delete -> trunk/ e assets/"
+    step "[dry-run] svn rm (missing) / svn add --force --no-ignore; gate de revisão"
+    step "[dry-run] svn commit + svn copy $SVN_URL/trunk@REV -> tags/$VERSION"
+  else
+    svn_publish
   fi
 fi
 
