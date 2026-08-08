@@ -1,9 +1,18 @@
 # 📡 Publicação SVN no WordPress.org — diagnóstico e plano de correção
 
-> **Status:** Fases 1, 2 e 4 **implementadas e verificadas** em 2026-08-08 (`scripts/release.sh`
-> corrigido; ensaio offline 2a–2h todos OK, incluindo 2g "conteúdo idêntico"; `docs/RELEASE.md`
-> reescrito). **Fase 3 (push real no WP.org) ainda não foi executada** — é ação do mantenedor
-> (senha pessoal + commit público irreversível); ver seção "Fase 3" abaixo para o roteiro.
+> **Status:** plano **completo e verificado** — Fases 1, 2, 3 e 4 todas concluídas. O primeiro push
+> real aconteceu em 2026-08-08: `trunk@3638906` + `tags/0.1.0@3638912`, conteúdo conferido
+> byte-a-byte contra o zip aprovado via `svn export` + `diff`. A página pública do plugin
+> (`https://wordpress.org/plugins/paycrypto-me-for-woocommerce`) deve indexar em até 72h.
+>
+> **Incidente durante o push real (registrado para os próximos releases):** o `svn commit` do
+> passo 3c reportou `E000002: Can't open file '.../db/transactions/NNNNNNN-xxxxx.txn/props'` —
+> um erro **do lado do servidor** do WP.org, não do script. A transação **tinha sido persistida
+> mesmo assim** (`Last Changed Rev` do trunk batia com o commit, conteúdo idêntico ao zip); só a
+> confirmação de sucesso não voltou ao cliente. Como o script usa `set -e`, ele abortou antes da
+> etapa de tag — exatamente o cenário coberto por "Se falhar no meio" (Fase 3, abaixo). A correção
+> foi rodar o mesmo `--svn-commit` de novo: o script resetou o working copy, viu que não havia nada
+> a commitar e criou só a tag. Nenhuma ação manual além de repetir o comando.
 >
 > Documento relacionado: [RELEASE.md](RELEASE.md) — a seção SVN já reflete o fluxo corrigido.
 
@@ -466,6 +475,14 @@ remoto (`svn info --show-item revision`) e só a cópia server-side é refeita. 
 
 Se o `svn commit` falhar antes de qualquer escrita, basta corrigir a causa (rede/credencial) e rodar
 3c de novo — o reset do working copy no passo 1 cuida do estado sujo.
+
+**Caso real observado em 2026-08-08:** o `svn commit` em si (não o `svn copy` da tag) reportou
+`E000002: Can't open file '.../db/transactions/NNNNNNN-xxxxx.txn/props'` — erro do lado do servidor
+do WP.org depois que toda a transmissão de arquivos já tinha terminado. A transação **tinha sido
+persistida** apesar do erro reportado ao cliente (confirmado via `svn info` no trunk remoto: rev e
+autor batiam; conteúdo idêntico ao zip via `svn export` + `diff`). Tratamento: mesmo caso do
+parágrafo acima — rodar 3c de novo. Não é um bug do script; é uma falha transitória de
+infraestrutura do `plugins.svn.wordpress.org` que pode voltar a acontecer em releases futuros.
 
 ---
 
