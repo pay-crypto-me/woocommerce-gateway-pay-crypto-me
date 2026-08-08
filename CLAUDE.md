@@ -2,14 +2,12 @@
 
 ## Context and guides
 
-- [docs/RELEASE.md](docs/RELEASE.md) — how to submit to WordPress.org (SVN or direct upload); SVN section fixed and battle-tested against the real first push (2026-08-08).
-- [docs/SVN-PUBLISH-FIX.md](docs/SVN-PUBLISH-FIX.md) — **implemented and verified end-to-end, 2026-08-08**: diagnosis + fix for why `release.sh --svn` was broken (the working copy used to live inside the `mktemp` its own `trap` deleted). Documents the 12 defects that were fixed, including two former silent-data-loss modes (`svn cp` into an existing tag nesting instead of erroring; an unscoped `!` sweep that could have scheduled deletion of every published tag), plus the design decisions: publish from the **approved zip** rather than a fresh build (the private composer forks make rebuilds non-reproducible), persistent working copy at `releases/svn/`, server-side tag copy, opt-in `--svn-commit`. Offline rehearsal (fake SVN repo) passed all acceptance criteria; the real first push succeeded (`trunk@3638906` + `tags/0.1.0@3638912`, content verified byte-identical to the approved zip). Also documents a transient WP.org server-side commit error (`E000002`, transaction persisted despite the client-visible failure) hit during that push and its recovery — worth reading before any future release.
-- [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%)
-- [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway
-- [docs/WORDPRESS-ORG-REVIEW-FIXES.md](docs/WORDPRESS-ORG-REVIEW-FIXES.md) — plan to resolve the pending WordPress.org review (enqueue assets, nonce sanitization, composer.json in package, i18n loading)
-- [docs/PRODUCTION-HARDENING.md](docs/PRODUCTION-HARDENING.md) — **implemented and verified**: fixes for the GMP activation fatal + deep-audit findings (3 money-loss bugs, environment-dependent fatals, schema integrity). Read for the *why* behind several non-obvious patterns (lazy service construction, `\Throwable` catches at checkout/render boundaries, dbDelta's `IF NOT EXISTS` trap). Verification complete: 277 tests, Plugin Check clean, `scripts/smoke-minimal-host.sh` passing, and manual browser smoke test (checkout both gateways, order-details page, admin xpub-network-mismatch rejection) confirmed working.
+- [docs/RELEASE.md](docs/RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
+- [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
+- [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
+- [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** v0.1.0 **live on WordPress.org** — first SVN push completed 2026-08-08 (`trunk@3638906` + `tags/0.1.0@3638912`); public plugin page indexes within 72h. Production-hardening round complete and fully verified (277 tests passing, 7 locales at 100%, manual smoke test passed). Premium features (webhook/fiat→sats) reserved for add-on plugin — see "Premium add-on" section below.
+**Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (277 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
@@ -203,7 +201,7 @@ Running `composer install` in a fresh environment requires access to these GitHu
 
 ## Premium add-on: scope boundaries and extension points
 
-Two capabilities are **intentionally absent from this free plugin and reserved for a separate premium add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version.
+Two capabilities are **intentionally absent from this free plugin and reserved for a separate premium add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version. The approved implementation plan for that separate add-on (its own repo, not started yet) lives at [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md).
 
 - **Webhook REST endpoint + async status updates.** The Lightning settings UI references `rest_url('paycrypto-me/v1/webhook')`, but there is deliberately no `register_rest_route()` here. Automatic/async invoice-status confirmation (BTCPay webhook push; lnd polling via `wp_schedule_event`) is a premium-tier feature.
 - **Fiat → sats conversion.** Invoices are created zero-amount on purpose. Converting the order's fiat total into an `amount_sats` is a premium-tier feature.

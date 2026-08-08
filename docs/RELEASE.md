@@ -161,10 +161,10 @@ Antes de executar o release, verifique:
 
 ## Smoke de Host Mínimo (passo obrigatório antes de gerar release)
 
-`./scripts/smoke-minimal-host.sh` existe para fechar a classe de bug que motivou o
-`docs/PRODUCTION-HARDENING.md`: um fatal de ativação (`gmp_init` indefinida) que só aparece em
-hosts sem certas extensões PHP — nosso container de dev (e o do serviço `release`) tem *todas*
-as extensões instaladas, então nenhum PHPUnit consegue detectar esse tipo de regressão.
+`./scripts/smoke-minimal-host.sh` existe para fechar uma classe de bug real: um fatal de ativação
+(`gmp_init` indefinida) reportado pelo revisor do WordPress.org, cujo ambiente não tinha a
+extensão GMP — nosso container de dev (e o do serviço `release`) tem *todas* as extensões
+instaladas, então nenhum PHPUnit consegue detectar esse tipo de regressão.
 
 O script reutiliza a mesma técnica que reproduziu o bug original — desabilitar uma função
 específica via `php -d disable_functions=...` para simular a extensão correspondente ausente —
@@ -358,8 +358,6 @@ git push origin v1.2.0
 - **`assets/` (banner, ícone, screenshots) agora é automático** — todo `--svn-commit` espelha `src/assets/` para o `assets/` do SVN junto com `trunk/`. Deixou de ser um passo manual separado.
 - **`git clean -xdf` apaga tanto `releases/svn/` quanto o zip aprovado** em `releases/` (ambos ignorados pelo git). Se isso acontecer, gere o zip de novo antes de publicar.
 
-Ver [docs/SVN-PUBLISH-FIX.md](SVN-PUBLISH-FIX.md) para o diagnóstico completo e a lista de defeitos corrigidos nesse fluxo.
-
 ##### Configurando Credenciais SVN
 
 As credenciais SVN são as mesmas do seu login em **wordpress.org** (não do wp-admin do seu site). Na primeira vez, o SVN solicitará usuário e senha interativamente e poderá salvá-las em cache.
@@ -400,7 +398,9 @@ SVN_URL=file:///tmp/fake-wporg ./scripts/release.sh \
 rm -rf releases/svn releases/.svn-stage   # descarta o WC do ensaio antes do push real
 ```
 
-Roteiro completo de ensaio, com critérios de aceite (2a–2h): [docs/SVN-PUBLISH-FIX.md](SVN-PUBLISH-FIX.md#fase-2--ensaio-offline-obrigatório).
+Critério de aceite principal: `diff -r` entre o zip extraído e a tag SVN publicada no repositório
+fake não pode mostrar nenhuma linha de diferença — é a prova de que o working copy publica
+exatamente o conteúdo do zip aprovado, sem rebuild.
 
 ##### Executando o Release via SVN (push real)
 
@@ -580,6 +580,21 @@ ls src/trunk/assets/blocks/
 
 ---
 
+### `svn commit` retorna erro mas o trunk foi publicado mesmo assim
+
+Observado no primeiro push real (2026-08-08): `svn commit` retornou
+`E000002: Can't open file '.../db/transactions/NNNNNNN-xxxxx.txn/props'` depois que toda a
+transmissão de arquivos já tinha terminado. É uma falha **do lado do servidor** do
+`plugins.svn.wordpress.org` — a transação já tinha sido persistida (confirmado via `svn info` no
+trunk remoto: revisão e conteúdo batiam com o zip). Como o script usa `set -e`, ele abortou antes
+de criar a tag.
+
+**Correção: rodar o mesmo `--svn-commit` de novo.** O script vê que não há nada a commitar, lê a
+revisão atual do trunk remoto e cria só a tag por cima dela — nenhuma ação manual além de repetir
+o comando. Não é um bug do script; pode voltar a acontecer em releases futuros.
+
+---
+
 ## Checklist de Release
 
 Copie e use a cada release. Substitua `X.Y.Z` pela versão real.
@@ -610,8 +625,8 @@ GIT E PUBLICAÇÃO
 [ ] git push origin vX.Y.Z
 
 SVN (só na primeira vez que mexer no script, ou antes do primeiro push real)
-[ ] Ensaio offline completo (2a-2h), ver seção "Ensaio offline" acima e
-    docs/SVN-PUBLISH-FIX.md — critérios de aceite todos OK
+[ ] Ensaio offline completo, ver seção "Ensaio offline" acima —
+    diff -r entre zip e tag publicada no repositório fake é idêntico (0 linhas)
 [ ] rm -rf releases/svn releases/.svn-stage (descarta o WC do ensaio)
 
 SVN (todo release)
