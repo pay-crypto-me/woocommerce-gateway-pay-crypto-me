@@ -83,6 +83,7 @@ class PaymentDisplayDataBuilderTest extends TestCase
             'crypto_network',
             'expires_at',
             'expires_at_formatted',
+            'is_expired',
             'confirmations_required',
         ], array_keys($data));
     }

@@ -15,9 +15,16 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeBitcoinGatewayActivate
 {
-    public static function activate()
+    /**
+     * @return string[] Errors recorded during this run — empty means every table is in place.
+     *                  Returned as well as stored so DbInstaller::install() can decide whether to
+     *                  record the schema version without re-reading the option.
+     */
+    public static function activate(): array
     {
         global $wpdb;
+
+        $errors = [];
 
         $charset_collate = $wpdb->get_charset_collate();
 
@@ -38,7 +45,7 @@ class PayCryptoMeBitcoinGatewayActivate
         ) $charset_collate;";
 
         dbDelta($sql);
-        self::record_error_if_any($wallets_table);
+        $errors = array_merge($errors, self::record_error_if_any($wallets_table));
 
         // No FOREIGN KEY: dbDelta doesn't manage FKs at all, and on a MyISAM host the
         // constraint is silently dropped — integrity is already enforced by the composite PK.
@@ -50,7 +57,7 @@ class PayCryptoMeBitcoinGatewayActivate
         ) $charset_collate;";
 
         dbDelta($sql);
-        self::record_error_if_any($indexes_table);
+        $errors = array_merge($errors, self::record_error_if_any($indexes_table));
 
         $table_name = $wpdb->prefix . 'paycrypto_me_bitcoin_transactions_data';
         $sql = "CREATE TABLE $table_name (
@@ -69,7 +76,9 @@ class PayCryptoMeBitcoinGatewayActivate
         ) $charset_collate;";
 
         dbDelta($sql);
-        self::record_error_if_any($table_name);
+        $errors = array_merge($errors, self::record_error_if_any($table_name));
+
+        return $errors;
     }
 
     /**
@@ -77,17 +86,23 @@ class PayCryptoMeBitcoinGatewayActivate
      * only reliable failure signal is $wpdb->last_error, which dbDelta never checks itself.
      * Without this, a failed CREATE (e.g. the InnoDB 767-byte index-key limit on older
      * MySQL/MariaDB) reports activation as successful and fails silently on the first order.
+     *
+     * @return string[] The error recorded for this table, or an empty array.
      */
-    private static function record_error_if_any(string $table_name): void
+    private static function record_error_if_any(string $table_name): array
     {
         global $wpdb;
 
         if (empty($wpdb->last_error)) {
-            return;
+            return [];
         }
 
+        $error = \sprintf('%s: %s', $table_name, $wpdb->last_error);
+
         $errors   = get_option('paycrypto_me_db_activation_errors', []);
-        $errors[] = \sprintf('%s: %s', $table_name, $wpdb->last_error);
+        $errors[] = $error;
         update_option('paycrypto_me_db_activation_errors', $errors);
+
+        return [$error];
     }
 }

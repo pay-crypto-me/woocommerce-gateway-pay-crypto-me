@@ -164,4 +164,69 @@ class WCGatewayValidationTest extends TestCase
         $this->assertStringContainsString('...', $masked);
         $this->assertLessThan(strlen($long), strlen($masked));
     }
+
+    public function test_validate_network_identifier_converts_internal_errors_into_a_typed_exception()
+    {
+        // Regression for the reported bug: on a host without GMP, Base58::decode() throws
+        // "Call to undefined function gmp_init()". That \Error used to be swallowed into `false`,
+        // so the admin was told their (perfectly valid) xPub was invalid for the selected network.
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['register_paycrypto_me_log'])
+            ->getMock();
+
+        $svc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $svc->method('prefix_matches_network')->willReturn(true);
+        $svc->method('validate_extended_pubkey')
+            ->willThrowException(new \Error('Call to undefined function BitWasp\\Bitcoin\\gmp_init()'));
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', $svc);
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'validate_network_identifier');
+        $m->setAccessible(true);
+
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMeException::class);
+        $this->expectExceptionMessageMatches('/gmp_init/');
+
+        $m->invoke($gateway, 'mainnet', 'zpubSOMETHING');
+    }
+
+    public function test_validate_network_identifier_converts_address_internal_errors_too()
+    {
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['register_paycrypto_me_log'])
+            ->getMock();
+
+        $svc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $svc->method('prefix_matches_network')->willReturn(true);
+        $svc->method('validate_extended_pubkey')->willReturn(false);
+        $svc->method('validate_bitcoin_address')->willThrowException(new \Error('Call to undefined function gmp_init()'));
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', $svc);
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'validate_network_identifier');
+        $m->setAccessible(true);
+
+        // '1...' matches a mainnet address prefix, so the static-address branch is reached.
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMeException::class);
+
+        $m->invoke($gateway, 'mainnet', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
+    }
+
+    public function test_validate_network_identifier_still_returns_false_for_a_genuinely_invalid_key()
+    {
+        // The typed exception above must not swallow the ordinary rejection path.
+        $gateway = $this->getMockBuilder(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['register_paycrypto_me_log'])
+            ->getMock();
+
+        $this->setPrivateProperty($gateway, 'bitcoin_address_service', new \PayCryptoMe\WooCommerce\BitcoinAddressService());
+
+        $m = new \ReflectionMethod(\PayCryptoMe\WooCommerce\WC_Gateway_PayCryptoMe::class, 'validate_network_identifier');
+        $m->setAccessible(true);
+
+        $this->assertFalse($m->invoke($gateway, 'mainnet', 'xpubTHISISNOTAVALIDKEY'));
+    }
 }

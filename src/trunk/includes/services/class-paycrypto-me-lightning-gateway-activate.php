@@ -15,7 +15,11 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeLightningGatewayActivate
 {
-    public static function activate()
+    /**
+     * @return string[] Errors recorded during this run — see the Bitcoin activator for why the
+     *                  list is returned as well as stored.
+     */
+    public static function activate(): array
     {
         global $wpdb;
 
@@ -45,10 +49,16 @@ class PayCryptoMeLightningGatewayActivate
 
         // See PayCryptoMeBitcoinGatewayActivate::record_error_if_any() — dbDelta() never
         // checks $wpdb->last_error itself, so a failed CREATE would otherwise report success.
-        if (!empty($wpdb->last_error)) {
-            $errors   = get_option('paycrypto_me_db_activation_errors', []);
-            $errors[] = \sprintf('%s: %s', $table_name, $wpdb->last_error);
-            update_option('paycrypto_me_db_activation_errors', $errors);
+        if (empty($wpdb->last_error)) {
+            return [];
         }
+
+        $error = \sprintf('%s: %s', $table_name, $wpdb->last_error);
+
+        $errors   = get_option('paycrypto_me_db_activation_errors', []);
+        $errors[] = $error;
+        update_option('paycrypto_me_db_activation_errors', $errors);
+
+        return [$error];
     }
 }

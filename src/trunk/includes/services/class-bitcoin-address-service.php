@@ -214,14 +214,77 @@ class BitcoinAddressService
         return $converted;
     }
 
-    public function validate_bitcoin_address(string $address, NetworkInterface $network, ?callable $logger = null): bool
+    /**
+     * Whether validating this identifier needs the big-integer math the GMP extension provides.
+     *
+     * Only bech32 (segwit) identifiers avoid it: `bitwasp/bech32` is pure PHP, while extended
+     * public keys and base58 addresses both reach `Base58::decode()`, which calls `gmp_init()`.
+     * This is what lets a host without GMP still take on-chain payments to a fixed bc1/tb1
+     * address, even though xPub derivation is impossible there.
+     */
+    public function requires_gmp_math(string $identifier, NetworkInterface $network): bool
+    {
+        return !$this->is_segwit_candidate($identifier, $network);
+    }
+
+    private function is_segwit_candidate(string $identifier, NetworkInterface $network): bool
+    {
+        return strpos(strtolower($identifier), strtolower($network->getSegwitBech32Prefix()) . '1') === 0;
+    }
+
+    /**
+     * bech32-only address validation, mirroring AddressCreator::readSegwitAddress().
+     *
+     * Needed as a separate path because `AddressCreator::fromString()` tries base58 *first* and
+     * its `catch (\Exception)` does not stop the `\Error` that `Base58::decode()` raises on a host
+     * without GMP — so a perfectly valid bc1 address used to fail there before bech32 was ever
+     * tried, even though bech32 itself needs no big-integer math at all.
+     */
+    public function validate_segwit_address(string $address, NetworkInterface $network, ?callable $logger = null): bool
     {
         try {
-            $addressCreator = new AddressCreator();
-            $addressCreator->fromString($address, $network);
+            [$version, $program] = \BitWasp\Bech32\decodeSegwit($network->getSegwitBech32Prefix(), $address);
+
+            // WitnessProgram::v0() enforces the 20/32-byte program length, exactly as
+            // AddressCreator does — the accepted/rejected set stays identical.
+            $version === 0
+                ? WitnessProgram::v0(new Buffer($program))
+                : new WitnessProgram($version, new Buffer($program));
 
             return true;
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
+            if ($logger !== null) {
+                $logger(
+                    \sprintf('Segwit address validation failed: %s', esc_html( wp_strip_all_tags( $e->getMessage() ) )),
+                    'debug'
+                );
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * Catches \Exception, NOT \Throwable: every "this string isn't a valid address" failure
+     * arrives as an Exception (Base58ChecksumFailure, ParserOutOfRange, InvalidArgumentException),
+     * while a missing extension arrives as an \Error. Swallowing the latter into `false` is what
+     * made a host without GMP report a valid key as invalid — let it propagate so the caller can
+     * name the real cause. See EnvironmentRequirements.
+     */
+    public function validate_bitcoin_address(string $address, NetworkInterface $network, ?callable $logger = null): bool
+    {
+        // Routed before AddressCreator on purpose — see validate_segwit_address().
+        if ($this->is_segwit_candidate($address, $network)) {
+            return $this->validate_segwit_address($address, $network, $logger);
+        }
+
+        try {
+            // Uses the lazy accessor like every other method here; this one used to build its own
+            // AddressCreator and silently ignore the injected one.
+            $this->get_address_creator()->fromString($address, $network);
+
+            return true;
+        } catch (\Exception $e) {
             if ($logger !== null) {
                 $logger(
                     \sprintf('Bitcoin address validation failed: %s', esc_html( wp_strip_all_tags( $e->getMessage() ) )),
@@ -232,6 +295,7 @@ class BitcoinAddressService
         }
     }
 
+    /** Same \Exception-not-\Throwable contract as validate_bitcoin_address(). */
     public function validate_extended_pubkey(string $xPub, NetworkInterface $network, ?callable $logger = null): bool
     {
 
@@ -242,7 +306,7 @@ class BitcoinAddressService
             $hdFactory->fromExtended($replaceHex, $network);
 
             return true;
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             if ($logger !== null) {
                 $logger(
                     \sprintf('Extended pubkey validation failed: %s', esc_html( wp_strip_all_tags( $e->getMessage() ) )),

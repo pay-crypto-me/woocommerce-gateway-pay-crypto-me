@@ -52,6 +52,12 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         do_action('paycryptome_for_woocommerce_gateway_loaded', $this);
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+
+        // Only when the gateway claims to be enabled: a disabled gateway being absent from
+        // checkout is expected, not a problem worth reporting.
+        if ('yes' === $this->enabled) {
+            add_action('admin_notices', array($this, 'render_unavailability_notice'));
+        }
     }
 
     abstract protected function admin_enqueue_scripts_content(\WP_Screen|null $screen);
@@ -91,7 +97,11 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             // Third-party seam (post-build): lets an add-on adjust already-computed fields (QR, labels).
             $payment_display_data = apply_filters(
                 'paycryptome_order_display_data',
-                $this->display_data_builder->build($order, $args),
+                $this->display_data_builder->build(
+                    $order,
+                    $args,
+                    fn($message, $level) => $this->register_paycrypto_me_log($message, $level)
+                ),
                 $order,
                 $this
             );
@@ -123,6 +133,14 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                     esc_html( wp_strip_all_tags( $e->getMessage() ) )
                 ),
                 'error'
+            );
+
+            // Rendering nothing at all left the customer on an order page with no address and no
+            // QR code, with no way to tell that something broke rather than that no payment was
+            // due. Say so instead of failing invisibly.
+            printf(
+                '<p class="paycrypto-me-order-details__error">%s</p>',
+                esc_html__('We could not display the payment details for this order. Please contact the store.', 'paycrypto-me-for-woocommerce')
             );
         }
     }
@@ -322,6 +340,20 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         );
     }
 
+    /**
+     * Why this gateway cannot take payments right now, as messages fit to show an admin.
+     *
+     * Single source of truth for both is_available() and render_unavailability_notice(), so the
+     * reason a gateway silently vanishes from checkout can never drift from what the admin is
+     * told. Two buckets because they deserve different visibility (see the notice).
+     *
+     * @return array{environment: string[], configuration: string[]}
+     */
+    protected function unavailability_reasons(): array
+    {
+        return array('environment' => array(), 'configuration' => array());
+    }
+
     public function is_available()
     {
         if ('yes' !== $this->enabled) {
@@ -331,7 +363,64 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             return false;
         }
 
-        return true;
+        $reasons = $this->unavailability_reasons();
+
+        return empty($reasons['environment']) && empty($reasons['configuration']);
+    }
+
+    public function render_unavailability_notice()
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        $reasons = $this->unavailability_reasons();
+
+        // Environment problems (a missing PHP extension) show everywhere: they are host defects
+        // the store owner has to escalate, and they explain an otherwise inexplicable
+        // disappearance. Configuration gaps show only on the WooCommerce screens where they can
+        // be acted on — a store deliberately using just one of the two gateways would otherwise
+        // carry a permanent notice about the other one on every admin page.
+        $messages = $reasons['environment'];
+
+        if ($this->on_woocommerce_admin_screen()) {
+            $messages = array_merge($messages, $reasons['configuration']);
+        }
+
+        if (empty($messages)) {
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-warning"><p>%s</p><ul style="list-style:disc;margin-left:20px;">',
+            wp_kses_post(sprintf(
+                /* translators: %s is the payment gateway's title, e.g. "Bitcoin Payments (On-Chain)". */
+                __('%s is enabled but hidden from checkout:', 'paycrypto-me-for-woocommerce'),
+                esc_html($this->method_title)
+            ))
+        );
+
+        foreach ($messages as $message) {
+            printf('<li>%s</li>', wp_kses_post($message));
+        }
+
+        echo '</ul></div>';
+    }
+
+    private function on_woocommerce_admin_screen(): bool
+    {
+        if (!function_exists('get_current_screen')) {
+            return false;
+        }
+
+        $screen = get_current_screen();
+
+        if (!$screen) {
+            return false;
+        }
+
+        return in_array($screen->id, array('woocommerce_page_wc-settings', 'woocommerce_page_wc-orders', 'shop_order', 'plugins'), true)
+            || strpos($screen->id, 'woocommerce_page_wc-settings') === 0;
     }
 
     public function process_pre_order_payment($order)

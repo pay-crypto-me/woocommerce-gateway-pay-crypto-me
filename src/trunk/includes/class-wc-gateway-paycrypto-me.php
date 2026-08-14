@@ -57,26 +57,91 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         // reset, so registering it on the abstract class made Lightning register a callback
         // pointing at a method that doesn't exist there.
         add_action('wp_ajax_paycryptome_reset_derivation_index', array($this, 'ajax_reset_derivation_index'));
-
-        if ('yes' === $this->enabled && !extension_loaded('gmp')) {
-            add_action('admin_notices', [$this, 'render_gmp_missing_notice']);
-        }
     }
 
-    public function render_gmp_missing_notice()
+    protected function unavailability_reasons(): array
     {
-        if (!current_user_can('manage_options')) {
-            return;
+        $environment = array();
+        $configuration = array();
+
+        $missing = EnvironmentRequirements::missing_onchain_extensions();
+
+        // Reported only when the configured identifier actually needs that math. A fixed bech32
+        // address needs none of it (bech32 is pure PHP), so such a store keeps taking on-chain
+        // payments on a host without GMP — only xPub derivation is impossible there.
+        if (!empty($missing) && $this->configured_identifier_requires_gmp()) {
+            $environment[] = sprintf(
+                /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
+                esc_html__('This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
+                esc_html(EnvironmentRequirements::describe($missing)),
+                esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet')))
+            );
         }
 
-        printf(
-            '<div class="notice notice-warning"><p>%s</p></div>',
-            wp_kses_post(sprintf(
-                /* translators: %s is the payment gateway's title, e.g. "Bitcoin Payments (On-Chain)". */
-                __('%s is enabled but hidden from checkout: this server is missing the PHP GMP extension, which is required to derive Bitcoin addresses. Ask your host to enable it. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
-                esc_html($this->method_title)
-            ))
+        if (empty($this->get_option('selected_network'))) {
+            $configuration[] = esc_html__('No network is selected in the gateway settings.', 'paycrypto-me-for-woocommerce');
+        }
+
+        if (empty($this->get_option('network_identifier'))) {
+            $configuration[] = esc_html__('No wallet xPub or Bitcoin address is configured in the gateway settings.', 'paycrypto-me-for-woocommerce');
+        }
+
+        return array('environment' => $environment, 'configuration' => $configuration);
+    }
+
+    /**
+     * An unset identifier counts as requiring it: the merchant hasn't opted into the
+     * fixed-address route yet, so the limitation is still worth reporting.
+     */
+    private function configured_identifier_requires_gmp(): bool
+    {
+        $network_type = (string) $this->get_option('selected_network', 'mainnet');
+
+        return $this->get_bitcoin_address_service()->requires_gmp_math(
+            (string) $this->get_option('network_identifier'),
+            $this->network_for($network_type)
         );
+    }
+
+    private function network_for(?string $network_type): \BitWasp\Bitcoin\Network\NetworkInterface
+    {
+        return $network_type === 'testnet' ? NetworkFactory::bitcoinTestnet() : NetworkFactory::bitcoin();
+    }
+
+    private function segwit_prefix(?string $network_type): string
+    {
+        return $this->network_for($network_type)->getSegwitBech32Prefix() . '1';
+    }
+
+    /**
+     * WooCommerce renders this gateway's settings screen through admin_options(), which makes it
+     * the one place a warning is guaranteed to be visible exactly where the merchant configures
+     * the key — and only there.
+     */
+    public function admin_options()
+    {
+        $this->render_missing_extension_notice();
+
+        parent::admin_options();
+    }
+
+    /** Separate from admin_options() so it can be asserted without WooCommerce's settings render. */
+    public function render_missing_extension_notice(): void
+    {
+        $missing = EnvironmentRequirements::missing_onchain_extensions();
+
+        if (!empty($missing)) {
+            printf(
+                '<div class="notice notice-warning inline"><p><strong>%s</strong><br>%s</p></div>',
+                esc_html__('This server cannot derive addresses from an extended public key.', 'paycrypto-me-for-woocommerce'),
+                wp_kses_post(sprintf(
+                    /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
+                    __('The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
+                    esc_html(EnvironmentRequirements::describe($missing)),
+                    '<code>' . esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet'))) . '</code>'
+                ))
+            );
+        }
     }
 
     private function get_bitcoin_address_service(): BitcoinAddressService
@@ -137,7 +202,30 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             return false;
         }
 
-        if (!$this->validate_network_identifier($selected_network, $network_identifier)) {
+        // Without the crypto extension there is nothing to validate an xPub against: the parse
+        // fails on the host, not on the key. Save what was submitted (blocking the form would also
+        // lock the admin out of the title, the enable checkbox and everything else on this screen)
+        // and let admin_options()/render_unavailability_notice() report the host-level cause.
+        // A bech32 address is still validated normally here — it needs no big-integer math.
+        $needs_gmp = $this->get_bitcoin_address_service()->requires_gmp_math(
+            $network_identifier,
+            $this->network_for($selected_network)
+        );
+
+        if ($needs_gmp && !empty(EnvironmentRequirements::missing_onchain_extensions())) {
+            return parent::process_admin_options();
+        }
+
+        try {
+            $identifier_is_valid = $this->validate_network_identifier($selected_network, $network_identifier);
+        } catch (PayCryptoMeException $e) {
+            /* translators: %s: the underlying error message. */
+            $format = esc_html__('The wallet key could not be validated because of an internal error: %s. Nothing was saved. This is not a problem with the key you entered.', 'paycrypto-me-for-woocommerce');
+            \WC_Admin_Settings::add_error(sprintf($format, esc_html(wp_strip_all_tags($e->getMessage()))));
+            return false;
+        }
+
+        if (!$identifier_is_valid) {
             if ($this->is_xpub_network_mismatch($selected_network, $network_identifier)) {
                 $wrong_network = $selected_network === 'testnet' ? 'mainnet' : 'testnet';
                 /* translators: 1: network the key actually belongs to, 2: network selected in settings. */
@@ -239,29 +327,6 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         );
     }
 
-    public function is_available()
-    {
-        if (!parent::is_available()) {
-            return false;
-        }
-
-        // Address derivation/validation goes through bitwasp/bitcoin's EC adapter, which
-        // requires GMP. Without it, offer Lightning only instead of fataling the whole site.
-        if (!extension_loaded('gmp')) {
-            return false;
-        }
-
-        if (empty($this->get_option('selected_network'))) {
-            return false;
-        }
-
-        if (empty($this->get_option('network_identifier'))) {
-            return false;
-        }
-
-        return true;
-    }
-
     public function build_order_display_args(\WC_Order $order): ?array
     {
         $payment_address = $order->get_meta('_paycrypto_me_payment_address');
@@ -346,9 +411,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             return false;
         }
 
-        $network = $network_type === 'testnet'
-            ? NetworkFactory::bitcoinTestnet()
-            : NetworkFactory::bitcoin();
+        $network = $this->network_for($network_type);
 
         // No logger passed on purpose: a failure here just means the identifier
         // isn't an extended pubkey (it may be a valid static address), so the
@@ -358,11 +421,18 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             if ($ok = $this->get_bitcoin_address_service()->validate_extended_pubkey($identifier, $network)) {
                 return $ok;
             }
-        } catch (\Throwable $th) {
+        } catch (\Error $th) {
+            // Only \Error lands here: the service returns false for every "this isn't a valid
+            // key" Exception. An \Error is the host or our own code failing (a missing extension,
+            // a type error) — reporting it as an invalid key blames the store owner for a
+            // problem that isn't theirs, so surface it as what it is.
             $this->register_paycrypto_me_log(
-                \sprintf('xpub validation threw: %s', esc_html( wp_strip_all_tags( $th->getMessage() ) )),
+                \sprintf('xpub validation failed internally: %s', esc_html( wp_strip_all_tags( $th->getMessage() ) )),
                 'error'
             );
+
+            // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- $th is the previous Throwable (arg 3), not output; the message above is already escaped.
+            throw new PayCryptoMeException(esc_html(wp_strip_all_tags($th->getMessage())), 0, $th);
         }
 
         return false;
@@ -383,7 +453,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
     private function validate_network_identifier($network_type, $identifier)
     {
-        $network = $network_type === 'testnet' ? NetworkFactory::bitcoinTestnet() : NetworkFactory::bitcoin();
+        $network = $this->network_for($network_type);
 
         if ($this->validate_xpub_address($network_type, $identifier)) {
             return true;
@@ -391,10 +461,23 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         $logger = fn($message, $level) => $this->register_paycrypto_me_log($message, $level);
 
-        if (
-            $this->address_prefix_matches_network($network_type, $identifier)
-            && $this->get_bitcoin_address_service()->validate_bitcoin_address($identifier, $network, $logger)
-        ) {
+        // Same \Error contract as validate_xpub_address(): a host/internal fault must not be
+        // reported as an invalid address. Wrapped here too so it can never escape uncaught and
+        // fatal the settings screen.
+        try {
+            $address_is_valid = $this->address_prefix_matches_network($network_type, $identifier)
+                && $this->get_bitcoin_address_service()->validate_bitcoin_address($identifier, $network, $logger);
+        } catch (\Error $th) {
+            $this->register_paycrypto_me_log(
+                \sprintf('address validation failed internally: %s', esc_html( wp_strip_all_tags( $th->getMessage() ) )),
+                'error'
+            );
+
+            // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- $th is the previous Throwable (arg 3), not output; the message above is already escaped.
+            throw new PayCryptoMeException(esc_html(wp_strip_all_tags($th->getMessage())), 0, $th);
+        }
+
+        if ($address_is_valid) {
             $this->register_paycrypto_me_log(
                 esc_html__('A fixed Bitcoin address was saved. Payments will work, but every order is paid to this same address. For better privacy, we recommend using an extended public key (xpub/ypub/zpub) instead, which automatically creates a new address for each order.', 'paycrypto-me-for-woocommerce'),
                 'notice'

@@ -29,7 +29,7 @@ class WpHttpClient implements HttpClientContract
                 \sprintf('HTTP POST error to %s: %s', esc_url_raw($url), esc_html($response->get_error_message())),
                 'error'
             );
-            return [];
+            return [self::ERROR_KEY => $response->get_error_message()];
         }
         return $response;
     }
@@ -42,7 +42,7 @@ class WpHttpClient implements HttpClientContract
                 \sprintf('HTTP GET error to %s: %s', esc_url_raw($url), esc_html($response->get_error_message())),
                 'error'
             );
-            return [];
+            return [self::ERROR_KEY => $response->get_error_message()];
         }
         return $response;
     }

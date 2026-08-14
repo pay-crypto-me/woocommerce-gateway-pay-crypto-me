@@ -79,13 +79,28 @@ class LightningConnectionTester
 
         // Handle SSL verification: use certificate if provided, otherwise use verify_ssl flag
         $temp_cert = '';
+        $cert_write_failed = false;
         if (!empty($certificate)) {
             $temp_cert = tempnam(sys_get_temp_dir(), 'lnd_cert_');
             if ($temp_cert && file_put_contents($temp_cert, $certificate)) {
                 $args['sslcertificates'] = $temp_cert;
+            } else {
+                // Same silent fall-through as LndRestInvoiceService::request_with_cert(): without
+                // this the request ran with WordPress's default verification and the admin had no
+                // way to know their certificate was never used. Here the test can simply stop and
+                // say so, since testing with the wrong TLS setup proves nothing.
+                $cert_write_failed = true;
             }
         } else {
             $args['sslverify'] = ($verify_ssl === 'yes');
+        }
+
+        if ($cert_write_failed) {
+            if ($temp_cert && file_exists($temp_cert)) {
+                wp_delete_file($temp_cert);
+            }
+
+            wp_send_json_error(array('message' => esc_html__('The TLS certificate could not be written to a temporary file, so the connection was not tested. Check the PHP temporary directory permissions on this host.', 'paycrypto-me-for-woocommerce')));
         }
 
         if (!empty($macaroon)) {
@@ -115,15 +130,31 @@ class LightningConnectionTester
     }
 
     /**
-     * Shared tail of both test flows: HttpClientContract already collapsed
-     * transport-level failures (WP_Error) into an empty response array, so a
-     * 0/absent status code is reported as a generic failed request rather than
-     * with the original transport error message.
+     * Shared tail of both test flows.
+     *
+     * A transport-level failure (DNS, TLS, timeout) never reached the HTTP status code, so
+     * reporting it as "Request failed (HTTP 0)" told the admin nothing. HttpClientContract now
+     * carries the reason and it is shown verbatim instead.
      *
      * @param callable(array): string|null $success_suffix Appends extra text (e.g. node alias) to the success message.
      */
     private function respond_from_http_result(array $response, string $log_prefix, ?callable $success_suffix = null): void
     {
+        if (!empty($response[HttpClientContract::ERROR_KEY])) {
+            $reason = (string) $response[HttpClientContract::ERROR_KEY];
+
+            $this->gateway->register_paycrypto_me_log(
+                \sprintf('%s: %s', $log_prefix, esc_html($reason)),
+                'error'
+            );
+
+            wp_send_json_error(array('message' => sprintf(
+                /* translators: %s: transport error reported by WordPress, e.g. a cURL message. */
+                esc_html__('Could not reach the server: %s', 'paycrypto-me-for-woocommerce'),
+                esc_html($reason)
+            )));
+        }
+
         $code = (int) ($response['response']['code'] ?? 0);
         $body = (string) ($response['body'] ?? '');
 

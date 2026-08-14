@@ -40,6 +40,9 @@ class LightningConfigValidator
         $val = trim(wp_unslash($value));
         $url = esc_url_raw($val);
         if (empty($url)) {
+            // Silently returning '' meant a URL esc_url_raw() rejected (e.g. "btcpay.local:3000",
+            // no scheme) was saved as empty while WooCommerce still reported "settings saved".
+            $this->add_unusable_url_error(__('BTCPay Server URL', 'paycrypto-me-for-woocommerce'));
             return '';
         }
         $parts = wp_parse_url($url);
@@ -49,6 +52,16 @@ class LightningConfigValidator
             return '';
         }
         return $url;
+    }
+
+    /** Shared by both URL validators: the value could not be stored, so say so. */
+    private function add_unusable_url_error(string $field_label): void
+    {
+        \WC_Admin_Settings::add_error(sprintf(
+            /* translators: %s: field label, e.g. "BTCPay Server URL". */
+            esc_html__('%s is not a usable URL and was not saved. Include the scheme, e.g. https://example.com', 'paycrypto-me-for-woocommerce'),
+            esc_html($field_label)
+        ));
     }
 
     public function validate_btcpay_api_key($value, bool $is_lnd_rest_selected): string
@@ -90,6 +103,7 @@ class LightningConfigValidator
         $val = trim(wp_unslash($value));
         $url = esc_url_raw($val);
         if (empty($url)) {
+            $this->add_unusable_url_error(__('lnd REST URL', 'paycrypto-me-for-woocommerce'));
             return '';
         }
         $parts = wp_parse_url($url);

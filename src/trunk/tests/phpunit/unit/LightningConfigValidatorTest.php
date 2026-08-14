@@ -206,4 +206,37 @@ class LightningConfigValidatorTest extends TestCase
         $this->assertSame('7200', $this->validator->validate_invoice_expiry('7200'));
         $this->assertEmpty($this->errors());
     }
+
+    public function test_btcpay_url_that_cannot_be_stored_reports_an_error()
+    {
+        // Regression: esc_url_raw() rejecting the value returned '' with no error at all, so the
+        // field was silently saved empty while WooCommerce still reported "settings saved".
+        \WC_Admin_Settings::$errors = [];
+
+        $result = (new LightningConfigValidator())->validate_btcpay_url('   ', false);
+
+        $this->assertSame('', $result);
+        $this->assertCount(1, \WC_Admin_Settings::$errors);
+        $this->assertStringContainsString('not a usable URL', \WC_Admin_Settings::$errors[0]);
+    }
+
+    public function test_lnd_rest_url_that_cannot_be_stored_reports_an_error()
+    {
+        \WC_Admin_Settings::$errors = [];
+
+        $result = (new LightningConfigValidator())->validate_lnd_rest_url('   ', true);
+
+        $this->assertSame('', $result);
+        $this->assertCount(1, \WC_Admin_Settings::$errors);
+        $this->assertStringContainsString('not a usable URL', \WC_Admin_Settings::$errors[0]);
+    }
+
+    public function test_btcpay_url_is_not_validated_when_lnd_is_selected()
+    {
+        // The field belongs to the other node type, so an empty value is expected, not an error.
+        \WC_Admin_Settings::$errors = [];
+
+        $this->assertSame('', (new LightningConfigValidator())->validate_btcpay_url('', true));
+        $this->assertSame([], \WC_Admin_Settings::$errors);
+    }
 }

@@ -76,13 +76,25 @@ class WpHttpClientTest extends TestCase
         $this->assertSame(5, $GLOBALS['__wp_remote_get_calls'][0][1]['timeout']);
     }
 
-    public function test_post_returns_empty_array_on_wp_error_without_throwing()
+    public function test_post_returns_the_transport_reason_on_wp_error_without_throwing()
     {
         $GLOBALS['__wp_remote_post_return'] = new WP_Error('http_request_failed', 'Connection timed out');
 
         $result = (new WpHttpClient())->post('https://example.com', []);
 
-        $this->assertSame([], $result);
+        // Carries the reason instead of an empty array: an empty array left callers reporting
+        // "HTTP 0", which told the admin nothing about a DNS/TLS/timeout failure.
+        $this->assertSame(['paycrypto_transport_error' => 'Connection timed out'], $result);
+        $this->assertArrayNotHasKey('response', $result);
+    }
+
+    public function test_get_returns_the_transport_reason_on_wp_error_without_throwing()
+    {
+        $GLOBALS['__wp_remote_get_return'] = new WP_Error('http_request_failed', 'Could not resolve host');
+
+        $result = (new WpHttpClient())->get('https://example.com', []);
+
+        $this->assertSame(['paycrypto_transport_error' => 'Could not resolve host'], $result);
     }
 
     public function test_get_returns_the_raw_response_array_on_success()

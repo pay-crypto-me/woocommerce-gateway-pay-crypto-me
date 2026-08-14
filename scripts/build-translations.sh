@@ -36,8 +36,19 @@ header() {
     echo -e "${BLUE}=== $1 ===${NC}"
 }
 
+# Compose v2 ships as the `docker compose` plugin, but plenty of hosts only have the standalone
+# `docker-compose` binary (also v2 nowadays). Resolved once instead of per call.
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker-compose)
+else
+    error "Neither 'docker compose' nor 'docker-compose' is available."
+    exit 1
+fi
+
 docker_exec() {
-    docker compose exec -w "$PLUGIN_DIR" wordpress bash -c "$@"
+    "${DOCKER_COMPOSE[@]}" exec -w "$PLUGIN_DIR" wordpress bash -c "$@"
 }
 
 # Verificar se wp-cli está disponível

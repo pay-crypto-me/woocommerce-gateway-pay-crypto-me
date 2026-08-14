@@ -39,19 +39,15 @@ if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-register_activation_hook(__FILE__, [PayCryptoMeBitcoinGatewayActivate::class, 'activate']);
-register_activation_hook(__FILE__, [PayCryptoMeLightningGatewayActivate::class, 'activate']);
+// Single entry point on purpose: DbInstaller::install() has to clear the previous error buffer
+// once, run both activators, and only then decide whether the schema version may be recorded. Two
+// separate activation hooks could not coordinate that (the second would wipe the first's errors).
+register_activation_hook(__FILE__, [DbInstaller::class, 'install']);
 
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
     class WC_PayCryptoMe
     {
         public const VERSION = '0.1.0';
-
-        // Schema version for the 4 custom tables (independent of plugin VERSION above) —
-        // bump this whenever the dbDelta SQL in either *GatewayActivate class changes, so
-        // maybe_upgrade_db() re-runs dbDelta for existing installs (WordPress doesn't
-        // re-fire register_activation_hook on a plugin update, only on activate).
-        public const DB_VERSION = '1';
 
         public const URL_SUPPORT = 'mailto:contact@paycrypto.me';
         public const URL_PREMIUM = 'https://paycrypto.me/';
@@ -67,51 +63,9 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             add_action('before_woocommerce_init', [$this, 'declare_wc_compatibility']);
             add_action('woocommerce_blocks_loaded', [$this, 'load_blocks_support']);
             add_action('init', [$this, 'load_textdomain']);
-            add_action('admin_notices', [__CLASS__, 'render_db_activation_errors']);
+            add_action('admin_notices', [DbInstaller::class, 'render_activation_errors']);
 
-            self::maybe_upgrade_db();
-        }
-
-        /**
-         * Re-runs dbDelta for both custom-table sets when DB_VERSION changed since the last
-         * recorded run — the only way schema changes reach a site that installed an earlier
-         * version, since WordPress only fires register_activation_hook on activate/reactivate.
-         */
-        public static function maybe_upgrade_db()
-        {
-            if (get_option('paycrypto_me_db_version') === self::DB_VERSION) {
-                return;
-            }
-
-            PayCryptoMeBitcoinGatewayActivate::activate();
-            PayCryptoMeLightningGatewayActivate::activate();
-
-            update_option('paycrypto_me_db_version', self::DB_VERSION);
-        }
-
-        public static function render_db_activation_errors()
-        {
-            $errors = get_option('paycrypto_me_db_activation_errors', []);
-
-            if (empty($errors) || !current_user_can('manage_options')) {
-                return;
-            }
-
-            printf(
-                '<div class="notice notice-error"><p>%s</p><ul>',
-                esc_html__('PayCrypto.Me for WooCommerce: some database tables failed to install correctly. Payments may not work correctly until this is resolved — check with your host and try deactivating/reactivating the plugin.', 'paycrypto-me-for-woocommerce')
-            );
-
-            // Escaped per-item in the loop rather than mapped/imploded into the printf above:
-            // static analysis can't trace escaping through array_map(), and this notice must stay
-            // provably escaped since $errors carries raw $wpdb->last_error strings.
-            foreach ($errors as $error) {
-                printf('<li>%s</li>', esc_html($error));
-            }
-
-            echo '</ul></div>';
-
-            delete_option('paycrypto_me_db_activation_errors');
+            DbInstaller::maybe_upgrade();
         }
 
         public function load_textdomain()
@@ -148,20 +102,19 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             return trailingslashit(plugin_dir_path(__FILE__));
         }
 
+        /**
+         * Both gateways are always registered; hiding is decided per gateway.
+         *
+         * This used to read the On-Chain gateway's `hide_for_non_admin_users` and, when set,
+         * register NEITHER gateway — so an On-Chain setting silently hid Lightning too,
+         * ignoring Lightning's own setting. Abstract_WC_Gateway_PayCryptoMe::is_available()
+         * already applies each gateway's own value, which is the only place that decision
+         * belongs.
+         */
         public static function add_gateway($gateways)
         {
-            $options = get_option('woocommerce_paycrypto_me_settings', []);
-
-            $hide_for_non_admin_users =
-                isset($options['hide_for_non_admin_users']) ? $options['hide_for_non_admin_users'] : 'no';
-
-            if (
-                ('yes' === $hide_for_non_admin_users && current_user_can('manage_options')) ||
-                'no' === $hide_for_non_admin_users
-            ) {
-                $gateways[] = __NAMESPACE__ . '\WC_Gateway_PayCryptoMe';
-                $gateways[] = __NAMESPACE__ . '\WC_Gateway_PayCryptoMe_Lightning';
-            }
+            $gateways[] = __NAMESPACE__ . '\WC_Gateway_PayCryptoMe';
+            $gateways[] = __NAMESPACE__ . '\WC_Gateway_PayCryptoMe_Lightning';
 
             return $gateways;
         }

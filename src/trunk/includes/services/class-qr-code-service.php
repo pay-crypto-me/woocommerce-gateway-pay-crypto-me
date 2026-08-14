@@ -52,10 +52,10 @@ class QrCodeService
      *                       Without a 'border' entry the native Endroid path is used and no
      *                       other rendering is affected.
      */
-    public function generate_qr_code_data_uri(string $data, ?string $logo_src = null, array $options = []): string
+    public function generate_qr_code_data_uri(string $data, ?string $logo_src = null, array $options = [], ?callable $logger = null): string
     {
         if ($logo_src !== null && !empty($options['border']) && is_array($options['border'])) {
-            $bordered = $this->generate_with_bordered_logo($data, $logo_src, $options['border']);
+            $bordered = $this->generate_with_bordered_logo($data, $logo_src, $options['border'], $logger);
 
             if ($bordered !== null) {
                 return $bordered;
@@ -63,10 +63,36 @@ class QrCodeService
             // Any GD failure falls through to the native path so the QR always renders.
         }
 
-        return $this->generate_native($data, $logo_src);
+        return $this->generate_native($data, $logo_src, $logger);
     }
 
-    private function generate_native(string $data, ?string $logo_src): string
+    /**
+     * Both failure paths used to `return ''`/null with no trace anywhere, so a host missing gd,
+     * iconv or fileinfo produced an order page with no QR code and nothing to diagnose it with —
+     * not even with debug logging on. The logger is optional and injected the same way
+     * BitcoinAddressService::generate_address_from_xPub() takes one.
+     */
+    private function report_failure(\Throwable $e, ?callable $logger): void
+    {
+        if ($logger === null) {
+            return;
+        }
+
+        $missing = EnvironmentRequirements::missing_qr_extensions();
+
+        $logger(
+            \sprintf(
+                'QR code generation failed: %s%s',
+                esc_html(wp_strip_all_tags($e->getMessage())),
+                empty($missing)
+                    ? ''
+                    : \sprintf(' (this host is missing the PHP extension(s): %s)', esc_html(implode(', ', $missing)))
+            ),
+            'error'
+        );
+    }
+
+    private function generate_native(string $data, ?string $logo_src, ?callable $logger = null): string
     {
         // This is the fallback path generate_with_bordered_logo() falls through to on GD
         // failure, but it depends on GD (PngWriter), fileinfo (mime_content_type for the logo)
@@ -92,11 +118,13 @@ class QrCodeService
 
             return $result->getDataUri();
         } catch (\Throwable $e) {
+            $this->report_failure($e, $logger);
+
             return '';
         }
     }
 
-    private function generate_with_bordered_logo(string $data, string $logo_src, array $border): ?string
+    private function generate_with_bordered_logo(string $data, string $logo_src, array $border, ?callable $logger = null): ?string
     {
         if (!\extension_loaded('gd') || !\function_exists('imagefilledellipse')) {
             return null;
@@ -115,6 +143,16 @@ class QrCodeService
 
             return $data_uri;
         } catch (\Throwable $e) {
+            // Not fatal on its own — generate_native() is tried next — so this is only worth
+            // reporting if that fallback also fails, which it reports itself. Kept as a debug
+            // breadcrumb for the case where the bordered path is the one that's broken.
+            if ($logger !== null) {
+                $logger(
+                    \sprintf('QR bordered-logo path failed, falling back: %s', esc_html(wp_strip_all_tags($e->getMessage()))),
+                    'debug'
+                );
+            }
+
             return null;
         }
     }
