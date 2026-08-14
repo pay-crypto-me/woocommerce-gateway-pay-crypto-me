@@ -1,0 +1,317 @@
+# Voltar `bitwasp/bitcoin` para o upstream oficial e aposentar os forks
+
+> **Status: plano aprovado, não iniciado.** Aprovado em 2026-08-14. Os forks descritos abaixo
+> continuam em uso; nada aqui foi implementado ainda.
+>
+> Documento auto-suficiente: quem executar não precisa da conversa que o originou. Prosa em
+> português; identificadores, caminhos e nomes de teste em inglês, como no resto do repo.
+
+---
+
+## Context
+
+O plugin depende de dois forks pessoais, ambos travados em `dev-master`:
+
+| Pacote instalado | Origem | Ref travada no `composer.lock` |
+|---|---|---|
+| `lucas-rosa95/bitcoin` | fork de `Bit-Wasp/bitcoin-php` | `fb5f0d23` (2026-01-03) |
+| `lucas-rosa95/buffertools-php` | fork de `Bit-Wasp/buffertools-php` | `7dbacdbd` (2026-01-03) |
+
+Os forks nasceram para resolver incompatibilidade com PHP 8.x — o problema não era o
+`bitwasp/bitcoin` em si, mas dependências transitivas sem manutenção. Havia também uma
+vulnerabilidade de canal lateral por tempo (timing attack) na biblioteca de curva elíptica.
+
+A pergunta que originou este plano: **os forks ainda se justificam, ou vale voltar aos pacotes
+oficiais?** Restrição de produto: o plugin é **não-custodial** e deve continuar sendo — nenhuma
+chave privada trafega ou é armazenada.
+
+**Resposta curta, medida:** voltar. O fork de `bitcoin` não tem **nenhuma** correção própria de
+código, está **atrás** do upstream por um método cuja ausência é **fatal ao carregar a classe**, e
+o motivo original dele já foi resolvido no upstream. A vulnerabilidade de timing já não se aplica.
+
+---
+
+## Evidências medidas
+
+Todas reproduzíveis com os comandos da seção "Verificação".
+
+### E1 — O fork de `bitcoin` não tem correção própria de código
+
+Divergiu do upstream em `e5a6125b` (2019-04-30, v1.0.1) e depois **reaplicou manualmente** os
+commits do upstream de 2019–2020 (mesmos assuntos, hashes diferentes). Diff de `src/` entre o fork
+e o upstream `v1.1.0` hoje:
+
+```
+ src/Crypto/EcAdapter/Impl/PhpEcc/Signature/Signature.php | 5 -----
+ 1 file changed, 5 deletions(-)
+```
+
+Uma única diferença, e é o fork **removendo** um método que o upstream tem. Todo o resto do que o
+fork acrescenta está em `composer.json` (renome de pacote, versões, `minimum-stability`).
+
+### E2 — Essa diferença é um fatal latente
+
+`paragonie/ecc` v2.5.0 declara `getSignatureType(): string` em `SignatureInterface`. O fork não
+implementa. Carregar a classe:
+
+```
+PHP Fatal error: Class BitWasp\Bitcoin\Crypto\EcAdapter\Impl\PhpEcc\Signature\Signature
+contains 1 abstract method and must therefore be declared abstract or implement the remaining
+methods (Mdanter\Ecc\Crypto\Signature\SignatureInterface::getSignatureType)
+```
+
+Hoje não explode porque o plugin nunca assina nada e essa classe nunca é carregada. Qualquer
+caminho que a toque — inclusive um add-on de terceiro ou o add-on premium — derruba o site. No
+upstream a classe é instanciável.
+
+### E3 — O motivo original do fork já foi resolvido upstream
+
+| Commit upstream | Data | Assunto |
+|---|---|---|
+| `058ac349` | 2024-04-28 | **Migrate to secure ECC library** |
+| `527b1ee7` | 2026-02-25 | Add required method for paragonie/ecc signature (tag `v1.1.0`) |
+
+O upstream migrou para `paragonie/ecc` quatro dias depois do advisory de timing, e continua
+recebendo commits. O fork fez a própria migração em paralelo, e é justamente o follow-up
+(`527b1ee7`) que ele não tem — a causa de E2.
+
+### E4 — A vulnerabilidade de timing não se aplica mais
+
+Os dois IDs silenciados em `composer.json` → `config.audit.ignore`:
+
+| ID | O que é | Afeta |
+|---|---|---|
+| `PKSA-j43q-24zh-tyzv` | **CVE-2024-33851** — timing vulnerability in cryptographic side-channels | `mdanter/ecc` `>=0,<1` e `>=1,<2.0.0` |
+| `PKSA-36gf-zqdd-tq5m` | Cryptographic side-channels in PHPECC | `mdanter/ecc` (mesmas faixas) |
+
+Ambos são contra **`mdanter/ecc`**, que **não está mais na árvore**: o plugin usa
+`paragonie/ecc v2.5.0` — o fork endurecido da Paragon, criado em resposta a esse advisory, que traz
+`ConstantTimeMath`. O advisory próprio do `paragonie/ecc` (`PKSA-jz93-gkdw-s495`) afeta `<2.0.1`.
+
+Consequência: **as duas entradas de `audit.ignore` são resíduo morto.** `composer audit --locked`
+sem elas não acusa nada. Mantê-las só desliga o alarme para o futuro.
+
+Relevância para este plugin, independentemente disso: canal lateral por tempo ataca operação de
+curva com **escalar secreto** — assinatura, chave privada. Este plugin só faz derivação pública a
+partir de xPub. Não há segredo no caminho. Mesmo na época do `mdanter/ecc`, a exploração aqui era
+inexistente.
+
+### E5 — O upstream instala e produz resultados idênticos
+
+`bitwasp/bitcoin ^1.1` resolve limpo com o **mesmo** `config.platform.php = 7.4` que o plugin já
+usa, trazendo exatamente as mesmas dependências (`paragonie/ecc v2.5.0`, `bitwasp/bech32 v0.0.1`,
+`bitwasp/buffertools v0.5.7`).
+
+Os **12 vetores** de `tests/vectors/bitcoin_addresses.json` (60 endereços, cobrindo
+xpub/ypub/zpub/tpub/upub/vpub) rodados contra o upstream:
+
+```
+endereços conferidos: 60   |   divergências: NENHUMA
+```
+
+E a suíte completa do plugin, numa cópia isolada com o upstream instalado e **sem alterar uma linha
+do plugin**:
+
+```
+Tests: 334, Assertions: 709, Skipped: 3   — OK
+```
+
+### E6 — O fork compra 1 deprecation, e só no PHP 8.3
+
+Carregando as 9 classes que o plugin importa, mais o caminho `Serializer\Types` que o fork corrige:
+
+| | PHP 8.3 | PHP 8.4 |
+|---|---|---|
+| Fork | **0** | **22** |
+| Upstream | **1** | **23** |
+
+A única diferença é `Use of "parent" in callables` em
+`buffertools/src/Buffertools/CachingTypeFactory.php` — o único commit de código real do fork de
+buffertools (`90e244c`, 28 linhas). No PHP 8.4 as 22 restantes são `Implicitly marking parameter
+... as nullable`, presentes nos **dois**.
+
+**Leitura estratégica:** o fork foi criado para resolver compatibilidade com PHP 8.x e resolve
+1 de 23 no 8.4. Ele não é solução para o problema de longevidade — ver "Horizonte PHP 9".
+
+### E7 — O bloqueio real do upstream, e por que ele não importa aqui
+
+`bitwasp/bitcoin` v1.1.0 fixa `lastguest/murmurhash: v2.0.0` (versão exata), que declara
+`php: ^7`. Numa resolução honesta em PHP 8 isso falha:
+
+```
+lastguest/murmurhash 2.0.0 requires php ^7 -> your php version (8.3.33) does not satisfy that
+```
+
+O plugin já contorna com `config.platform.php = 7.4`, que faz o composer resolver como se fosse
+PHP 7.4. **Esse contorno já existe hoje e é o que sustenta o próprio fork** — ele também instala
+`lastguest/murmurhash 2.0.0`.
+
+Risco prático: nenhum. Dentro da lib, `murmurhash` só é alcançado por `Bloom/BloomFilter.php` e um
+método de `Crypto/Hash.php`; o plugin não referencia nenhum dos dois. O pacote é instalado e nunca
+executado.
+
+### E8 — O segundo fork sai junto, e é o único que perde algo real
+
+`lucas-rosa95/buffertools-php` **não está no `require` do plugin**. Ele entra na árvore só porque o
+fork de `bitcoin` o exige:
+
+```
+lucas-rosa95/bitcoin (dev-master) requer lucas-rosa95/buffertools-php: dev-master
+```
+
+O `composer.json` do plugin o menciona apenas no bloco `repositories`, para que o composer saiba
+onde encontrá-lo. Consequência: ao trocar para `bitwasp/bitcoin ^1.1` — que exige
+`bitwasp/buffertools ^0.5.0` — **o fork desaparece sozinho**. Verificado na build isolada:
+
+```
+buffertools instalado: bitwasp/buffertools v0.5.7
+vendor/lucas-rosa95 presente? NAO
+```
+
+Remover os dois entries de `repositories` apenas apaga a referência que já não é usada.
+
+**A ressalva honesta:** este é o único dos dois forks com justificativa real. Ele tem um commit de
+código legítimo (`90e244c`, `CachingTypeFactory.php`, 28 linhas) corrigindo
+`Use of "parent" in callables`, e o upstream `bitwasp/buffertools` está **sem manutenção desde
+2020-01-17** (último commit; `v0.5.7` é a versão que o composer resolve). Ou seja: aqui a troca é de
+um fork que tem uma correção por um upstream oficial que não tem.
+
+É exatamente a deprecation contabilizada em E6 — a diferença de 1 entre fork e upstream. Aceita
+conscientemente porque é ruído sob `WP_DEBUG`, e porque no PHP 8.4 ela é 1 de 23. Manter só esse
+fork não é opção barata: ele foi **renomeado** para `lucas-rosa95/buffertools-php`, então já não
+satisfaz o `bitwasp/buffertools` que o upstream exige — seria preciso ginástica de
+`replace`/`provide` mais o `repositories` e o `minimum-stability: dev` de volta, para corrigir uma
+deprecation.
+
+Se essa deprecation virar fatal (PHP 9), os caminhos estão em "Horizonte PHP 9" — não é resolver com
+fork.
+
+---
+
+## Decisão
+
+**Voltar aos pacotes oficiais — os dois.** O fork de `bitcoin` é uma cópia estritamente pior: zero
+ganho de código, um fatal latente, dependência de repositórios pessoais na cadeia de suprimentos, e
+`dev-master` sem versionamento. O de `buffertools` sai transitivamente (E8), custando a única
+deprecation que ele corrigia.
+
+Preço aceito conscientemente: **uma** deprecation a mais no PHP 8.3
+(`parent` in callables, visível só com `WP_DEBUG`). Não vale montar infraestrutura de patch para
+corrigir 1 de 23 — ver "Fora de escopo".
+
+---
+
+## A mudança
+
+### Arquivo único de produção: `src/trunk/composer.json`
+
+| O quê | De | Para |
+|---|---|---|
+| `require` | `"lucas-rosa95/bitcoin": "dev-master"` | `"bitwasp/bitcoin": "^1.1"` |
+| `repositories` | dois entries VCS (`lucas-rosa95/bitcoin-php`, `lucas-rosa95/buffertools-php`) | **remover o bloco inteiro** |
+| `minimum-stability` / `prefer-stable` | `"dev"` / `true` | **remover ambos** — só existiam por causa do `dev-master` |
+| `config.audit.ignore` | dois IDs `PKSA-*` | **remover** (E4: são resíduo; removê-los devolve sentido ao `composer audit`) |
+| `config.platform.php` | `"7.4"` | **manter** (E7) — com comentário explicando que existe por causa do pin de `lastguest/murmurhash` no upstream |
+
+Depois: `composer update bitwasp/bitcoin --with-dependencies` dentro do container `release`, para
+regravar `composer.lock`.
+
+**Nenhuma linha de código PHP do plugin muda.** Os namespaces são os mesmos (`BitWasp\...`); o fork
+nunca renomeou nada. Comprovado por E5.
+
+### Documentação
+
+| Arquivo | O quê |
+|---|---|
+| `CLAUDE.md` | A seção **"Composer dependencies (important)"** descreve os dois forks e o acesso a repos privados como requisito de `composer install`. Substituir por: dependências oficiais, sem repos VCS, e uma nota curta explicando por que `config.platform.php = 7.4` continua ali (pin de `lastguest/murmurhash`, pacote nunca executado). |
+| `docs/RELEASE.md` | Verificar se menciona os forks / acesso aos repos como pré-requisito; se sim, atualizar. |
+| `src/trunk/CHANGELOG.md` | Em `## Unreleased`, `### Changed`: troca para os pacotes oficiais mantidos, com menção a que os advisories de canal lateral (CVE-2024-33851) não se aplicam à árvore atual. |
+
+### Sem mudança de código, sem tradução
+
+Nenhuma string nova. Nenhum arquivo em `includes/`. A frente é de dependência e documentação.
+
+---
+
+## Verificação
+
+Rodar da raiz do repo. Os itens 1–3 são o núcleo; 4–6 fecham o release.
+
+| # | Comando | Esperado |
+|---|---|---|
+| 1 | `docker-compose run --rm release ./vendor/bin/phpunit` | **334 testes, 709 asserções, 3 skipped, 0 falhas** — idêntico ao baseline com o fork. |
+| 2 | `docker-compose run --rm release composer audit --locked` | `No security vulnerability advisories found` — **agora sem lista de ignore**, então o resultado passa a ter significado. |
+| 3 | Vetores contra o vendor novo: derivar os 12 xpubs de `tests/vectors/bitcoin_addresses.json` e comparar os 60 endereços | Zero divergências. Já coberto por `BitcoinAddressVectorsTest` na suíte do item 1 — confirmar que ele roda e passa. |
+| 4 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando. |
+| 5 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 verdes (host sem GMP). |
+| 6 | `docker-compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv` | Nenhum `ERROR` em código enviado. |
+
+Checagem extra específica desta frente — o fatal de E2 deve desaparecer:
+
+```bash
+docker-compose run --rm release php -r '
+require "/plugin/vendor/autoload.php";
+$c = new ReflectionClass("BitWasp\\Bitcoin\\Crypto\\EcAdapter\\Impl\\PhpEcc\\Signature\\Signature");
+echo $c->isInstantiable() ? "OK: instanciável\n" : "FALHOU: ainda incompleta\n";'
+```
+
+E conferir que o `vendor/` publicado não contém mais os forks:
+
+```bash
+ls src/trunk/vendor/bitwasp/     # bech32  bitcoin  buffertools
+ls src/trunk/vendor/lucas-rosa95 # não deve existir
+```
+
+---
+
+## Fora de escopo (decisões conscientes)
+
+**Não adicionar camada de patch** (`cweagans/composer-patches`) para a deprecation de
+`CachingTypeFactory`. Corrigiria 1 de 23 no PHP 8.4, ao custo de mais uma peça móvel num fluxo de
+release já validado em produção.
+
+**Não reescrever a criptografia agora.** Ver abaixo.
+
+---
+
+## Horizonte PHP 9 (decisão futura, não agora)
+
+As deprecations medidas em E6 — `parent` in callables e `Implicitly marking parameter as nullable`
+— tendem a virar **erro fatal no PHP 9**, no fork **e** no upstream. Ou seja: nenhuma das duas
+opções atuais sobrevive ao PHP 9 sem intervenção. Voltar ao upstream **não** resolve isso; apenas
+coloca o plugin de volta numa base mantida, onde a correção pode vir de fora.
+
+Três caminhos, para avaliar quando o PHP 9 tiver data:
+
+1. **Contribuir upstream.** Duas mudanças pequenas e de alto retorno: soltar o pin
+   `lastguest/murmurhash: v2.0.0` para `^2.1` (elimina a necessidade do `config.platform` override)
+   e adicionar tipos nulláveis explícitos. O upstream aceitou commits em 2024 e 2026 — não está
+   morto.
+2. **Substituir a fatia estreita.** O plugin usa **9 classes**: `AddressCreator`, `SegwitAddress`,
+   `HierarchicalKeyFactory`, `NetworkFactory`, `NetworkInterface`, `ScriptFactory`,
+   `WitnessProgram`, `Base58`, `Buffer`. Implementar isso sobre `phpseclib/phpseclib` v3 —
+   **já verificado nesta investigação**: `secp256k1` disponível e multiplicação escalar + soma de
+   ponto em **219 ms sem `gmp` e sem `bcmath`** (engine `PHP64`). Isso mataria o requisito de GMP
+   **e** o problema de deprecations de uma vez. Os 12 vetores existentes tornam a equivalência
+   verificável byte a byte.
+3. **Não fazer nada** até o PHP 9 ser realidade em hospedagens WordPress.
+
+Recomendação: **(1) agora que é barato**, e reavaliar (2) quando houver data do PHP 9. O caminho
+(2) é escrever código adjacente a criptografia no fluxo do dinheiro — só se justifica com a rede de
+vetores em pé e uma razão concreta.
+
+---
+
+## Ordem, base e relação com o outro plano
+
+Esta frente é **independente** de
+[`docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md`](SCHEMA-UPGRADE-AND-STATIC-RECORDS.md): não toca em
+schema, nem em `DbInstaller`, nem no fluxo de pagamento. Pode ir antes, depois ou em paralelo.
+
+**Base:** branch `fix/honest-failure-reporting` (pendente de validação manual), ou `main` depois do
+merge. Não há dependência técnica com o outro plano.
+
+Sugestão: commit próprio, isolado. O diff versionado é pequeno — `vendor/` é gitignored, então só
+`composer.json`, `composer.lock` e a documentação entram no commit; o `vendor/` publicado é gerado
+pelo `release.sh` no container. Ainda assim vale isolar: é uma troca de cadeia de dependência
+criptográfica, e uma revisão futura deve poder olhá-la sem ruído de outra mudança.

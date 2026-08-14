@@ -6,6 +6,7 @@
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
 - [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
+- [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **approved plan, not started.** Why the two `lucas-rosa95/*` forks exist, why they no longer earn their keep (measured), and the move back to official `bitwasp/*` packages. Read it before touching the crypto dependencies in `src/trunk/composer.json`.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
 **Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (334 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
@@ -236,11 +237,21 @@ npm run translate:mo
 
 ### Composer dependencies (important)
 
-Two dependencies come from private/forked VCS repos:
-- `lucas-rosa95/bitcoin` — fork of `bitwasp/bitcoin-php` at `https://github.com/lucas-rosa95/bitcoin-php`
-- `bitwasp/buffertools` — also from a fork at `https://github.com/lucas-rosa95/buffertools-php`
+Two dependencies come from forked VCS repos, declared under `repositories` in
+`src/trunk/composer.json`:
+- `lucas-rosa95/bitcoin` — fork of `bitwasp/bitcoin-php`, the only one in `require`
+- `lucas-rosa95/buffertools-php` — fork of `bitwasp/buffertools`; **not** in `require`, it enters
+  only because the fork above requires it
 
-Running `composer install` in a fresh environment requires access to these GitHub repos.
+Running `composer install` in a fresh environment requires access to these GitHub repos. That is
+also why `minimum-stability: dev` and the two `config.audit.ignore` entries are there.
+
+> **Retiring these is planned and approved** — see
+> [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). Short version, all measured: the
+> `bitcoin` fork carries no source fix of its own, is one method *behind* upstream (whose absence is
+> a fatal on class load), and upstream `v1.1.0` passes the full suite and all 60 address vectors
+> unchanged. The suppressed advisories are for `mdanter/ecc`, which is no longer in the tree.
+> **Do not deepen the forks; do not add new patches to them.**
 
 ---
 
