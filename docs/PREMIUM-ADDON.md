@@ -21,8 +21,13 @@ do Lightning não tem nenhum caller em produção).
 - **Repositório:** novo repo separado (ex. `paycrypto-me-premium`), independente do monorepo base.
 - **Escopo v1:** tudo que o código marca como premium — (A) confirmação async Lightning,
   (B) fiat→sats, (C) rastreio de confirmações on-chain, (D) auto-expiração de pedidos.
-- **Licenciamento:** **adiado**. v1 é um plugin instalável manualmente; a camada de
-  licença/updates entra depois, atrás de um ponto de extensão único (ver §8).
+- **O plugin base NÃO será mais tocado.** Os dois seams necessários já entraram na 0.1.0 e estão
+  verificados (§2). Essa é a razão de o add-on existir como projeto separado, e vale como
+  restrição dura em todas as decisões abaixo — inclusive na de licenciamento.
+- **Licenciamento: Freemius**, com o SDK **apenas dentro do add-on**. Decidido em 2026-08-08 —
+  ver §8, que substitui o "adiado" das versões anteriores deste plano.
+- **Canais de venda:** dois checkouts, um sistema de licença — Freemius (cartão/PayPal, mundo
+  todo) + loja WooCommerce própria aceitando **Bitcoin on-chain** via o próprio plugin. Ver §8.4.
 - **Resiliência de APIs externas (requisito transversal):** **toda** consulta a API pública
   (câmbio fiat→sats, block explorers, feeds de preço) passa por **interface com múltiplos
   providers**, com **retry por provider** e **failover automático** para o próximo provider
@@ -41,6 +46,10 @@ do Lightning não tem nenhum caller em produção).
   pelo `vendor/autoload.php` do base.
 - **Header do plugin:** `Requires Plugins: paycrypto-me-for-woocommerce` (WP 6.5+; o base está
   no WP.org, então o header força a instalação da dependência) + `Requires: woocommerce`.
+- **SDK do Freemius vendored** em `src/trunk/freemius/`, com `pcm_premium_fs()` inicializado no
+  **topo do entrypoint**, antes do dependency guard — o SDK precisa hookar ativação/desativação e
+  o canal de update cedo no ciclo do WordPress. O guard e o registro de módulos continuam no
+  `plugins_loaded` prioridade 20. Ver §8.
 - **Dependency guard** (bootstrap em `plugins_loaded` **prioridade 20**, depois do base que roda em 10):
   ```php
   if (!class_exists('\PayCryptoMe\WooCommerce\WC_PayCryptoMe')
@@ -62,8 +71,9 @@ do Lightning não tem nenhum caller em produção).
 ```
 paycrypto-me-premium/
 ├── src/trunk/
-│   ├── paycrypto-me-premium.php          ← entrypoint + guard + bootstrap
+│   ├── paycrypto-me-premium.php          ← entrypoint: pcm_premium_fs() → guard → bootstrap
 │   ├── composer.json                     ← classmap autoload, namespace Premium
+│   ├── freemius/                         ← SDK do Freemius (vendored, ~1.5MB) — §8
 │   ├── includes/
 │   │   ├── class-premium-bootstrap.php    ← singleton, registra módulos (espelha WC_PayCryptoMe)
 │   │   ├── providers/                     ← §3 CAMADA RESILIENTE (multi-provider + retry + failover)
@@ -98,7 +108,10 @@ paycrypto-me-premium/
 │   │   │   ├── class-lightning-settings-injector.php ← filtro woocommerce_settings_api_form_fields_paycrypto_me_lightning
 │   │   │   └── class-onchain-settings-injector.php   ← filtro ..._paycrypto_me (+ ordem/toggle de providers)
 │   │   ├── cron/class-cron-scheduler.php          ← registra schedules na ativação, limpa no deactivate
-│   │   └── license/class-license-manager.php      ← stub (sempre válido) — ver §8
+│   │   └── license/                        ← §8.3 — ponto único de troca de plataforma
+│   │       ├── LicenseManagerContract.php
+│   │       ├── class-freemius-license-manager.php ← delega p/ can_use_premium_code()
+│   │       └── class-stub-license-manager.php     ← sempre ativo (dev/testes)
 │   └── tests/                             ← espelha tests/_support do base (shims WP/WC + FakeHttpClient)
 ├── scripts/release.sh                     ← adaptado do base (build/zip; sem submissão WP.org)
 └── docs/
@@ -106,15 +119,23 @@ paycrypto-me-premium/
 
 ---
 
-## 2. Enablement do plugin base (parte da 0.1.0 — zero mudança de comportamento no free)
+## 2. Enablement do plugin base — ⛔ ENCERRADO, não editar o base
 
-Seams pequenos precisam existir no base para o add-on plugar **sem editar core depois**.
-Todos são **no-op para usuários free** (o valor só é setado pelo add-on). Como a 0.1.0 ainda
-está em **pré-release**, entram na própria 0.1.0 — não há bump de versão.
+> **Status: FEITO e fechado.** Seams #1 e #2 estão **implementados, testados e shipados na 0.1.0**
+> (verificado em 2026-08-08: `class-lnd-rest-invoice-service.php:31` para o `value`;
+> `pay-crypto-me-db-statements-service.php:240` e `:276` para `update_transaction_confirmations()`
+> \+ `do_action`; cobertos por `tests/phpunit/unit/OnchainConfirmationsUpdateTest.php`). Seam #3 foi
+> **dispensado** — o add-on enumera pedidos on-chain pendentes via `wc_get_orders()`, sem helper no
+> base.
+>
+> **Qualquer solução daqui pra frente deve caber sem editar o repo base.** Isso vale inclusive para
+> licenciamento e monetização: é o motivo de o SDK do Freemius ficar só no add-on (§8.1), abrindo
+> mão do funil in-dashboard. Se um agente ou humano concluir que precisa mexer no base, a conclusão
+> certa é procurar outro desenho — não abrir exceção.
 
-**Status:** seams #1 e #2 já **implementados e testados** (suíte 239 testes verde); seam #3
-**dispensado** (o add-on enumera pedidos on-chain pendentes via `wc_get_orders()`, sem precisar
-de helper no base).
+Contexto histórico da decisão, mantido para referência: seams pequenos precisavam existir no base
+para o add-on plugar **sem editar core depois**. Todos são **no-op para usuários free** (o valor só
+é setado pelo add-on), e por isso entraram na própria 0.1.0, sem bump de versão.
 
 | # | Arquivo base | Mudança | Por quê |
 |---|---|---|---|
@@ -239,8 +260,21 @@ Comportamento:
   por pedido vem da meta `_paycrypto_me_payment_number_confirmations`
   (`class-wc-gateway-paycrypto-me.php:234`).
 - `class-onchain-status-listener.php`: `add_action('paycryptome_bitcoin_status_changed', fn)` —
-  quando `confirmations >= required` **e** `amount_received >= esperado` → `$order->payment_complete()`.
-  Mesmo padrão idempotente do Lightning.
+  quando `confirmations >= required` **e** `amount_received` está dentro da tolerância abaixo →
+  `$order->payment_complete()`. Mesmo padrão idempotente do Lightning.
+
+> **Requisito — subpagamento e volatilidade:** entre a criação do pedido e a chegada da
+> transação passa-se de minutos a horas, e o preço do BTC se move nesse intervalo. `amount_received`
+> pode ficar abaixo do esperado **sem má-fé do comprador**. Comparar com `>=` estrito contra o
+> valor cheio trava esses pedidos em `pending` para sempre. Portanto:
+> - **Tolerância configurável** (default sugerido: aceitar `>= 98%` do esperado, absorvendo a
+>   diferença) — campo injetado pelo `class-onchain-settings-injector.php` (§7).
+> - **Fila de revisão manual** para subpagamento fora da tolerância: nota no pedido + status
+>   explícito (ex. `on-hold` com order note descrevendo esperado vs. recebido). **Nunca** deixar
+>   preso em `pending` silenciosamente — o lojista precisa saber que existe uma decisão a tomar.
+> - **Sobrepagamento** completa normalmente e registra order note com a diferença.
+>
+> Isso aparece primeiro na loja própria (§8.4), que é o primeiro cliente do módulo C.
 
 > **Limitação documentada (F5):** o rastreio automático on-chain cobre **apenas endereços
 > derivados** (xpub/ypub/zpub), que geram linha em `paycrypto_me_bitcoin_transactions_data`.
@@ -283,15 +317,195 @@ três pollers (lnd status, on-chain confirmations, expiração). BTCPay é push 
 
 ---
 
-## 8. Licenciamento (adiado) — deixar o gancho pronto
+## 8. Licenciamento, monetização e canais de venda
 
-Para não refatorar depois, centralizar **um** ponto de decisão agora:
-- `class-license-manager.php` com `is_active(): bool` retornando `true` (stub). Todo registro de
-  módulo passa por ele no bootstrap (`if (LicenseManager::is_active()) { registra módulos }`).
-- Deixar comentado o gancho de update para plugin fora do WP.org
-  (`pre_set_site_transient_update_plugins` + `plugins_api`), a ser preenchido quando a distribuição
-  paga (Freemius / EDD Software Licensing / Lemon Squeezy) for escolhida. Trocar o stub por SDK
-  real será uma mudança localizada nesse arquivo + no bootstrap.
+**Decidido em 2026-08-08.** Substitui integralmente o "licenciamento adiado" das versões
+anteriores deste plano.
+
+### 8.1 Plataforma: Freemius, SDK apenas no add-on
+
+**Freemius** é a plataforma de licenciamento, cobrança e distribuição de updates.
+
+**Custo:** 4,7% base + 2,3% de sobretaxa WordPress = **7% + gateway (~3%) ≈ 10,5% all-in**, sem
+mensalidade e sem custo de setup — só cobra sobre o que vende, então custo zero até a primeira
+venda. Os descontos progressivos só começam acima de **$50k/mês** de receita bruta; na prática é
+7% fixo por um bom tempo.
+
+**Por que Freemius e não uma opção mais barata:** é a única plataforma que entrega *merchant of
+record* **e** canal de auto-update nativo do WordPress no mesmo pacote, com zero código próprio.
+
+| | Taxa | MoR | Canal de update WP |
+|---|---|---|---|
+| **Freemius** | 7% + gateway | ✅ | ✅ SDK nativo |
+| Fungies.io | ~5,9% | ✅ | ❌ |
+| Polar / Dodo | ~4–5% | ✅ | ❌ |
+| Paddle | 5% + $0,50 | ✅ | ❌ (nem licença) |
+| SureCart | 2,9% ou $179–499/ano | ❌ | ✅ |
+| WP Licenser / ChargePanda / EDD | 0% plataforma | ❌ | ✅ |
+
+Os MoR mais baratos obrigam a construir e **hospedar** o endpoint de update — se cair, ninguém
+atualiza. Os de update nativo não são MoR, e aí a compliance fiscal de cada jurisdição volta pro
+vendedor: vendendo do Brasil pro mundo, isso significa VAT OSS na UE e nexus de sales tax nos
+EUA, um a um. **O MoR é justamente o que viabiliza a internacionalização** — o Freemius é o
+vendedor legal em todas as jurisdições, recolhe imposto, emite invoice e absorve
+refund/chargeback/fraude. Lemon Squeezy foi descartado apesar do preço: está sendo absorvido pelo
+Stripe Managed Payments desde a aquisição de 2024, com migração anunciada em jan/2026 — não se
+constrói infraestrutura de licença sobre isso.
+
+**O SDK do Freemius fica SÓ no add-on. O plugin base não é tocado** (§2). O custo consciente
+dessa escolha é abrir mão do funil in-dashboard do Freemius — upgrade com um clique, trial sem
+cartão, opt-in de e-mail dos usuários free — que exigiria o SDK dentro do plugin free no WP.org.
+O funil que resta já está shipado na 0.1.0: os campos `paycrypto-premium-field` desabilitados em
+ambos os gateways, com a mensagem "ships in the upcoming PayCrypto.Me Premium add-on".
+
+**Lock-in a ter em mente:** o custo real do Freemius não é a taxa, é o canal de update. Ao migrar
+de plataforma um dia, quem não atualizar antes fica órfão apontando pro Freemius. O
+`LicenseManagerContract` (§8.3) mantém a troca localizada no código, mas não resolve a base
+instalada. **Reavaliar a partir de ~$25–30k/ano de receita bruta**, quando trocar por um MoR
+barato + endpoint próprio passa a economizar o suficiente para pagar o build e a operação.
+
+**Setup operacional:**
+- Cadastrar como **produto standalone**, não como "add-on" do Freemius — o tipo "add-on" deles
+  pressupõe que o plugin pai carrega o SDK, o que não é o caso aqui. O vínculo com o base é feito
+  pelo header `Requires Plugins: paycrypto-me-for-woocommerce` do lado do WordPress.
+- Confirmar o **método de payout para o Brasil** (PayPal/Wise/banco, saldo mínimo $100) antes de
+  investir no setup. *Payout é apenas como o dinheiro chega até você — não limita para quem se
+  pode vender; o alcance global vem do MoR.*
+- Receita de exportação de software (PF vs PJ no Simples) é questão de contador, fora do escopo
+  técnico, mas resolver antes de faturar.
+
+### 8.2 O que a licença controla — e o que NUNCA controla
+
+**Regra:** a licença controla **updates, suporte e features novas**. Nunca o runtime crítico de
+pagamento.
+
+Licença vencida derrubando o poller de confirmação significa: o pagamento Bitcoin do cliente do
+lojista chega, ninguém confirma, o pedido fica preso em `pending` e o lojista recebeu dinheiro sem
+baixa. O lojista culpa o plugin, não a licença. Para um add-on de **pagamento**, isso é
+inaceitável.
+
+| Sempre ativo (independe de licença) | Gated pela licença |
+|---|---|
+| Webhook BTCPay + `class-lightning-status-listener.php` (§4) | Canal de update |
+| Poller lnd (§4) | Features novas lançadas após o vencimento |
+| Poller de confirmação on-chain + listener (§6) | Suporte |
+| `payment_complete()` dos dois listeners | Auto-expiração (§7) — desligar não perde dinheiro |
+
+O comportamento padrão do Freemius já casa com isso: em ciclo anual, `can_use_premium_code()`
+continua `true` depois do vencimento — para de atualizar, não para de funcionar. Não é preciso
+lutar contra o SDK, basta **não** implementar kill-switch.
+
+Isso também é o mais defensável sob GPL: o add-on chama classes do base GPL-3.0-or-later, logo é
+obra derivada e essencialmente precisa ser GPL. Gatear *updates e suporte* é prática consolidada
+no ecossistema WordPress; kill-switch de funcionalidade é terreno cinzento.
+
+### 8.3 `LicenseManagerContract` — ponto único de troca
+
+Um adapter por provedor, para que trocar de plataforma seja arquivo novo e não refatoração. Cobre
+os dois eixos porque no Freemius licença e update são o mesmo SDK, enquanto nas alternativas são
+coisas separadas:
+
+```php
+namespace PayCryptoMe\WooCommerce\Premium\License;
+
+interface LicenseManagerContract
+{
+    public function is_active(): bool;                // gate de features novas (§8.2)
+    public function register_update_channel(): void;  // no-op no Freemius (o SDK já faz)
+}
+```
+
+- `FreemiusLicenseManager` — `is_active()` delega para `pcm_premium_fs()->can_use_premium_code()`;
+  `register_update_channel()` é no-op.
+- `StubLicenseManager` — sempre `true`, sem canal de update. Uso em desenvolvimento e testes.
+
+O bootstrap registra os módulos da coluna "sempre ativo" (§8.2) **incondicionalmente**, e só
+consulta `is_active()` para o que está na coluna gated. Não existe
+`if (is_active()) { registra tudo }`.
+
+### 8.4 Canais de venda: Freemius (cartão) + loja própria (Bitcoin on-chain)
+
+Dois checkouts, **um** sistema de licença. O Freemius é a única fonte de verdade da validade da
+licença nos dois canais — o cliente tem a mesma experiência de ativação e auto-update
+independente de como pagou.
+
+```
+Cartão/PayPal → checkout Freemius → licença → SDK ativa → updates
+Bitcoin       → loja Woo própria → PayCrypto.Me (on-chain) → pedido pago
+              → API Freemius cria/estende licença → e-mail → SDK ativa → updates
+```
+
+**Por que o canal Bitcoin existe:** (1) coerência — vender um plugin de pagamento em Bitcoin
+aceitando só cartão é contraditório; (2) é o canal de **maior margem** (0% de taxa contra ~10,5%,
+e sem chargeback); (3) a loja vira demo pública ao vivo do produto, rodando no próprio plugin.
+
+**Stack da loja: `Woo + PayCrypto.Me + PayCrypto.Me Premium`.** Sem WooCommerce Subscriptions —
+ver §8.5.
+
+**Rail: on-chain, não Lightning.** On-chain **não exige infraestrutura nenhuma** — um xpub de
+hardware wallet, sem nó, sem canal, sem liquidez inbound, não-custodial. Lightning exigiria operar
+um nó com liquidez de entrada, que custa dinheiro (abertura de canal é transação on-chain) e vira
+responsabilidade contínua; para vender licença anual não se paga. Fee on-chain em período calmo é
+irrelevante no ticket dessa faixa, e 10–30 min de confirmação para receber uma licença por e-mail
+é aceitável. *Nota de produto: o atrito que fez descartar o Lightning aqui é exatamente o cálculo
+que o lojista-cliente vai fazer — o gateway on-chain é o que carrega a adoção, e o Lightning é
+diferencial para quem já tem nó. Isso deve influenciar onde se investe polimento e documentação.*
+
+**Endpoints do Freemius:**
+
+| Momento | Endpoint | Efeito |
+|---|---|---|
+| Aquisição | `POST /products/{product_id}/plans/{plan_id}/pricing/{pricing_id}/licenses.json` (migration source = `WC`) | Cria licença + assinatura |
+| Renovação | `POST /products/{product_id}/subscriptions/{subscription_id}/payments.json` | Registra pagamento externo e **estende** a licença |
+
+A extensão **soma ao saldo restante** em vez de resetar (renovar 5 dias antes do vencimento com
+ciclo anual = 370 dias), então renovar cedo não penaliza o cliente.
+
+**Código necessário na loja** — plugin próprio do site, fora deste repo **e** fora do base: hook de
+pedido pago → chamada da API do Freemius → e-mail com a chave; mais o lembrete de renovação (§8.5).
+
+**Opcional, não v1:** emitir a licença com 0-conf e revogá-la via API se a transação não confirmar.
+Produto digital com entrega revogável tem risco limitado, e elimina a espera de confirmação.
+
+#### ⚠️ Bloqueios a resolver com o suporte do Freemius ANTES de implementar
+
+1. **Uso contínuo dos endpoints de pagamento migrado.** Eles existem para **migração pontual** de
+   plataforma. Usá-los para faturar continuamente fora do Freemius — pagando 0% de comissão
+   enquanto se usa a infra de licença e update deles — mexe no modelo de receita da plataforma e
+   pode esbarrar nos termos de uso. Pergunta literal a fazer: *"posso registrar vendas contínuas do
+   meu próprio checkout via a API de licença / pagamento migrado?"*
+   **Se a resposta for não:** o canal Bitcoin vira apenas aquisição e a renovação passa pelo link
+   de renovação do Freemius (cartão). Nada quebra, mas o desenho muda — por isso perguntar antes de
+   construir.
+2. **A licença precisa nascer com assinatura associada**, senão não existe `subscription_id` para
+   postar o pagamento de renovação. É parâmetro de ciclo de cobrança na criação, não incógnita de
+   arquitetura — confirmar a forma exata.
+
+### 8.5 Por que NÃO usar WooCommerce Subscriptions
+
+Renovação em crypto é sempre **manual** — on-chain e Lightning são push-only, não existe cobrança
+recorrente automática (o Woo Subscriptions só acomodaria isso via *Accept Manual Renewals*). E
+renovação manual é **pedido comum**, que o plugin base já processa sem nenhuma integração especial.
+Ou seja: o Subscriptions não contribui nada do lado do pagamento.
+
+O argumento decisivo é outro: **a validade da licença já vive no Freemius**, que é o que o plugin
+do cliente efetivamente lê. Se o Woo Subscriptions também rastrear expiração, passam a existir dois
+relógios para a mesma data, que divergem no primeiro erro (cliente paga a renovação, a chamada de
+API falha, Woo diz "ativo" e o plugin do cliente diz "expirado"). Pagar ~$239/ano e aceitar uma
+segunda fonte de verdade para disparar um e-mail é troca ruim.
+
+**O que sobra para resolver: só o lembrete de renovação.** Em ordem de esforço:
+1. Manual nos primeiros clientes — planilha e e-mail, custo zero
+2. Cron simples no site: pedidos com ~11 meses → e-mail com link de compra (~50 linhas)
+3. Só se o volume justificar, reavaliar o Subscriptions
+
+**Mandar o lembrete com 30 dias de antecedência.** Confirmação on-chain lenta ou pico de fee na
+última hora deixaria o cliente expirado por alguns dias — e como a extensão soma ao saldo restante,
+renovar cedo não tem downside algum para o cliente.
+
+> **Roadmap (não v1):** integração de verdade com WooCommerce Subscriptions **como feature do
+> premium** — lojista que vende assinatura e quer receber em crypto é segmento real. Não exige
+> mudança no base: o *Accept Manual Renewals* do Woo Subscriptions já expõe qualquer gateway.
 
 ---
 
@@ -307,20 +521,28 @@ Alvos prioritários:
   re-verificação server-side, idempotência (segundo push não re-completa).
 - **lnd poller / on-chain poller:** com `FakeHttpClient` devolvendo status pago/pendente.
 - **Listeners:** transição → `payment_complete()` só uma vez; ignora pedido já pago.
+- **Tolerância de subpagamento (§6):** dentro da tolerância → completa; fora → vai para revisão
+  manual com order note, **nunca** fica em `pending`; sobrepagamento completa e registra a diferença.
 - **FiatToSatsConverter:** cache, e fallback para último valor quando a chain lança
   `AllProvidersUnavailableException`.
-- **Enablement do base (no repo base):** teste para `value` no lnd body e para
-  `update_transaction_confirmations()` disparar `paycryptome_bitcoin_status_changed` só em transição
-  (espelhar `PayCryptoMeLightningDBStatementsServiceTest`).
+- **Gate de licença (§8.2):** com `is_active() === false`, os módulos de confirmação de pagamento
+  **continuam registrados** e o `payment_complete()` continua funcionando; só o que está na coluna
+  gated deixa de ser registrado. Este teste é a trava contra alguém "otimizar" o bootstrap para um
+  `if (is_active())` único no futuro.
+- ~~**Enablement do base**~~ — **feito.** Coberto no repo base por
+  `tests/phpunit/unit/OnchainConfirmationsUpdateTest.php`; nada a fazer aqui (§2).
 
 ---
 
 ## 10. Release / distribuição
 
-- **Base:** os seams (§2) já entram na **0.1.0** (pré-release) — sem bump de versão. Release inicial
-  via `scripts/release.sh` (fluxo existente, `docs/RELEASE.md`), submeter ao WP.org.
-- **Add-on:** `scripts/release.sh` adaptado (build/zip; **sem** SVN/WP.org). Distribuição por
-  download do site/plataforma paga. Versionar independente do base.
+- **Base:** nada a fazer — os seams (§2) já estão na 0.1.0, live no WP.org desde 2026-08-08.
+- **Add-on:** `scripts/release.sh` adaptado (build/zip; **sem** SVN/WP.org). O ZIP gerado é
+  **enviado ao dashboard do Freemius** (deploy), que é a origem do auto-update dos clientes —
+  não basta disponibilizar download no site. Versionar independente do base.
+- **Segredos:** o `public_key` do Freemius vai no código (é público por design); a **secret key**
+  é usada apenas para deploy e chamadas de API server-side (§8.4) e **nunca** entra no ZIP
+  distribuído nem no repositório.
 - Traduções do add-on com text domain próprio (ex. `paycrypto-me-premium`), espelhando o fluxo de
   `docs/TRANSLATION.md` (script `scripts/build-translations.sh`).
 
@@ -328,8 +550,8 @@ Alvos prioritários:
 
 ## 11. Verificação end-to-end
 
-1. **Base primeiro:** rodar `./vendor/bin/phpunit` no base após os seams §2 (esperado: suíte
-   verde, incluindo os novos testes).
+1. **Base:** nada a verificar — os seams §2 estão shipados e cobertos por testes. Se ainda assim
+   quiser confirmar, `./vendor/bin/phpunit` no repo base (esperado: suíte verde).
 2. **Ambiente:** subir o `docker-compose.yml` do base, instalar o base 0.1.0 + o add-on; confirmar
    que o guard não bloqueia (base presente e versão OK) e que os campos premium ficam **editáveis**.
 3. **Providers (§3):** derrubar/mistrar o 1º provider (ex. URL inválida em teste) e confirmar
@@ -345,6 +567,46 @@ Alvos prioritários:
    `paycrypto_me_bitcoin_transactions_data` atualizada (via chain de explorer) e `payment_complete()`
    ao atingir as confirmações.
 8. **Auto-expiração:** pedido pending com expiry curto → rodar o cron → status `cancelled`.
+9. **Subpagamento (§6):** simular `amount_received` a 99% e a 80% do esperado → o primeiro
+   completa, o segundo vai para revisão manual com order note e **não** fica em `pending`.
+10. **Licença (§8.2/§8.3):** ativar licença via SDK do Freemius (sandbox) e confirmar auto-update;
+    depois **expirar a licença** e confirmar que o poller de confirmação e o `payment_complete()`
+    **continuam funcionando** — só o update e as features gated param. Este é o teste que protege
+    o dinheiro do lojista.
+11. **Canal Bitcoin (§8.4):** comprar o próprio add-on na loja própria pagando on-chain → pedido
+    confirma pelo módulo C → chamada da API do Freemius cria a licença → e-mail chega → ativar num
+    WordPress limpo. Depois repetir o fluxo de **renovação** e confirmar que a expiração foi
+    estendida somando ao saldo restante (e não resetada).
+    *Pré-requisito: os dois bloqueios do §8.4 respondidos pelo suporte do Freemius.*
+
+---
+
+## 12. Ordem de implementação recomendada
+
+Sequenciada por dependência, não por importância. Nada aqui exige tocar no plugin base.
+
+| # | Etapa | Depende de | Bloqueia |
+|---|---|---|---|
+| 0 | **Perguntar ao suporte do Freemius** os dois bloqueios do §8.4 | — | etapa 6 |
+| 1 | Esqueleto do add-on: repo, `composer.json`, entrypoint, guard, bootstrap, infra de testes (§1, §9) | — | tudo |
+| 2 | `ProviderChain` + `ProviderHealthTracker` + contracts (§3) | 1 | módulos B e C |
+| 3 | Módulo C — confirmações on-chain, **com a tolerância de subpagamento** (§6) | 2 | canal Bitcoin |
+| 4 | Módulo A — webhook BTCPay + poller lnd + listener (§4) | 1 | — |
+| 5 | Módulo B (fiat→sats, §5) e Módulo D (auto-expiração + settings, §7) | 2 | — |
+| 6 | Freemius: cadastro do produto, SDK vendored, `LicenseManagerContract` + adapters (§8.1–8.3) | 1, 0 | venda |
+| 7 | Loja própria: Woo + base + add-on, hook de pedido pago → API, lembrete de renovação (§8.4–8.5) | 3, 6 | — |
+
+**Por que o módulo C vem antes dos outros:** ele é pré-requisito do canal Bitcoin (etapa 7) — a
+loja própria só fecha pedido se a confirmação on-chain funcionar. É também o módulo mais
+importante do ponto de vista de adoção (§8.4, nota de produto).
+
+**A etapa 0 é barata e assíncrona — dispare no dia 1.** A resposta do suporte só é necessária na
+etapa 6, mas se for negativa muda o desenho da 7, e ninguém quer descobrir isso depois de
+construir a loja.
+
+**Risco consciente da etapa 7:** a loja passa a depender do código alpha do próprio add-on. Bug
+no módulo C = venda travada em `pending`. É a melhor pressão de teste possível — você vira o
+cliente zero — mas comece com confirmação manual como fallback e monitore os primeiros pedidos.
 
 ---
 
@@ -360,9 +622,30 @@ Alvos prioritários:
 - `includes/services/pay-crypto-me-db-statements-service.php` — `get_by_order_id()` on-chain
 - `paycrypto-me-for-woocommerce.php:38` — `WC_PayCryptoMe::VERSION` (guard)
 
-**Base — enablement (editar, §2):**
-- `includes/services/class-lnd-rest-invoice-service.php` (`value` no body)
-- `includes/services/pay-crypto-me-db-statements-service.php` (`update_transaction_confirmations()` + action)
+**Base — enablement (§2): JÁ FEITO, não editar de novo:**
+- `includes/services/class-lnd-rest-invoice-service.php:31` — `value` no body
+- `includes/services/pay-crypto-me-db-statements-service.php:240` / `:276` —
+  `update_transaction_confirmations()` + `do_action('paycryptome_bitcoin_status_changed')`
+- `tests/phpunit/unit/OnchainConfirmationsUpdateTest.php` — cobertura dos dois
 
 **Add-on — criar:** todos sob `paycrypto-me-premium/src/trunk/includes/` (ver §1); o coração da
 resiliência é `includes/providers/` (§3), consumido pelos módulos B (câmbio) e C (explorer).
+
+**Loja própria — criar (fora deste repo e do base):** plugin do site com o hook de pedido pago →
+API do Freemius (§8.4) + o cron de lembrete de renovação (§8.5).
+
+---
+
+## Referências externas
+
+**Freemius:**
+- [Pricing](https://freemius.com/pricing/) — 4,7% + 2,3% WP; tiers progressivos só acima de $50k/mês
+- [Create a license](https://docs.freemius.com/api/plans/create-license) — endpoint de aquisição (§8.4)
+- [Create new migrated payment](https://freemius.com/help/api/subscriptions/create-new-migrated-payment/) — endpoint de renovação (§8.4)
+- [License renewals mechanism](https://freemius.com/help/documentation/selling-with-freemius/license-renewals-mechanism/) — extensão soma ao saldo restante
+- [Migrating from EDD to Freemius](https://freemius.com/help/documentation/migration/migrating-from-edd-to-freemius/) — contexto do "migration source"
+
+**WooCommerce:**
+- [Subscriptions — payment gateways](https://woocommerce.com/document/subscriptions/payment-gateways/) e
+  [renewal process](https://woocommerce.com/document/subscriptions/renewal-process/) — base do
+  *Accept Manual Renewals* citado em §8.5

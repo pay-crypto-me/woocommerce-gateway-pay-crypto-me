@@ -288,6 +288,8 @@ Two capabilities are **intentionally absent from this free plugin and reserved f
 | `woocommerce_settings_api_form_fields_paycrypto_me_lightning` (native WooCommerce filter) | Append settings fields (e.g. webhook secret) without touching `init_form_fields()` |
 | Dependency guard (`class_exists()` + min-version check) | Add-on's own responsibility, not a base concern |
 
+**The base is closed for premium enablement.** Every seam the add-on needs already shipped in 0.1.0 and is verified — no further base edits are planned or accepted for the add-on's sake, licensing SDK included (that's why the Freemius SDK lives only in the add-on, trading away the in-dashboard upgrade funnel). If a future task concludes it needs a base change to make the add-on work, the correct move is to find another design, not to make an exception. See §2 and §8.1 of [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md).
+
 ---
 
 ## Known follow-ups
