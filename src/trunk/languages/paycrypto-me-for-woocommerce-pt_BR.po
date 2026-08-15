@@ -24,8 +24,8 @@ msgstr "PayCrypto.Me para WooCommerce"
 
 #. Plugin URI of the plugin
 #: paycrypto-me-for-woocommerce.php
-msgid "https://github.com/paycrypto-me/paycrypto-me-for-woocommerce"
-msgstr "https://github.com/paycrypto-me/paycrypto-me-for-woocommerce"
+msgid "https://https://paycrypto.me/woocommerce/"
+msgstr "https://https://paycrypto.me/woocommerce/"
 
 #. Description of the plugin
 #: paycrypto-me-for-woocommerce.php
