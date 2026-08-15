@@ -95,7 +95,7 @@ class DbInstaller
 
         printf(
             '<div class="notice notice-error"><p>%s</p><ul>',
-            esc_html__('PayCrypto.Me for WooCommerce: some database tables failed to install correctly. Payments may not work correctly until this is resolved — check with your host and try deactivating/reactivating the plugin.', 'paycrypto-me-for-woocommerce')
+            'PayCrypto.Me for WooCommerce: some database tables failed to install correctly. Payments may not work correctly until this is resolved — check with your host and try deactivating/reactivating the plugin.'
         );
 
         // Escaped per-item in the loop rather than mapped/imploded into the printf above:

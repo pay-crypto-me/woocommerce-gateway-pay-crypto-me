@@ -35,8 +35,7 @@ class LightningConnectionTester
         $store = isset($_POST['btcpay_store_id']) ? sanitize_text_field(wp_unslash($_POST['btcpay_store_id'])) : '';
 
         if (empty($url)) {
-            /* translators: %s: field label, e.g. "BTCPay Server URL". */
-            wp_send_json_error(array('message' => sprintf(__('%s is required for test.', 'paycrypto-me-for-woocommerce'), __('BTCPay Server URL', 'paycrypto-me-for-woocommerce'))));
+            wp_send_json_error(array('message' => sprintf('%s is required for test.', __('BTCPay Server URL', 'paycrypto-me-for-woocommerce'))));
         }
 
         // Build endpoint to check: prefer store endpoint if provided, else list stores.
@@ -66,8 +65,7 @@ class LightningConnectionTester
         $verify_ssl = isset($_POST['lnd_verify_ssl']) ? sanitize_text_field(wp_unslash($_POST['lnd_verify_ssl'])) : 'yes';
 
         if (empty($url)) {
-            /* translators: %s: field label, e.g. "BTCPay Server URL". */
-            wp_send_json_error(array('message' => sprintf(__('%s is required for test.', 'paycrypto-me-for-woocommerce'), __('lnd REST URL', 'paycrypto-me-for-woocommerce'))));
+            wp_send_json_error(array('message' => sprintf('%s is required for test.', __('lnd REST URL', 'paycrypto-me-for-woocommerce'))));
         }
 
         $endpoint = rtrim($url, '/') . '/v1/getinfo';
@@ -100,7 +98,7 @@ class LightningConnectionTester
                 wp_delete_file($temp_cert);
             }
 
-            wp_send_json_error(array('message' => esc_html__('The TLS certificate could not be written to a temporary file, so the connection was not tested. Check the PHP temporary directory permissions on this host.', 'paycrypto-me-for-woocommerce')));
+            wp_send_json_error(array('message' => 'The TLS certificate could not be written to a temporary file, so the connection was not tested. Check the PHP temporary directory permissions on this host.'));
         }
 
         if (!empty($macaroon)) {
@@ -117,15 +115,14 @@ class LightningConnectionTester
 
         $this->respond_from_http_result($response, 'lnd REST connection test failed', function (array $data) {
             $alias = $data['alias'] ?? '';
-            /* translators: %s: node alias returned by the Lightning node */
-            return $alias ? ' - ' . sprintf(__('Node: %s', 'paycrypto-me-for-woocommerce'), esc_html($alias)) : '';
+            return $alias ? ' - ' . sprintf('Node: %s', esc_html($alias)) : '';
         });
     }
 
     private function ensure_permission(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied.', 'paycrypto-me-for-woocommerce')));
+            wp_send_json_error(array('message' => 'Permission denied.'));
         }
     }
 
@@ -149,8 +146,7 @@ class LightningConnectionTester
             );
 
             wp_send_json_error(array('message' => sprintf(
-                /* translators: %s: transport error reported by WordPress, e.g. a cURL message. */
-                esc_html__('Could not reach the server: %s', 'paycrypto-me-for-woocommerce'),
+                'Could not reach the server: %s',
                 esc_html($reason)
             )));
         }
@@ -159,8 +155,7 @@ class LightningConnectionTester
         $body = (string) ($response['body'] ?? '');
 
         if ($code >= 200 && $code < 300) {
-            /* translators: %d: HTTP status code */
-            $message = sprintf(__('Connection OK (HTTP %d).', 'paycrypto-me-for-woocommerce'), $code);
+            $message = sprintf('Connection OK (HTTP %d).', $code);
             if ($success_suffix) {
                 $data = json_decode($body, true);
                 $message .= $success_suffix(is_array($data) ? $data : array());
@@ -173,8 +168,7 @@ class LightningConnectionTester
             'error'
         );
 
-        /* translators: %d: HTTP status code */
-        $message = sprintf(__('Request failed (HTTP %d).', 'paycrypto-me-for-woocommerce'), $code);
+        $message = sprintf('Request failed (HTTP %d).', $code);
         if (!empty($body)) {
             $message .= ' ' . wp_strip_all_tags(wp_trim_words($body, 40));
         }

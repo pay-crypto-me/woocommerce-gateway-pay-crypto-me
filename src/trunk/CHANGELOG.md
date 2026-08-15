@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+ - Admin errors, warnings, logs, connection-test feedback and order notes are now always in English
+   instead of being translated. Everything the customer reads, and every settings label/description
+   in the admin, stays translated as before (7 locales, 100%).
+
 ### Fixed
 
  - A valid wallet xPub/yPub/zPub was rejected with "not valid for the selected network" on hosts

@@ -32,7 +32,7 @@ if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
     // so every class below would fatal the moment anything tried to use it. Warn and stop
     // instead of registering hooks that are guaranteed to fatal when WordPress fires them.
     add_action('admin_notices', function () {
-        echo '<div class="error"><p>' . esc_html__('PayCrypto.Me for WooCommerce is missing required files (vendor/). If you installed it from a GitHub source zip, please install it from the WordPress.org plugin directory or an official release zip instead.', 'paycrypto-me-for-woocommerce') . '</p></div>';
+        echo '<div class="error"><p>PayCrypto.Me for WooCommerce is missing required files (vendor/). If you installed it from a GitHub source zip, please install it from the WordPress.org plugin directory or an official release zip instead.</p></div>';
     });
     return;
 }

@@ -116,9 +116,9 @@ class PaymentProcessor
 
         $order->save_meta_data();
 
-        $order->add_order_note( esc_html__( 'PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation.', 'paycrypto-me-for-woocommerce' ) );
+        $order->add_order_note( 'PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation.' );
 
-        $order->update_status( 'pending', esc_html__( 'Awaiting cryptocurrency payment', 'paycrypto-me-for-woocommerce' ) );
+        $order->update_status( 'pending', 'Awaiting cryptocurrency payment' );
     }
 
     private function get_return_url($order, $result)

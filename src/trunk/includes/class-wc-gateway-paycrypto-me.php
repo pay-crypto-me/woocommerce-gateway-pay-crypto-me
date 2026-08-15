@@ -71,19 +71,18 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         // payments on a host without GMP — only xPub derivation is impossible there.
         if (!empty($missing) && $this->configured_identifier_requires_gmp()) {
             $environment[] = sprintf(
-                /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
-                esc_html__('This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead.', 'paycrypto-me-for-woocommerce'),
+                'This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead.',
                 esc_html(EnvironmentRequirements::describe($missing)),
                 esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet')))
             );
         }
 
         if (empty($this->get_option('selected_network'))) {
-            $configuration[] = esc_html__('No network is selected in the gateway settings.', 'paycrypto-me-for-woocommerce');
+            $configuration[] = 'No network is selected in the gateway settings.';
         }
 
         if (empty($this->get_option('network_identifier'))) {
-            $configuration[] = esc_html__('No wallet xPub or Bitcoin address is configured in the gateway settings.', 'paycrypto-me-for-woocommerce');
+            $configuration[] = 'No wallet xPub or Bitcoin address is configured in the gateway settings.';
         }
 
         return array('environment' => $environment, 'configuration' => $configuration);
@@ -143,10 +142,9 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         if (!empty($missing)) {
             printf(
                 '<div class="notice notice-warning inline"><p><strong>%s</strong><br>%s</p></div>',
-                esc_html__('This server cannot derive addresses from an extended public key.', 'paycrypto-me-for-woocommerce'),
+                'This server cannot derive addresses from an extended public key.',
                 wp_kses_post(sprintf(
-                    /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
-                    __('The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension.', 'paycrypto-me-for-woocommerce'),
+                    'The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension.',
                     esc_html(EnvironmentRequirements::describe($missing)),
                     '<code>' . esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet'))) . '</code>'
                 ))
@@ -167,7 +165,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
     public function ajax_reset_derivation_index()
     {
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied.', 'paycrypto-me-for-woocommerce'), 403);
+            wp_send_json_error('Permission denied.', 403);
         }
 
         check_ajax_referer('paycrypto_me_nonce', 'security');
@@ -176,13 +174,13 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         if ($reset === false) {
             $this->register_paycrypto_me_log('Failed to reset derivation indexes via admin panel.', 'error');
-            wp_send_json_error(__('Reset failed. Check WooCommerce logs for details.', 'paycrypto-me-for-woocommerce'), 500);
+            wp_send_json_error('Reset failed. Check WooCommerce logs for details.', 500);
             return;
         }
 
         $this->register_paycrypto_me_log('Derivation indexes have been reset via admin panel.', 'warning');
 
-        wp_send_json_success(__('Reset request received.', 'paycrypto-me-for-woocommerce'));
+        wp_send_json_success('Reset request received.');
     }
 
     public function process_admin_options()
@@ -190,12 +188,12 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         if (isset($_POST['paycrypto_me_nonce'])) {
             $nonce = isset($_POST['paycrypto_me_nonce']) ? sanitize_text_field(wp_unslash($_POST['paycrypto_me_nonce'])) : '';
             if (!wp_verify_nonce($nonce, 'paycrypto_me_settings')) {
-                wp_die(esc_html__('Security check failed', 'paycrypto-me-for-woocommerce'));
+                wp_die('Security check failed');
             }
         } else {
             $wpnonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
             if (!wp_verify_nonce($wpnonce, 'woocommerce-settings')) {
-                wp_die(esc_html__('Security check failed', 'paycrypto-me-for-woocommerce'));
+                wp_die('Security check failed');
             }
         }
 
@@ -206,8 +204,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         $network_config = $this->get_network_config($selected_network);
 
         if (empty($network_identifier)) {
-            /* translators: %s is the field label being validated, e.g. "Wallet xPub". */
-            $format = esc_html__('Please enter a valid %s.', 'paycrypto-me-for-woocommerce');
+            $format = 'Please enter a valid %s.';
             \WC_Admin_Settings::add_error(sprintf($format, esc_html($network_config['field_label'])));
             return false;
         }
@@ -229,8 +226,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         try {
             $identifier_is_valid = $this->validate_network_identifier($selected_network, $network_identifier);
         } catch (PayCryptoMeException $e) {
-            /* translators: %s: the underlying error message. */
-            $format = esc_html__('The wallet key could not be validated because of an internal error: %s. Nothing was saved. This is not a problem with the key you entered.', 'paycrypto-me-for-woocommerce');
+            $format = 'The wallet key could not be validated because of an internal error: %s. Nothing was saved. This is not a problem with the key you entered.';
             \WC_Admin_Settings::add_error(sprintf($format, esc_html(wp_strip_all_tags($e->getMessage()))));
             return false;
         }
@@ -238,14 +234,12 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         if (!$identifier_is_valid) {
             if ($this->is_xpub_network_mismatch($selected_network, $network_identifier)) {
                 $wrong_network = $selected_network === 'testnet' ? 'mainnet' : 'testnet';
-                /* translators: 1: network the key actually belongs to, 2: network selected in settings. */
-                $format = esc_html__('This key belongs to %1$s, but the selected network is %2$s. Please provide a key for the selected network.', 'paycrypto-me-for-woocommerce');
+                $format = 'This key belongs to %1$s, but the selected network is %2$s. Please provide a key for the selected network.';
                 \WC_Admin_Settings::add_error(sprintf($format, esc_html($wrong_network), esc_html($selected_network)));
                 return false;
             }
 
-            /* translators: %s is the field label being validated, e.g. "Wallet xPub". */
-            $format = esc_html__('The %s provided is not valid for the selected network.', 'paycrypto-me-for-woocommerce');
+            $format = 'The %s provided is not valid for the selected network.';
             \WC_Admin_Settings::add_error(sprintf($format, esc_html($network_config['field_label'])));
             return false;
         }
@@ -489,7 +483,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         if ($address_is_valid) {
             $this->register_paycrypto_me_log(
-                esc_html__('A fixed Bitcoin address was saved. Payments will work, but every order is paid to this same address. For better privacy, we recommend using an extended public key (xpub/ypub/zpub) instead, which automatically creates a new address for each order.', 'paycrypto-me-for-woocommerce'),
+                'A fixed Bitcoin address was saved. Payments will work, but every order is paid to this same address. For better privacy, we recommend using an extended public key (xpub/ypub/zpub) instead, which automatically creates a new address for each order.',
                 'notice'
             );
 

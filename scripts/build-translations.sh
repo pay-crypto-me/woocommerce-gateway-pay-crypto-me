@@ -128,6 +128,28 @@ fix_po_headers() {
     docker_exec "sed -i 's/\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\\\n\"/\"Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\\\\n\"/' \"$po_file\""
 }
 
+# Remove as entradas obsoletas (`#~`) que o msgmerge acumula quando um msgid deixa de existir.
+# Elas nunca entram no .mo, mas incham o .po e aparecem como "obsoletas" no PoEdit/Loco — inclusive
+# strings tiradas do catálogo de propósito (erros/warnings/logs do painel; ver docs/TRANSLATION.md),
+# que não devem voltar a ser oferecidas ao tradutor. Escreve em arquivo temporário e só então
+# substitui: msgattrib lendo e gravando o mesmo caminho trunca o arquivo.
+strip_obsolete_entries() {
+    local locale=$1
+    local po_file="$LANGUAGES_DIR/$PLUGIN_SLUG-$locale.po"
+
+    if ! docker_exec "command -v msgattrib &> /dev/null"; then
+        warn "msgattrib não encontrado. Entradas obsoletas mantidas em $locale."
+        return
+    fi
+
+    if docker_exec "msgattrib --no-obsolete --output-file=\"$po_file.tmp\" \"$po_file\" && mv \"$po_file.tmp\" \"$po_file\""; then
+        return
+    fi
+
+    warn "Falha ao remover entradas obsoletas de $locale — arquivo original preservado."
+    docker_exec "rm -f \"$po_file.tmp\""
+}
+
 # Criar arquivo PO para um idioma específico
 create_po_file() {
     local locale=$1
@@ -158,6 +180,7 @@ create_po_file() {
         fi
     fi
 
+    strip_obsolete_entries "$locale"
     fix_po_headers "$locale"
 }
 

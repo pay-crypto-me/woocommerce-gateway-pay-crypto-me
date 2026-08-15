@@ -48,6 +48,68 @@ src/trunk/languages/
 Não existe `en_US.po`/`.mo`: inglês é o idioma-fonte das strings no código (`__('...',
 'paycrypto-me-for-woocommerce')`), não precisa de arquivo de tradução próprio.
 
+## 🎯 O que entra (e o que NÃO entra) no catálogo
+
+Nem toda string do plugin é traduzível — a decisão é por **quem lê**, não por onde a string está no
+código. Regra vigente:
+
+| Categoria | Traduzir? | Exemplos |
+|---|---|---|
+| Qualquer string vista pelo **cliente** | ✅ **sempre** | template de order-details ("Awaiting Payment", "Pay Using Wallet"), mensagens de falha de pagamento, título/descrição do gateway no checkout, memo do BIP21 |
+| **Settings** do painel: títulos, descrições, rótulos de campo, textos de botão, badges | ✅ sim | "BTCPay Server URL", "Invoice Expiry", "Danger Area", "🔌 Test connection", "Premium · Coming soon" |
+| **Erros, warnings e logs** do painel admin | ❌ **não** — inglês literal | `WC_Admin_Settings::add_error(…)`, `wp_die('Security check failed')`, avisos `admin_notices`, `register_paycrypto_me_log(…)` |
+| Retorno dos **botões de diagnóstico** (sucesso *e* falha) | ❌ não | "Connection OK (HTTP %d).", "Could not reach the server: %s", "Reset request received." |
+| **Notas de pedido** (`add_order_note`, nota de mudança de status) | ❌ não | "PayCrypto.Me payment initiated…", "Awaiting cryptocurrency payment" |
+
+**Por quê:** cada string traduzível custa 7 traduções e vive para sempre no catálogo. Erro de painel
+é lido pelo lojista — quase sempre para repassar à hospedagem ou ao suporte —, e em inglês ele é
+pesquisável e reportável. Nota de pedido é gravada **no banco** no idioma vigente na hora da escrita:
+o histórico de um pedido antigo não acompanha uma troca de idioma depois, então português nele é uma
+inconsistência permanente, não uma tradução.
+
+**Exceção deliberada — rótulo dentro de mensagem:** quando um erro em inglês interpola o nome de um
+campo, o **rótulo continua traduzido**, porque ele é uma string de settings e o `msgid` existe no
+catálogo de qualquer jeito (vem do formulário). O resultado é uma frase em inglês com o rótulo no
+idioma do painel, igual ao que o lojista vê no campo logo acima:
+
+```php
+// frase = admin error (literal) | rótulo = settings (traduzido)
+\WC_Admin_Settings::add_error(sprintf('%s must use HTTPS.', esc_html__('BTCPay Server URL', 'paycrypto-me-for-woocommerce')));
+```
+
+**Consequências práticas ao escrever código novo:**
+
+- String de erro/warning/log do admin: literal em inglês, **sem** `__()` e **sem** comentário
+  `/* translators: */` (o comentário só existe para o gettext, que não olha mais para ela).
+- O escape continua obrigatório onde havia: `esc_html__()` virou literal, não "literal sem escape" —
+  se o valor for interpolado em HTML, escape os **argumentos** (`esc_html($alias)`), como antes.
+- Ao mover uma string entre categorias, rodar o fluxo canônico e conferir as estatísticas: o número
+  de mensagens por locale tem que bater com a mudança esperada.
+
+### Entradas obsoletas (`#~`)
+
+Quando um `msgid` deixa de existir no código, o `msgmerge` **não** apaga a tradução: guarda a
+entrada comentada com `#~` no fim do `.po`. Isso nunca chega ao `.mo`, mas incha o `.po` e o PoEdit
+mostra essas linhas como "obsoletas" — inclusive strings tiradas do catálogo de propósito, que não
+devem voltar a ser oferecidas ao tradutor.
+
+Por isso `create_po_file()` roda `msgattrib --no-obsolete` logo depois do `msgmerge`, dentro do
+próprio script (grava em `.tmp` e só então substitui — `msgattrib` lendo e gravando o mesmo caminho
+trunca o arquivo). Se o `msgattrib` não existir no container, o script avisa e mantém as entradas,
+em vez de falhar.
+
+O efeito medido quando a regra do catálogo passou a valer (35 strings retiradas, 2026-08-15):
+
+```
+antes:  ~850 linhas / ~31 KB por .po, 40 entradas obsoletas
+depois: ~625 linhas / ~22 KB por .po,  0 entradas obsoletas
+.mo:    byte a byte idêntico  (obsoletas nunca chegavam ao runtime)
+```
+
+**Consequência a aceitar:** se uma string retirada voltar ao código, sua tradução antiga não é
+ressuscitada pelo `msgmerge` — ela reaparece como `msgstr ""` e precisa ser traduzida de novo (ou
+recuperada do histórico do git).
+
 ## 🛠️ Ferramentas Recomendadas (para preencher `.po`)
 
 ### 1. PoEdit (Desktop)
@@ -123,6 +185,8 @@ processados por padrão.
 ## 🎯 Boas Práticas
 
 ### ✅ Fazer
+- Conferir a seção "O que entra (e o que NÃO entra) no catálogo" **antes** de embrulhar uma string
+  nova em `__()` — erro/warning/log de painel fica em inglês literal
 - Usar sempre text domain: `'paycrypto-me-for-woocommerce'`
 - Rodar `./scripts/build-translations.sh` da raiz do repo após adicionar strings
 - Testar traduções em diferentes idiomas
@@ -130,7 +194,8 @@ processados por padrão.
 - Validar `.po` com `msgfmt --check` antes de recompilar o `.mo`
 
 ### ❌ Evitar
-- Strings hardcoded sem tradução
+- Strings hardcoded sem tradução **onde o cliente lê** (no painel, erro/warning/log é hardcoded de
+  propósito — ver a seção do catálogo)
 - Text domain incorreto ou ausente
 - Concatenação de strings traduzidas
 - Tradução de strings de debug/desenvolvimento
@@ -180,9 +245,12 @@ docker compose up -d wordpress
 - ✅ Domain Path: `/languages/`
 - ✅ `load_plugin_textdomain()` registrado no hook `init` (ver `paycrypto-me-for-woocommerce.php`)
 - ✅ Strings usando funções corretas de tradução
-- ✅ Idiomas traduzidos (136/136 strings, 100% em 2026-08-02): `pt_BR`, `es_ES`, `de_DE`, `fr_FR`,
+- ✅ Idiomas traduzidos (116/116 strings, 100% em 2026-08-15): `pt_BR`, `es_ES`, `de_DE`, `fr_FR`,
   `it_IT`, `ru_RU`, `zh_CN`. O total de strings muda conforme o código evolui — rodar o comando de
-  estatísticas do Workflow acima para o número atual antes de assumir 100%.
+  estatísticas do Workflow acima para o número atual antes de assumir 100%. (Eram 151 antes de
+  erros/warnings/logs do painel saírem do catálogo — ver a seção "O que entra".)
+- ✅ `.po` sem entradas obsoletas: o script roda `msgattrib --no-obsolete` a cada merge (ver
+  "Entradas obsoletas" acima).
 
 ## 🤝 Contribuindo com Traduções
 

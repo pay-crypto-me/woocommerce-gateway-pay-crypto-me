@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-15T22:12:23+00:00\n"
+"POT-Creation-Date: 2026-08-15T22:40:33+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: paycrypto-me-for-woocommerce\n"
@@ -180,13 +180,7 @@ msgstr ""
 msgid "Copy"
 msgstr ""
 
-#. translators: %s is the payment gateway's title, e.g. "Bitcoin Payments (On-Chain)".
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:416
-#, php-format
-msgid "%s is enabled but hidden from checkout:"
-msgstr ""
-
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:566
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:565
 msgid "Premium · Coming soon"
 msgstr ""
 
@@ -229,12 +223,11 @@ msgstr ""
 msgid "Time before invoice expires. Min: 300 (5 min), Max: 86400 (24h). Default: 3600 (1 hour)"
 msgstr ""
 
-#. translators: %s: field label, e.g. "BTCPay Server URL".
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:129
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:386
-#: includes/services/class-lightning-connection-tester.php:39
+#: includes/services/class-lightning-connection-tester.php:38
 #: includes/validators/class-lightning-config-validator.php:45
-#: includes/validators/class-lightning-config-validator.php:51
+#: includes/validators/class-lightning-config-validator.php:50
 msgid "BTCPay Server URL"
 msgstr ""
 
@@ -242,10 +235,9 @@ msgstr ""
 msgid "Full URL to your BTCPay Server (HTTPS required)."
 msgstr ""
 
-#. translators: 1: field label, e.g. "BTCPay API Key". 2: minimum length.
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:138
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:387
-#: includes/validators/class-lightning-config-validator.php:72
+#: includes/validators/class-lightning-config-validator.php:69
 msgid "BTCPay API Key"
 msgstr ""
 
@@ -294,12 +286,11 @@ msgstr ""
 msgid "Available in the Premium add-on"
 msgstr ""
 
-#. translators: %s: field label, e.g. "BTCPay Server URL".
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:183
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:382
-#: includes/services/class-lightning-connection-tester.php:70
-#: includes/validators/class-lightning-config-validator.php:106
-#: includes/validators/class-lightning-config-validator.php:112
+#: includes/services/class-lightning-connection-tester.php:68
+#: includes/validators/class-lightning-config-validator.php:103
+#: includes/validators/class-lightning-config-validator.php:108
 msgid "lnd REST URL"
 msgstr ""
 
@@ -307,10 +298,9 @@ msgstr ""
 msgid "REST API endpoint (HTTPS required)."
 msgstr ""
 
-#. translators: 1: field label, e.g. "BTCPay API Key". 2: minimum length.
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:192
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:383
-#: includes/validators/class-lightning-config-validator.php:125
+#: includes/validators/class-lightning-config-validator.php:120
 msgid "lnd Macaroon (hex)"
 msgstr ""
 
@@ -347,14 +337,8 @@ msgstr ""
 msgid "🔌 Test connection"
 msgstr ""
 
-#. translators: 1: settings field label, 2: selected Lightning node type.
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:395
-#, php-format
-msgid "%1$s is empty, and it is required for the selected node type (%2$s)."
-msgstr ""
-
 #: includes/class-wc-gateway-paycrypto-me.php:35
-#: includes/class-wc-gateway-paycrypto-me.php:365
+#: includes/class-wc-gateway-paycrypto-me.php:359
 msgid "On-Chain"
 msgstr ""
 
@@ -366,126 +350,56 @@ msgstr ""
 msgid "Use directly your Bitcoin wallet to pay. Place the order to view the QR code and payment instructions."
 msgstr ""
 
-#. translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1".
-#: includes/class-wc-gateway-paycrypto-me.php:75
-#, php-format
-msgid "This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:82
-msgid "No network is selected in the gateway settings."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:86
-msgid "No wallet xPub or Bitcoin address is configured in the gateway settings."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:146
-msgid "This server cannot derive addresses from an extended public key."
-msgstr ""
-
-#. translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1".
-#: includes/class-wc-gateway-paycrypto-me.php:149
-#, php-format
-msgid "The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:170
-#: includes/services/class-lightning-connection-tester.php:128
-msgid "Permission denied."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:179
-msgid "Reset failed. Check WooCommerce logs for details."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:185
-msgid "Reset request received."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:193
-#: includes/class-wc-gateway-paycrypto-me.php:198
-msgid "Security check failed"
-msgstr ""
-
-#. translators: %s is the field label being validated, e.g. "Wallet xPub".
-#: includes/class-wc-gateway-paycrypto-me.php:210
-#, php-format
-msgid "Please enter a valid %s."
-msgstr ""
-
-#. translators: %s: the underlying error message.
-#: includes/class-wc-gateway-paycrypto-me.php:233
-#, php-format
-msgid "The wallet key could not be validated because of an internal error: %s. Nothing was saved. This is not a problem with the key you entered."
-msgstr ""
-
-#. translators: 1: network the key actually belongs to, 2: network selected in settings.
-#: includes/class-wc-gateway-paycrypto-me.php:242
-#, php-format
-msgid "This key belongs to %1$s, but the selected network is %2$s. Please provide a key for the selected network."
-msgstr ""
-
-#. translators: %s is the field label being validated, e.g. "Wallet xPub".
-#: includes/class-wc-gateway-paycrypto-me.php:248
-#, php-format
-msgid "The %s provided is not valid for the selected network."
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:265
+#: includes/class-wc-gateway-paycrypto-me.php:259
 msgid "Wallet xPub"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:274
+#: includes/class-wc-gateway-paycrypto-me.php:268
 msgid "Testnet Wallet xPub"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:289
+#: includes/class-wc-gateway-paycrypto-me.php:283
 msgid "Network Identifier"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:293
+#: includes/class-wc-gateway-paycrypto-me.php:287
 msgid "Tip: It is always preferable to use the wallet xPub rather than a wallet address for Bitcoin payments."
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:297
+#: includes/class-wc-gateway-paycrypto-me.php:291
 msgid "Payment Timeout (hours)"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:299
+#: includes/class-wc-gateway-paycrypto-me.php:293
 msgid "Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me Premium add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:305
+#: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:307
+#: includes/class-wc-gateway-paycrypto-me.php:301
 msgid "Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me Premium add-on. In the free version, payments are verified manually."
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:314
+#: includes/class-wc-gateway-paycrypto-me.php:308
 msgid "Danger Area"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:317
+#: includes/class-wc-gateway-paycrypto-me.php:311
 msgid "Warning:"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:317
+#: includes/class-wc-gateway-paycrypto-me.php:311
 msgid "Resetting the payment derivation index will lead to the reuse of addresses and loss of past data. Proceed with caution and ensure you understand the implications."
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:319
+#: includes/class-wc-gateway-paycrypto-me.php:313
 msgid "Reset payment address derivation index"
 msgstr ""
 
-#: includes/class-wc-gateway-paycrypto-me.php:366
+#: includes/class-wc-gateway-paycrypto-me.php:360
 msgid "Testnet"
-msgstr ""
-
-#: includes/class-wc-gateway-paycrypto-me.php:492
-msgid "A fixed Bitcoin address was saved. Payments will work, but every order is paid to this same address. For better privacy, we recommend using an extended public key (xpub/ypub/zpub) instead, which automatically creates a new address for each order."
 msgstr ""
 
 #: includes/processors/abstract-class-lightning-processor.php:85
@@ -502,14 +416,6 @@ msgstr ""
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr ""
 
-#: includes/processors/class-payment-processor.php:119
-msgid "PayCrypto.Me payment initiated. Awaiting cryptocurrency payment confirmation."
-msgstr ""
-
-#: includes/processors/class-payment-processor.php:121
-msgid "Awaiting cryptocurrency payment"
-msgstr ""
-
 #: includes/processors/class-payment-processor.php:164
 msgid "Selected payment method cannot be processed. Please try choosing another one."
 msgstr ""
@@ -522,97 +428,8 @@ msgstr ""
 msgid "Payment via BTCPay Server failed. Please try again."
 msgstr ""
 
-#: includes/services/class-db-installer.php:98
-msgid "PayCrypto.Me for WooCommerce: some database tables failed to install correctly. Payments may not work correctly until this is resolved — check with your host and try deactivating/reactivating the plugin."
-msgstr ""
-
-#. translators: %s: field label, e.g. "BTCPay Server URL".
-#: includes/services/class-lightning-connection-tester.php:39
-#: includes/services/class-lightning-connection-tester.php:70
-#, php-format
-msgid "%s is required for test."
-msgstr ""
-
-#: includes/services/class-lightning-connection-tester.php:103
-msgid "The TLS certificate could not be written to a temporary file, so the connection was not tested. Check the PHP temporary directory permissions on this host."
-msgstr ""
-
-#. translators: %s: node alias returned by the Lightning node
-#: includes/services/class-lightning-connection-tester.php:121
-#, php-format
-msgid "Node: %s"
-msgstr ""
-
-#. translators: %s: transport error reported by WordPress, e.g. a cURL message.
-#: includes/services/class-lightning-connection-tester.php:153
-#, php-format
-msgid "Could not reach the server: %s"
-msgstr ""
-
-#. translators: %d: HTTP status code
-#: includes/services/class-lightning-connection-tester.php:163
-#, php-format
-msgid "Connection OK (HTTP %d)."
-msgstr ""
-
-#. translators: %d: HTTP status code
-#: includes/services/class-lightning-connection-tester.php:177
-#, php-format
-msgid "Request failed (HTTP %d)."
-msgstr ""
-
 #: includes/services/class-lnd-rest-invoice-service.php:126
 msgid "Payment via Lightning node failed. Please try again."
-msgstr ""
-
-#. translators: 1: comma-separated list of PHP extensions, 2: the last extension in the list.
-#: includes/utils/class-environment-requirements.php:75
-#, php-format
-msgid "%1$s and %2$s"
-msgstr ""
-
-#. translators: %s: field label, e.g. "BTCPay Server URL".
-#: includes/validators/class-lightning-config-validator.php:51
-#: includes/validators/class-lightning-config-validator.php:112
-#, php-format
-msgid "%s must use HTTPS."
-msgstr ""
-
-#. translators: %s: field label, e.g. "BTCPay Server URL".
-#: includes/validators/class-lightning-config-validator.php:62
-#, php-format
-msgid "%s is not a usable URL and was not saved. Include the scheme, e.g. https://example.com"
-msgstr ""
-
-#. translators: 1: field label, e.g. "BTCPay API Key". 2: minimum length.
-#: includes/validators/class-lightning-config-validator.php:72
-#: includes/validators/class-lightning-config-validator.php:125
-#, php-format
-msgid "%1$s must be at least %2$d characters."
-msgstr ""
-
-#: includes/validators/class-lightning-config-validator.php:93
-msgid "BTCPay webhook secret is shorter than the recommended 16 characters."
-msgstr ""
-
-#: includes/validators/class-lightning-config-validator.php:129
-msgid "lnd Macaroon must be a valid hexadecimal string."
-msgstr ""
-
-#: includes/validators/class-lightning-config-validator.php:143
-msgid "Invalid certificate format. Must be valid PEM format starting with -----BEGIN CERTIFICATE-----."
-msgstr ""
-
-#: includes/validators/class-lightning-config-validator.php:153
-msgid "Invoice Expiry must be at least 300 seconds (5 minutes)."
-msgstr ""
-
-#: includes/validators/class-lightning-config-validator.php:157
-msgid "Invoice Expiry cannot exceed 86400 seconds (24 hours)."
-msgstr ""
-
-#: paycrypto-me-for-woocommerce.php:35
-msgid "PayCrypto.Me for WooCommerce is missing required files (vendor/). If you installed it from a GitHub source zip, please install it from the WordPress.org plugin directory or an official release zip instead."
 msgstr ""
 
 #: paycrypto-me-for-woocommerce.php:158

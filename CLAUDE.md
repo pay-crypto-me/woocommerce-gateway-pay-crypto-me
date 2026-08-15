@@ -299,6 +299,6 @@ Two low-value, low-risk cleanups are deliberately deferred (pure extract-method,
 ## Code style notes
 
 - PHP namespace `PayCryptoMe\WooCommerce` everywhere
-- All user-facing strings go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`
+- Customer-facing strings and admin **settings** strings (field titles, descriptions, labels, buttons) go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`. Admin **errors, warnings, logs**, diagnostic-button feedback and order notes are deliberately **literal English** — no `__()`, no `/* translators: */`. A label interpolated into such a message stays translated (it is a settings string). Full rule and rationale in [docs/TRANSLATION.md](docs/TRANSLATION.md) → "O que entra (e o que NÃO entra) no catálogo"; check it before wrapping a new string
 - Sanitize all inputs at system boundaries; trust internal data
 - No comments explaining WHAT code does; only WHY when non-obvious

@@ -412,8 +412,7 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         printf(
             '<div class="notice notice-warning"><p>%s</p><ul style="list-style:disc;margin-left:20px;">',
             wp_kses_post(sprintf(
-                /* translators: %s is the payment gateway's title, e.g. "Bitcoin Payments (On-Chain)". */
-                __('%s is enabled but hidden from checkout:', 'paycrypto-me-for-woocommerce'),
+                '%s is enabled but hidden from checkout:',
                 esc_html($this->method_title)
             ))
         );

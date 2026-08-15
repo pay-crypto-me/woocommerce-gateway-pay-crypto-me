@@ -71,8 +71,7 @@ class EnvironmentRequirements
         $last = array_pop($labels);
 
         return \sprintf(
-            /* translators: 1: comma-separated list of PHP extensions, 2: the last extension in the list. */
-            __('%1$s and %2$s', 'paycrypto-me-for-woocommerce'),
+            '%1$s and %2$s',
             implode(', ', $labels),
             $last
         );

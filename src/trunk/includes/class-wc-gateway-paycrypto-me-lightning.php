@@ -391,8 +391,7 @@ class WC_Gateway_PayCryptoMe_Lightning extends Abstract_WC_Gateway_PayCryptoMe
         foreach ($required as $option => $label) {
             if (empty($this->get_option($option))) {
                 $configuration[] = sprintf(
-                    /* translators: 1: settings field label, 2: selected Lightning node type. */
-                    esc_html__('%1$s is empty, and it is required for the selected node type (%2$s).', 'paycrypto-me-for-woocommerce'),
+                    '%1$s is empty, and it is required for the selected node type (%2$s).',
                     esc_html($label),
                     esc_html($node_type === 'lnd_rest' ? 'lnd REST' : 'BTCPay Server')
                 );
