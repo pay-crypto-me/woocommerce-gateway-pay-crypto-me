@@ -229,45 +229,62 @@ if [[ $PUBLISH_ONLY -eq 0 ]]; then
 # === VERSION BUMPS ===
 header "Version bumps → $VERSION"
 
+# $4 (verify) is not optional bookkeeping: it is what makes a bump that silently matched nothing
+# fail the release. The VERSION class constant went un-bumped through the whole 0.1.0 cycle because
+# its pattern required `public const string VERSION` (a typed constant) while the code declares
+# `public const VERSION` — sed matched nothing, returned 0, and the script logged success. That
+# constant is the cache-busting version of the block assets (AssetManager) and the value the
+# premium add-on's dependency guard compares against, so shipping it stale is not cosmetic.
 bump_sed() {
-  local file="$1" pattern="$2" label="$3"
-  if [[ -f "$file" ]]; then
-    log "Updating $label in $file"
-    if [[ $DRY_RUN -eq 0 ]]; then
-      sed -E -i.bak "$pattern" "$file" || true
-      rm -f "$file.bak"
-    else
-      step "[dry-run] sed: $label → $VERSION"
-    fi
+  local file="$1" pattern="$2" label="$3" verify="$4"
+
+  if [[ ! -f "$file" ]]; then
+    return
+  fi
+
+  log "Updating $label in $file"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    step "[dry-run] sed: $label → $VERSION"
+    return
+  fi
+
+  sed -E -i.bak "$pattern" "$file"
+  rm -f "$file.bak"
+
+  # Checked after the fact rather than by counting substitutions, so re-running the script for a
+  # version already applied stays a no-op instead of an error.
+  if ! grep -qE "$verify" "$file"; then
+    error "$label was not updated to $VERSION in $file — the pattern matched nothing."
+    error "Fix the pattern in $(basename "$0") before releasing; a stale version would ship silently."
+    exit 1
   fi
 }
 
 # Plugin header: " * Version: X.Y.Z"
 bump_sed "$PLUGIN_FILE" \
   "s/^(\\s*\\*\\s*Version:[[:space:]]*).*/\\1$VERSION/" \
-  "Version: header"
+  "Version: header" \
+  "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*$VERSION[[:space:]]*$"
 
-# PHP class constant: public const string VERSION = 'X.Y.Z';
+# PHP class constant: public const VERSION = 'X.Y.Z'; (the `string` type is optional)
 bump_sed "$PLUGIN_FILE" \
-  "s/^(\\s*public\\s+const\\s+string\\s+VERSION\\s*=\\s*')[^']+(';)/\\1$VERSION\\2/" \
-  "VERSION class constant"
+  "s/^(\\s*public\\s+const\\s+(string\\s+)?VERSION\\s*=\\s*')[^']+(';)/\\1$VERSION\\3/" \
+  "VERSION class constant" \
+  "public const (string )?VERSION = '$VERSION';"
 
 # readme.txt: Stable tag
 bump_sed "$README_FILE" \
   "s/^(Stable tag:[[:space:]]*).*/\\1$VERSION/" \
-  "Stable tag"
+  "Stable tag" \
+  "^Stable tag:[[:space:]]*$VERSION[[:space:]]*$"
 
 # composer.json and package.json: "version": "X.Y.Z"
 for f in "$TRUNK/composer.json" "$TRUNK/package.json"; do
-  if [[ -f "$f" ]]; then
-    log "Updating version in $(basename "$f")"
-    if [[ $DRY_RUN -eq 0 ]]; then
-      sed -E -i.bak 's/^([[:space:]]*"version"[[:space:]]*:[[:space:]]*")[^"]+("[[:space:]]*,?)/\1'"$VERSION"'\2/' "$f" || true
-      rm -f "$f.bak"
-    else
-      step "[dry-run] sed: version → $VERSION in $(basename "$f")"
-    fi
-  fi
+  bump_sed "$f" \
+    's/^([[:space:]]*"version"[[:space:]]*:[[:space:]]*")[^"]+("[[:space:]]*,?)/\1'"$VERSION"'\2/' \
+    "version in $(basename "$f")" \
+    "\"version\"[[:space:]]*:[[:space:]]*\"$VERSION\""
 done
 
 # === BUILD DIR ===
