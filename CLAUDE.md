@@ -5,7 +5,7 @@
 - [docs/RELEASE.md](docs/RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
-- [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
+- [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet), including the licensing/monetization decisions (Freemius, SDK in the add-on only) and sales channels. See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
 **Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (277 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
@@ -216,6 +216,8 @@ Two capabilities are **intentionally absent from this free plugin and reserved f
 | `PayCryptoMeDBStatementsService::update_transaction_confirmations()` + `paycryptome_bitcoin_status_changed` action | On-chain confirmation poller persists confirmations/amount/tx via this method and reacts to the action (e.g. `$order->payment_complete()` once required confirmations are reached) — mirrors the Lightning `update_status()` seam |
 | `woocommerce_settings_api_form_fields_paycrypto_me_lightning` (native WooCommerce filter) | Append settings fields (e.g. webhook secret) without touching `init_form_fields()` |
 | Dependency guard (`class_exists()` + min-version check) | Add-on's own responsibility, not a base concern |
+
+**The base is closed for premium enablement.** Every seam the add-on needs already shipped in 0.1.0 and is verified — no further base edits are planned or accepted for the add-on's sake, licensing SDK included (that's why the Freemius SDK lives only in the add-on, trading away the in-dashboard upgrade funnel). If a future task concludes it needs a base change to make the add-on work, the correct move is to find another design, not to make an exception. See §2 and §8.1 of [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md).
 
 ---
 
