@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-15T22:31:56+00:00\n"
+"POT-Creation-Date: 2026-08-15T23:10:11+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -24,8 +24,8 @@ msgstr "PayCrypto.Me for WooCommerce"
 
 #. Plugin URI of the plugin
 #: paycrypto-me-for-woocommerce.php
-msgid "https://https://paycrypto.me/woocommerce/"
-msgstr "https://https://paycrypto.me/woocommerce/"
+msgid "https://paycrypto.me/woocommerce/"
+msgstr "https://paycrypto.me/woocommerce/"
 
 #. Description of the plugin
 #: paycrypto-me-for-woocommerce.php
