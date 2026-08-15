@@ -174,7 +174,12 @@ create_po_file() {
         log "Atualizando arquivo PO existente: $po_file"
         
         if docker_exec "command -v msgmerge &> /dev/null"; then
-            docker_exec "msgmerge --update \"$po_file\" \"$POT_FILE\""
+            # --backup=off: por padrão o msgmerge deixa um `<arquivo>.po~` ao lado de cada PO
+            # atualizado. São ignorados pelo git e excluídos do zip de release, mas o
+            # `wp plugin check` roda sobre a árvore de trabalho e reprova cada um deles
+            # (badly_named_files) — ruído que esconde achado de verdade. O histórico do git já é
+            # o backup.
+            docker_exec "msgmerge --backup=off --update \"$po_file\" \"$POT_FILE\""
         else
             warn "msgmerge não encontrado. Arquivo PO não foi atualizado automaticamente."
         fi
