@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Planned
+
+ - Add support for additional blockchain networks (planned).
+ - Add automatic payment confirmation (webhook/polling), reserved for a future premium add-on.
+ - Add fiat → sats conversion, reserved for a future premium add-on.
+
+## 0.1.1
+
 ### Changed
 
  - Admin errors, warnings, logs, connection-test feedback and order notes are now always in English
@@ -40,19 +48,11 @@ All notable changes to this project are documented in this file.
  - Copying the payment address on the admin order screen no longer submits the order form and
    reports "Order updated." — the button only copies, as it always did on the customer's page.
  - The default payment-failure message shown to customers is now translatable.
-
-### Added
-
- - On-chain payments now work on hosts without the PHP GMP extension when a single fixed bech32
-   address (bc1…/tb1…) is configured, instead of the gateway being disabled entirely — bech32 needs
-   no big-integer math, so only xPub derivation actually requires the extension. The On-Chain
-   settings screen explains this route when the extension is missing.
-
-### Planned
-
- - Add support for additional blockchain networks (planned).
- - Add automatic payment confirmation (webhook/polling), reserved for a future premium add-on.
- - Add fiat → sats conversion, reserved for a future premium add-on.
+ - The On-Chain gateway is no longer disabled outright on hosts without the PHP GMP extension: only
+   xPub derivation depends on it, so a store configured with a single fixed bech32 address
+   (bc1…/tb1…) keeps taking on-chain payments there. The guard was wider than the actual dependency
+   — bech32 needs no big-integer math — and the settings screen now explains that route when the
+   extension is missing.
 
 ## 0.1.0
 
@@ -64,6 +64,10 @@ All notable changes to this project are documented in this file.
 - Extension points reserved for the upcoming premium add-on, with no effect on the free plugin: an optional `value` (sats) arg honored by lnd invoice creation; `PayCryptoMeDBStatementsService::update_transaction_confirmations()` plus a `paycryptome_bitcoin_status_changed` action for on-chain confirmation tracking; order-details display filters (`paycryptome_order_display_args`, `paycryptome_order_display_data`); dedicated on-chain filters (`paycryptome_bitcoin_payment_uri`, `paycryptome_bitcoin_payment_data`); and the payment gateway is now passed to the `paycryptome_payment_amount`/`paycryptome_payment_data` filters.
 
 ## Upgrade Notice
+
+= 0.1.1 =
+
+Admin errors, warnings and logs are now always in English; customer-facing text stays translated. A gateway that cannot take payments explains why instead of vanishing from checkout, and on-chain works without the GMP extension when a fixed bech32 address is configured.
 
 = 0.1.0 =
 
