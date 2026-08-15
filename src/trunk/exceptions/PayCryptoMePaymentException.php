@@ -11,7 +11,12 @@ class PayCryptoMePaymentException extends PayCryptoMeException
     public function __construct(string $message, string $user_friendly_message = '', int $code = 0, ?\Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
-        $this->user_friendly_message = $user_friendly_message ?: 'We couldn\'t complete your payment. Please try again or contact support if the problem persists.';
+
+        // Translated like every other customer-facing string: this is the fallback shown for any
+        // failure that doesn't carry its own message (every non-PayCryptoMePaymentException goes
+        // through convertToMyself()), so it is the one customers see most often.
+        $this->user_friendly_message = $user_friendly_message
+            ?: __('We couldn\'t complete your payment. Please try again or contact support if the problem persists.', 'paycrypto-me-for-woocommerce');
     }
 
     public function getUserFriendlyMessage(): string

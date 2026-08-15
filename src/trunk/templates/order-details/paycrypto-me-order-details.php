@@ -43,9 +43,16 @@ if ($payment_display_data['payment_identifier']): ?>
                             ); ?>
                         </p>
                     <?php endif; ?>
-                    <span class="paycrypto-me-order-details__status-badge">
+                    <?php // An expired invoice cannot be paid, so "Awaiting Payment" next to a past expiry date was telling the customer to keep waiting for something that will never settle. ?>
+                    <span class="paycrypto-me-order-details__status-badge<?php echo !empty($payment_display_data['is_expired']) ? ' paycrypto-me-order-details__status-badge--expired' : ''; ?>">
                         <span class="paycrypto-me-order-details__status-dot"></span>
-                        <?php esc_html_e('Awaiting Payment', 'paycrypto-me-for-woocommerce'); ?>
+                        <?php
+                        if (!empty($payment_display_data['is_expired'])) {
+                            esc_html_e('Expired', 'paycrypto-me-for-woocommerce');
+                        } else {
+                            esc_html_e('Awaiting Payment', 'paycrypto-me-for-woocommerce');
+                        }
+                        ?>
                     </span>
                 </div>
             </div>
@@ -60,7 +67,7 @@ if ($payment_display_data['payment_identifier']): ?>
                     </label>
                 </div>
             </div>
-            <?php if (!empty($payment_display_data['payment_qr_code'])): ?>
+            <?php if (!empty($payment_display_data['payment_qr_code']) && empty($payment_display_data['is_expired'])): ?>
                 <div
                     class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--qr-code"
                     style="margin-top: 8px; justify-content: center; line-height: 1;">
@@ -73,7 +80,9 @@ if ($payment_display_data['payment_identifier']): ?>
             <?php endif; ?>
             <div class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--address">
                 <small class="paycrypto-me-order-details__address"><?php echo esc_html($payment_display_data['payment_identifier']); ?></small>
+                <?php // type="button" is required, not decorative: this section also renders on the admin order screen, inside WooCommerce's order <form>, where a button with no type defaults to submit — copying the address saved the order and reported "Order updated." ?>
                 <button
+                    type="button"
                     class="paycrypto-me-order-details__copy-address-button"
                     data-address="<?php echo esc_attr($payment_display_data['payment_identifier']); ?>"
                     aria-label="<?php esc_attr_e('Copy to clipboard', 'paycrypto-me-for-woocommerce'); ?>">
@@ -83,10 +92,16 @@ if ($payment_display_data['payment_identifier']): ?>
                     <span class="paycrypto-me-copy-feedback"><?php esc_html_e('Copied!', 'paycrypto-me-for-woocommerce'); ?></span>
                 </button>
             </div>
-            <a class="woocommerce-button wp-element-button paycrypto-me-order-details__button paycrypto-me-order-details__open-wallet-button"
-                href="<?php echo esc_attr( $payment_display_data['payment_uri'] ); ?>" target="_blank" rel="noopener noreferrer">
-                ⚡ <?php esc_html_e('Pay Using Wallet', 'paycrypto-me-for-woocommerce'); ?>
-            </a>
+            <?php if (empty($payment_display_data['is_expired'])): ?>
+                <a class="woocommerce-button wp-element-button paycrypto-me-order-details__button paycrypto-me-order-details__open-wallet-button"
+                    href="<?php echo esc_attr( $payment_display_data['payment_uri'] ); ?>" target="_blank" rel="noopener noreferrer">
+                    ⚡ <?php esc_html_e('Pay Using Wallet', 'paycrypto-me-for-woocommerce'); ?>
+                </a>
+            <?php else: ?>
+                <p class="paycrypto-me-order-details__expired-hint">
+                    <?php esc_html_e('This payment request has expired. Please place the order again or contact the store.', 'paycrypto-me-for-woocommerce'); ?>
+                </p>
+            <?php endif; ?>
         </div>
 
     </section>

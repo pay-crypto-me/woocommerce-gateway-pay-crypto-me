@@ -52,6 +52,9 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         do_action('paycryptome_for_woocommerce_gateway_loaded', $this);
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+
+        // render_unavailability_notice() is deliberately NOT hooked here — WC_PayCryptoMe hooks it
+        // once for every loaded gateway instead. See the comment there.
     }
 
     abstract protected function admin_enqueue_scripts_content(\WP_Screen|null $screen);
@@ -91,7 +94,11 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             // Third-party seam (post-build): lets an add-on adjust already-computed fields (QR, labels).
             $payment_display_data = apply_filters(
                 'paycryptome_order_display_data',
-                $this->display_data_builder->build($order, $args),
+                $this->display_data_builder->build(
+                    $order,
+                    $args,
+                    fn($message, $level) => $this->register_paycrypto_me_log($message, $level)
+                ),
                 $order,
                 $this
             );
@@ -123,6 +130,14 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                     esc_html( wp_strip_all_tags( $e->getMessage() ) )
                 ),
                 'error'
+            );
+
+            // Rendering nothing at all left the customer on an order page with no address and no
+            // QR code, with no way to tell that something broke rather than that no payment was
+            // due. Say so instead of failing invisibly.
+            printf(
+                '<p class="paycrypto-me-order-details__error">%s</p>',
+                esc_html__('We could not display the payment details for this order. Please contact the store.', 'paycrypto-me-for-woocommerce')
             );
         }
     }
@@ -322,6 +337,22 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         );
     }
 
+    /**
+     * Why this gateway cannot take payments right now, as messages fit to show an admin.
+     *
+     * Single source of truth for both is_available() and render_unavailability_notice(), so the
+     * reason a gateway silently vanishes from checkout can never drift from what the admin is
+     * told. Two buckets because they are different kinds of problem: an environment reason is a
+     * host defect the owner has to escalate (and a gateway may already report it inline — see
+     * renders_environment_notice_inline()), a configuration reason is a field on this screen.
+     *
+     * @return array{environment: string[], configuration: string[]}
+     */
+    protected function unavailability_reasons(): array
+    {
+        return array('environment' => array(), 'configuration' => array());
+    }
+
     public function is_available()
     {
         if ('yes' !== $this->enabled) {
@@ -331,7 +362,91 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             return false;
         }
 
-        return true;
+        $reasons = $this->unavailability_reasons();
+
+        return empty($reasons['environment']) && empty($reasons['configuration']);
+    }
+
+    /**
+     * Whether admin_options() already prints this gateway's environment reasons inline, next to
+     * the field they concern. When it does, the notice above the form must not repeat them: both
+     * render on the same screen, so the second copy is pure noise.
+     */
+    protected function renders_environment_notice_inline(): bool
+    {
+        return false;
+    }
+
+    public function render_unavailability_notice()
+    {
+        // A disabled gateway being absent from checkout is expected, not a problem worth
+        // reporting. Checked here rather than at hook registration so the answer comes from the
+        // gateway instance that is current when the notice renders.
+        if ('yes' !== $this->enabled) {
+            return;
+        }
+
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Scoped to this gateway's own settings section. The notice names one gateway and lists
+        // that gateway's fields, so anywhere else it reports a problem the current page cannot
+        // act on — and since both gateways hook admin_notices, every WooCommerce screen used to
+        // carry both notices at once, each one out of its own method's domain.
+        if (!$this->on_own_settings_screen()) {
+            return;
+        }
+
+        $reasons = $this->unavailability_reasons();
+
+        $messages = array_merge(
+            $this->renders_environment_notice_inline() ? array() : $reasons['environment'],
+            $reasons['configuration']
+        );
+
+        if (empty($messages)) {
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-warning"><p>%s</p><ul style="list-style:disc;margin-left:20px;">',
+            wp_kses_post(sprintf(
+                '%s is enabled but hidden from checkout:',
+                esc_html($this->method_title)
+            ))
+        );
+
+        foreach ($messages as $message) {
+            printf('<li>%s</li>', wp_kses_post($message));
+        }
+
+        echo '</ul></div>';
+    }
+
+    /**
+     * The gateway's own settings section (WooCommerce > Settings > Payments > this gateway).
+     *
+     * Matched on the exact section id, never a prefix: 'paycrypto_me' is a prefix of
+     * 'paycrypto_me_lightning', so a prefix match would put the On-Chain notice on the Lightning
+     * screen again.
+     */
+    private function on_own_settings_screen(): bool
+    {
+        if (!function_exists('get_current_screen')) {
+            return false;
+        }
+
+        $screen = get_current_screen();
+
+        if (!$screen || $screen->id !== 'woocommerce_page_wc-settings') {
+            return false;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only settings-section check for a notice; no state change.
+        $section = isset($_GET['section']) ? sanitize_text_field(wp_unslash($_GET['section'])) : '';
+
+        return strtolower($section) === $this->id;
     }
 
     public function process_pre_order_payment($order)

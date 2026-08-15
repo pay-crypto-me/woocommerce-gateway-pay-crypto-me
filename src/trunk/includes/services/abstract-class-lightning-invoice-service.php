@@ -31,6 +31,19 @@ abstract class AbstractLightningInvoiceService implements LightningInvoiceServic
      */
     protected function parse_response(array $response): array
     {
+        // Named separately from the HTTP branch below: a transport failure has no status code, and
+        // recording it as "status=0 body=" hid the actual reason from the exception message.
+        if (!empty($response[HttpClientContract::ERROR_KEY])) {
+            throw new PayCryptoMePaymentException(
+                \sprintf(
+                    '%s transport error: %s',
+                    esc_html($this->error_log_label()),
+                    esc_html((string) $response[HttpClientContract::ERROR_KEY])
+                ),
+                esc_html($this->payment_failed_message())
+            );
+        }
+
         $status_code = (int) ($response['response']['code'] ?? 0);
         $body        = (string) ($response['body'] ?? '');
 

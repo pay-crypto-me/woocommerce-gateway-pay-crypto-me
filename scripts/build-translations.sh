@@ -36,8 +36,19 @@ header() {
     echo -e "${BLUE}=== $1 ===${NC}"
 }
 
+# Compose v2 ships as the `docker compose` plugin, but plenty of hosts only have the standalone
+# `docker-compose` binary (also v2 nowadays). Resolved once instead of per call.
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker-compose)
+else
+    error "Neither 'docker compose' nor 'docker-compose' is available."
+    exit 1
+fi
+
 docker_exec() {
-    docker compose exec -w "$PLUGIN_DIR" wordpress bash -c "$@"
+    "${DOCKER_COMPOSE[@]}" exec -w "$PLUGIN_DIR" wordpress bash -c "$@"
 }
 
 # Verificar se wp-cli está disponível
@@ -117,6 +128,28 @@ fix_po_headers() {
     docker_exec "sed -i 's/\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\\\n\"/\"Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\\\\n\"/' \"$po_file\""
 }
 
+# Remove as entradas obsoletas (`#~`) que o msgmerge acumula quando um msgid deixa de existir.
+# Elas nunca entram no .mo, mas incham o .po e aparecem como "obsoletas" no PoEdit/Loco — inclusive
+# strings tiradas do catálogo de propósito (erros/warnings/logs do painel; ver docs/TRANSLATION.md),
+# que não devem voltar a ser oferecidas ao tradutor. Escreve em arquivo temporário e só então
+# substitui: msgattrib lendo e gravando o mesmo caminho trunca o arquivo.
+strip_obsolete_entries() {
+    local locale=$1
+    local po_file="$LANGUAGES_DIR/$PLUGIN_SLUG-$locale.po"
+
+    if ! docker_exec "command -v msgattrib &> /dev/null"; then
+        warn "msgattrib não encontrado. Entradas obsoletas mantidas em $locale."
+        return
+    fi
+
+    if docker_exec "msgattrib --no-obsolete --output-file=\"$po_file.tmp\" \"$po_file\" && mv \"$po_file.tmp\" \"$po_file\""; then
+        return
+    fi
+
+    warn "Falha ao remover entradas obsoletas de $locale — arquivo original preservado."
+    docker_exec "rm -f \"$po_file.tmp\""
+}
+
 # Criar arquivo PO para um idioma específico
 create_po_file() {
     local locale=$1
@@ -141,12 +174,18 @@ create_po_file() {
         log "Atualizando arquivo PO existente: $po_file"
         
         if docker_exec "command -v msgmerge &> /dev/null"; then
-            docker_exec "msgmerge --update \"$po_file\" \"$POT_FILE\""
+            # --backup=off: por padrão o msgmerge deixa um `<arquivo>.po~` ao lado de cada PO
+            # atualizado. São ignorados pelo git e excluídos do zip de release, mas o
+            # `wp plugin check` roda sobre a árvore de trabalho e reprova cada um deles
+            # (badly_named_files) — ruído que esconde achado de verdade. O histórico do git já é
+            # o backup.
+            docker_exec "msgmerge --backup=off --update \"$po_file\" \"$POT_FILE\""
         else
             warn "msgmerge não encontrado. Arquivo PO não foi atualizado automaticamente."
         fi
     fi
 
+    strip_obsolete_entries "$locale"
     fix_po_headers "$locale"
 }
 

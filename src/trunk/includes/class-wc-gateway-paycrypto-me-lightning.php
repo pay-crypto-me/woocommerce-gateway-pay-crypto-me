@@ -370,29 +370,35 @@ class WC_Gateway_PayCryptoMe_Lightning extends Abstract_WC_Gateway_PayCryptoMe
         ];
     }
 
-    public function is_available()
+    protected function unavailability_reasons(): array
     {
-        if (!parent::is_available()) {
-            return false;
-        }
-
+        $configuration = array();
         $node_type = $this->get_option('node_type', 'btcpay');
 
-        if ($node_type === 'lnd_rest') {
-            if (empty($this->get_option('lnd_rest_url')) || empty($this->get_option('lnd_macaroon_hex'))) {
-                return false;
-            }
-        } else {
-            if (
-                empty($this->get_option('btcpay_url'))
-                || empty($this->get_option('btcpay_api_key'))
-                || empty($this->get_option('btcpay_store_id'))
-            ) {
-                return false;
+        // Named per field: saving lnd_rest with only the BTCPay fields filled used to report
+        // "settings saved" and then drop the gateway from checkout with no explanation at all.
+        $required = $node_type === 'lnd_rest'
+            ? array(
+                'lnd_rest_url'     => __('lnd REST URL', 'paycrypto-me-for-woocommerce'),
+                'lnd_macaroon_hex' => __('lnd Macaroon (hex)', 'paycrypto-me-for-woocommerce'),
+            )
+            : array(
+                'btcpay_url'      => __('BTCPay Server URL', 'paycrypto-me-for-woocommerce'),
+                'btcpay_api_key'  => __('BTCPay API Key', 'paycrypto-me-for-woocommerce'),
+                'btcpay_store_id' => __('BTCPay Store ID', 'paycrypto-me-for-woocommerce'),
+            );
+
+        foreach ($required as $option => $label) {
+            if (empty($this->get_option($option))) {
+                $configuration[] = sprintf(
+                    '%1$s is empty, and it is required for the selected node type (%2$s).',
+                    esc_html($label),
+                    esc_html($node_type === 'lnd_rest' ? 'lnd REST' : 'BTCPay Server')
+                );
             }
         }
 
-        return true;
+        return array('environment' => array(), 'configuration' => $configuration);
     }
 
     private function config_validator(): LightningConfigValidator

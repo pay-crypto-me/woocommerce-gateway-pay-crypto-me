@@ -87,8 +87,20 @@ class LndRestInvoiceService extends AbstractLightningInvoiceService
         $temp_cert = '';
         if (!empty($certificate)) {
             $temp_cert = tempnam(sys_get_temp_dir(), 'lnd_cert_');
+
             if ($temp_cert && file_put_contents($temp_cert, $certificate)) {
                 $http_args['sslcertificates'] = $temp_cert;
+            } else {
+                // Falling through with neither sslcertificates nor sslverify left WordPress on its
+                // default (verify against the system CA bundle), so a configured certificate that
+                // could not be written produced an opaque TLS failure with no hint that the
+                // certificate was never applied.
+                $http_args['sslverify'] = ($verify_ssl === 'yes');
+
+                $this->gateway->register_paycrypto_me_log(
+                    'lnd REST: could not write the configured TLS certificate to a temporary file; falling back to the Verify SSL setting.',
+                    'error'
+                );
             }
         } else {
             $http_args['sslverify'] = ($verify_ssl === 'yes');

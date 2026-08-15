@@ -53,6 +53,43 @@ class BitcoinPaymentProcessorTest extends TestCase
         $this->assertArrayHasKey('payment_uri', $out, 'processor output: ' . var_export($out, true));
     }
 
+    public function test_an_unset_network_setting_derives_on_the_network_it_records()
+    {
+        // The network was read twice: once with a 'mainnet' default for the order meta, once
+        // without for the derivation — where anything but the exact string 'mainnet' means
+        // testnet. An unset setting therefore recorded a mainnet order and handed the customer a
+        // testnet address. Both now come from the same value.
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => 'xpub_fake',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(77);
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->expects($this->once())
+            ->method('get_wallet_xpubkey_id')
+            ->with('xpub_fake', 'mainnet')
+            ->willReturn(1);
+        $db->method('insert_address')->willReturn(true);
+
+        $mainnet = \BitWasp\Bitcoin\Network\NetworkFactory::bitcoin();
+
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_extended_pubkey')->willReturn(true);
+        $btcSvc->expects($this->once())
+            ->method('generate_address_from_xPub')
+            ->with('xpub_fake', $this->isType('int'), $this->equalTo($mainnet))
+            ->willReturn('1MainnetAddr');
+
+        $out = (new BitcoinPaymentProcessor($gateway, $btcSvc, $db))->process($order, ['crypto_amount' => null]);
+
+        $this->assertSame('mainnet', $out['crypto_network']);
+    }
+
     public function test_process_generates_and_persists_when_missing()
     {
         $gateway = $this->createMock(\WC_Payment_Gateway::class);

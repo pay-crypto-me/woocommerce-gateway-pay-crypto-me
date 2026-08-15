@@ -5,9 +5,11 @@
 - [docs/RELEASE.md](docs/RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
-- [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet), including the licensing/monetization decisions (Freemius, SDK in the add-on only) and sales channels. See "Premium add-on" section below for the base's own scope boundaries and extension points.
+- [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
+- [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **approved plan, not started.** Why the two `lucas-rosa95/*` forks exist, why they no longer earn their keep (measured), and the move back to official `bitwasp/*` packages. Read it before touching the crypto dependencies in `src/trunk/composer.json`.
+- [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (277 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (334 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
@@ -41,7 +43,7 @@ paycrypto-me-for-woocommerce/
 │   │   ├── services/             ← BitcoinAddressService, QrCodeService, DBStatementsService, PaymentDisplayDataBuilder, invoice services
 │   │   ├── strategies/           ← ProcessorStrategiesFactory (composition root: wires processors + their services via DI)
 │   │   ├── validators/           ← LightningConfigValidator
-│   │   └── utils/class-asset-manager.php
+│   │   └── utils/                 ← AssetManager, OrderGatewayMatcher, EnvironmentRequirements
 │   ├── assets/                   ← compiled/static assets (do NOT edit JS/CSS here directly)
 │   │   └── blocks/               ← webpack output from includes/blocks/js/
 │   ├── templates/                ← WooCommerce PHP templates (checkout, order-details)
@@ -97,9 +99,64 @@ Namespace: `PayCryptoMe\WooCommerce`. Autoloaded via Composer classmap from `inc
    - Persists the invoice via `PayCryptoMeLightningDBStatementsService::insert_invoice()` (new order) or `replace_invoice()` (order had an expired invoice) — the persistence result is always checked, raising `PayCryptoMePaymentException` on failure rather than diverging order meta from the DB row
 4. `PaymentProcessor` saves order meta and sets status to `pending`, same as On-Chain
 
+### Reporting failures honestly (validation, availability, environment)
+
+Three rules exist because a valid mainnet `zpub` was once rejected with *"not valid for the
+selected network"* on a host without the `gmp` extension — a host defect reported as the store
+owner's mistake:
+
+1. **`\Error` is never treated as invalid input.** `BitcoinAddressService::validate_extended_pubkey()`
+   / `validate_bitcoin_address()` catch **`\Exception`** only (every genuine "this isn't a valid
+   key/address" failure is one: `Base58ChecksumFailure`, `ParserOutOfRange`,
+   `InvalidArgumentException`). A missing extension surfaces as `\Error` and propagates;
+   `WC_Gateway_PayCryptoMe::validate_xpub_address()`/`validate_network_identifier()` convert it into
+   a `PayCryptoMeException`, and `process_admin_options()` reports it as an internal error that is
+   explicitly *not* the key's fault. Never widen those catches back to `\Throwable`.
+2. **Environment is checked before validation, but only where it matters.**
+   `process_admin_options()` skips validation and just saves when the submitted identifier needs
+   the GMP math and the extension is absent (blocking the form would also lock the admin out of the
+   title, the enable checkbox and everything else on the screen). The dependency is narrower than
+   the whole gateway: `BitcoinAddressService::requires_gmp_math()` returns false for a bech32
+   identifier, because `bitwasp/bech32` is pure PHP while xPubs and base58 addresses reach
+   `Base58::decode()`/`gmp_init()`. So **a host without GMP still takes on-chain payments to a fixed
+   bc1/tb1 address** — only xPub derivation is impossible there.
+   `validate_bitcoin_address()` routes bech32 to `validate_segwit_address()` for exactly this
+   reason: `AddressCreator::fromString()` tries base58 first and its `catch (\Exception)` cannot stop
+   the `\Error` raised there. `WC_Gateway_PayCryptoMe::admin_options()` renders a warning on the
+   settings screen pointing the merchant at that route.
+3. **One source for "why is this gateway hidden".** Each gateway implements
+   `unavailability_reasons(): array{environment: string[], configuration: string[]}`;
+   `Abstract_WC_Gateway_PayCryptoMe::is_available()` derives from it and
+   `render_unavailability_notice()` renders it, so the applied reason and the displayed reason
+   cannot drift. Concrete gateways must not re-implement `is_available()`.
+   The notice renders **only on that gateway's own settings section**
+   (`on_own_settings_screen()`: screen `woocommerce_page_wc-settings` + `$_GET['section']` matching
+   `$this->id` **exactly** — a prefix match would put the On-Chain notice back on the Lightning
+   screen, since `paycrypto_me` is a prefix of `paycrypto_me_lightning`). It used to render on
+   every WooCommerce screen, which meant both gateways posted their notice side by side on each
+   other's settings page, on Orders and on Plugins — each one out of its own method's domain.
+   A gateway that already prints its environment reasons inline from `admin_options()` returns true
+   from `renders_environment_notice_inline()` (the On-Chain one does, via
+   `render_missing_extension_notice()`) so the same host defect isn't stated twice on one screen.
+   The `admin_notices` hook lives in `WC_PayCryptoMe::render_gateway_unavailability_notices()` — one
+   registration that loops the loaded gateways — **never in the gateway constructor**: WooCommerce
+   rebuilds every gateway after a settings save (`WC_Settings_Payment_Gateways::save()` →
+   `WC_Payment_Gateways::init()`), and WordPress cannot dedupe two callbacks bound to two distinct
+   objects, so a per-instance hook printed the warning twice on the screen just saved (and the
+   first copy came from the pre-save instance, whose `$this->settings` snapshot was already stale).
+   The `enabled` check is made when rendering, not when hooking, for the same reason.
+
+The same principle applies to silent degradation: `QrCodeService` takes an optional `?callable
+$logger` (forwarded by `PaymentDisplayDataBuilder::build()` from the gateway) so a QR that cannot be
+drawn is reported instead of producing a blank order page, `HttpClientContract::ERROR_KEY` carries
+the transport reason so a DNS/TLS failure isn't shown as "HTTP 0", and `LightningConfigValidator`
+raises an error when `esc_url_raw()` empties a URL instead of silently saving nothing.
+
 ### Order-details rendering (shared between gateways)
 
 `Abstract_WC_Gateway_PayCryptoMe` owns `render_admin_order_details_section()`/`render_checkout_order_details_section()`; each gateway only implements the abstract `build_order_display_args(\WC_Order $order): ?array` hook (guard-meta check, network label, crypto amount/currency, confirmations required — the parts that actually differ). The shared `PaymentDisplayDataBuilder` (constructor-injected with `QrCodeService`) turns those args into the final display array (QR code, formatted expiry, `crypto_label`) consumed by `templates/order-details/paycrypto-me-order-details.php`.
+
+That template renders in two very different contexts: the customer's order page (no surrounding form) and the admin order screen, where it sits **inside WooCommerce's order `<form>`**. Every `<button>` there must therefore carry an explicit `type="button"` — the HTML default is `submit`, so the copy-address button used to save the order and answer "Order updated." on every click. `OrderDetailsTemplateMarkupTest` pins this, since `wc_get_template()` is stubbed in the unit suite and nothing else can see the markup.
 
 ### Custom DB tables (created on plugin activation)
 
@@ -109,25 +166,29 @@ All prefixed with `{$wpdb->prefix}`, created via `dbDelta()` in `PayCryptoMeBitc
 - `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id)
 - `paycrypto_me_lightning_invoices` — (order_id, node_type, invoice_id, payment_request, status, expires_at, amount_sats)
 
-Schema changes are tracked via the `paycrypto_me_db_version` option, checked in `WC_PayCryptoMe::maybe_upgrade_db()` on `plugins_loaded` (re-runs both `*GatewayActivate::activate()` calls when the code's `WC_PayCryptoMe::DB_VERSION` differs — the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check; failures accumulate in the `paycrypto_me_db_activation_errors` option and surface via an `admin_notices` callback (dbDelta itself never checks its own error state). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
+Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — the single `register_activation_hook` target and also called from `plugins_loaded` via `DbInstaller::maybe_upgrade()`. It runs both `*GatewayActivate::activate()` calls when the code's `DbInstaller::DB_VERSION` differs from the recorded `paycrypto_me_db_version` (the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check (dbDelta never checks its own error state); each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
 
 ### Key services
 
 | Class | File | Does |
 |-------|------|------|
-| `BitcoinAddressService` | `services/class-bitcoin-address-service.php` | Generate/validate Bitcoin addresses (p2pkh, p2sh-p2wpkh, p2wpkh) from xpub/ypub/zpub using `bitwasp/bitcoin` |
+| `BitcoinAddressService` | `services/class-bitcoin-address-service.php` | Generate/validate Bitcoin addresses (p2pkh, p2sh-p2wpkh, p2wpkh) from xpub/ypub/zpub using `bitwasp/bitcoin`; `requires_gmp_math()`/`validate_segwit_address()` keep the bech32 path usable on hosts without the GMP extension |
 | `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock; `release_derivation_index()` refunds a reserved index if derivation/persistence fails afterward, so a systemic failure (missing GMP, invalid xpub) can't burn through the wallet's BIP-44 gap limit |
 | `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices` (insert/update status/lookup by order or by invoice id); `replace_invoice()` overwrites an expired row instead of the silent no-op `insert_invoice()` gives when a row already exists — used when `AbstractLightningProcessor::process()` finds and reuses/replaces an existing invoice for the order (checkout retries, `order-pay`) |
 | `AbstractLightningInvoiceService` | `services/abstract-class-lightning-invoice-service.php` | Base for the two Lightning invoice services: shared constructor (`HttpClientContract`, `WC_Payment_Gateway`) + `parse_response()`, parameterized by `error_log_label()`/`payment_failed_message()` |
 | `BtcpayInvoiceService` | `services/class-btcpay-invoice-service.php` | Creates/resolves/checks BTCPay Server invoices via REST |
 | `LndRestInvoiceService` | `services/class-lnd-rest-invoice-service.php` | Creates/checks lnd invoices via its REST API (macaroon auth, optional TLS cert via `request_with_cert()`) |
 | `LightningConnectionTester` | `services/class-lightning-connection-tester.php` | Backs the admin "Test connection" AJAX buttons for BTCPay/lnd (via `HttpClientContract`, never `wp_remote_get` directly) |
-| `PaymentDisplayDataBuilder` | `services/class-payment-display-data-builder.php` | Turns a gateway's `build_order_display_args()` output into the final order-details display array (QR, formatted expiry, `crypto_label`) — shared by both gateways' render methods on the abstract class |
+| `PaymentDisplayDataBuilder` | `services/class-payment-display-data-builder.php` | Turns a gateway's `build_order_display_args()` output into the final order-details display array (QR, formatted expiry, `is_expired`, `crypto_label`) — shared by both gateways' render methods on the abstract class. Expiry comes from `_paycrypto_me_payment_expires_ts` (absolute, written by the Lightning processor) when present; the legacy `_paycrypto_me_payment_expires_at` hours meta is only a fallback, because it is anchored to the order's creation date and a reused invoice's remaining hours don't start there |
 | `LightningConfigValidator` | `validators/class-lightning-config-validator.php` | Pure/stateless validation logic for the Lightning gateway's 9 `validate_*_field()` settings + `is_lnd_rest_selected()` decision. The gateway keeps one-line public stubs delegating here (required for WooCommerce's `method_exists($this, 'validate_<key>_field')` dispatch) |
 | `QrCodeService` | `services/class-qr-code-service.php` | Generate QR code as data URI (uses `endroid/qr-code`) |
 | `AssetManager` | `utils/class-asset-manager.php` | Register WooCommerce Gutenberg block scripts/styles |
+| `EnvironmentRequirements` | `utils/class-environment-requirements.php` | Which PHP extensions a capability needs (`gmp` on-chain; `gd`/`iconv`/`fileinfo` for QR) and which the host is missing, plus `describe()` for the user-facing message. Single source for the settings-save guard, `unavailability_reasons()` and `QrCodeService` — a missing extension must never be reported as bad user input |
+| `DbInstaller` | `services/class-db-installer.php` | Activation/upgrade of the 4 custom tables + the failed-install admin notice; owns `DB_VERSION` |
 | `OrderGatewayMatcher` | `utils/class-order-gateway-matcher.php` | Pure helper: does `$order->get_payment_method()` match a given gateway id (accepting the `{id}_express` block variant)? Shared by `PaymentOrderValidator` and both gateways' `build_order_display_args()` guards so the two accepted values never drift apart |
 | `AvailablePaymentGatewaysFilter` | `class-available-payment-gateways-filter.php` | Hooks `woocommerce_available_payment_gateways` to hide the alternate PayCryptoMe gateway on "Pay for order" once the order already has payment meta from one of the two — prevents switching payment rails mid-flow (registered once in `WC_PayCryptoMe::__construct()`) |
+
+**Gateway registration:** `WC_PayCryptoMe::add_gateway()` always registers both gateways. It used to read the On-Chain gateway's `hide_for_non_admin_users` and, when set, register *neither* — silently hiding Lightning too, ignoring Lightning's own setting. `Abstract_WC_Gateway_PayCryptoMe::is_available()` applies each gateway's own value, which is the only place that decision belongs.
 
 ### Public hooks
 
@@ -170,7 +231,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 277 tests, 623 assertions, 0 errors.
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 334 tests, 709 assertions, 0 errors (3 skipped by design: they assert what a host *without* the GMP extension shows — exercise them with `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Smoke test for environment-dependent fatals
 
@@ -191,11 +252,21 @@ npm run translate:mo
 
 ### Composer dependencies (important)
 
-Two dependencies come from private/forked VCS repos:
-- `lucas-rosa95/bitcoin` — fork of `bitwasp/bitcoin-php` at `https://github.com/lucas-rosa95/bitcoin-php`
-- `bitwasp/buffertools` — also from a fork at `https://github.com/lucas-rosa95/buffertools-php`
+Two dependencies come from forked VCS repos, declared under `repositories` in
+`src/trunk/composer.json`:
+- `lucas-rosa95/bitcoin` — fork of `bitwasp/bitcoin-php`, the only one in `require`
+- `lucas-rosa95/buffertools-php` — fork of `bitwasp/buffertools`; **not** in `require`, it enters
+  only because the fork above requires it
 
-Running `composer install` in a fresh environment requires access to these GitHub repos.
+Running `composer install` in a fresh environment requires access to these GitHub repos. That is
+also why `minimum-stability: dev` and the two `config.audit.ignore` entries are there.
+
+> **Retiring these is planned and approved** — see
+> [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). Short version, all measured: the
+> `bitcoin` fork carries no source fix of its own, is one method *behind* upstream (whose absence is
+> a fatal on class load), and upstream `v1.1.0` passes the full suite and all 60 address vectors
+> unchanged. The suppressed advisories are for `mdanter/ecc`, which is no longer in the tree.
+> **Do not deepen the forks; do not add new patches to them.**
 
 ---
 
@@ -230,6 +301,6 @@ Two low-value, low-risk cleanups are deliberately deferred (pure extract-method,
 ## Code style notes
 
 - PHP namespace `PayCryptoMe\WooCommerce` everywhere
-- All user-facing strings go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`
+- Customer-facing strings and admin **settings** strings (field titles, descriptions, labels, buttons) go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`. Admin **errors, warnings, logs**, diagnostic-button feedback and order notes are deliberately **literal English** — no `__()`, no `/* translators: */`. A label interpolated into such a message stays translated (it is a settings string). Full rule and rationale in [docs/TRANSLATION.md](docs/TRANSLATION.md) → "O que entra (e o que NÃO entra) no catálogo"; check it before wrapping a new string
 - Sanitize all inputs at system boundaries; trust internal data
 - No comments explaining WHAT code does; only WHY when non-obvious

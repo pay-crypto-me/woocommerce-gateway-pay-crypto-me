@@ -83,6 +83,7 @@ class PaymentDisplayDataBuilderTest extends TestCase
             'crypto_network',
             'expires_at',
             'expires_at_formatted',
+            'is_expired',
             'confirmations_required',
         ], array_keys($data));
     }
@@ -130,6 +131,48 @@ class PaymentDisplayDataBuilderTest extends TestCase
         );
 
         // On-chain opts out: expiry isn't enforced, so it must not be shown.
+        $this->assertNull($data['expires_at_formatted']);
+    }
+
+    public function test_absolute_expiry_meta_wins_over_the_hours_anchored_to_the_order_date()
+    {
+        // A Lightning invoice reused on a checkout retry records its REMAINING hours, which the
+        // hours branch would anchor to the order date — a moment already long past. The absolute
+        // timestamp the processor writes is the invoice the node will actually honour.
+        $order = $this->make_order(
+            [
+                '_paycrypto_me_payment_expires_at' => '1',
+                '_paycrypto_me_payment_expires_ts' => (string) (time() + 6 * HOUR_IN_SECONDS),
+            ],
+            new \DateTime('@' . (time() - 18 * HOUR_IN_SECONDS))
+        );
+
+        $data = $this->make_builder()->build($order, $this->sample_args());
+
+        $this->assertFalse($data['is_expired'], 'an invoice with 6h left must not be shown as expired');
+    }
+
+    public function test_absolute_expiry_meta_in_the_past_marks_the_payment_expired()
+    {
+        $order = $this->make_order([
+            '_paycrypto_me_payment_expires_ts' => (string) (time() - 60),
+        ]);
+
+        $data = $this->make_builder()->build($order, $this->sample_args());
+
+        $this->assertTrue($data['is_expired']);
+    }
+
+    public function test_absolute_expiry_meta_is_ignored_when_the_gateway_opts_out_of_expiry()
+    {
+        // On-chain: nothing enforces the timeout, so a past timestamp must never hide the address.
+        $order = $this->make_order([
+            '_paycrypto_me_payment_expires_ts' => (string) (time() - 60),
+        ]);
+
+        $data = $this->make_builder()->build($order, $this->sample_args(['show_expiry' => false]));
+
+        $this->assertFalse($data['is_expired']);
         $this->assertNull($data['expires_at_formatted']);
     }
 

@@ -108,4 +108,42 @@ class QrCodeServiceTest extends TestCase
 
         @unlink($tmp);
     }
+
+    public function test_failure_reports_through_the_injected_logger()
+    {
+        // Regression: this path was `catch (\Throwable) { return ''; }` with no logging at all, so
+        // a host missing gd/iconv/fileinfo produced an order page with no QR code and nothing to
+        // diagnose it with — not even with debug logging enabled.
+        $logged = [];
+        $logger = function ($message, $level) use (&$logged) {
+            $logged[] = [$message, $level];
+        };
+
+        // A non-existent logo path makes Endroid throw inside generate_native().
+        $uri = (new QrCodeService())->generate_qr_code_data_uri('hello', '/nonexistent/logo.png', [], $logger);
+
+        $this->assertSame('', $uri);
+        $this->assertNotEmpty($logged, 'A failed QR must be reported');
+        $this->assertSame('error', $logged[0][1]);
+        $this->assertStringContainsString('QR code generation failed', $logged[0][0]);
+    }
+
+    public function test_failure_without_a_logger_still_degrades_quietly()
+    {
+        // The order page must never fatal because the QR could not be drawn.
+        $this->assertSame('', (new QrCodeService())->generate_qr_code_data_uri('hello', '/nonexistent/logo.png'));
+    }
+
+    public function test_success_does_not_log()
+    {
+        $logged = [];
+        $logger = function ($message, $level) use (&$logged) {
+            $logged[] = [$message, $level];
+        };
+
+        $uri = (new QrCodeService())->generate_qr_code_data_uri('bitcoin:bc1qexample', null, [], $logger);
+
+        $this->assertStringStartsWith('data:image/png;base64,', $uri);
+        $this->assertSame([], $logged);
+    }
 }

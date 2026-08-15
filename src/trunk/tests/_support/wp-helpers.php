@@ -59,6 +59,33 @@ if (!function_exists('get_bloginfo')) {
 if (!function_exists('get_option')) {
     function get_option($key) { return null; }
 }
+// Only the option/transient helpers that carry no read-back semantics for the code under test:
+// delete_option() and the transients are pure writes here, recorded so tests can assert them.
+// get_option() stays a null stub on purpose — making it stateful would change what every
+// existing test sees.
+if (!function_exists('delete_option')) {
+    function delete_option($key) {
+        $GLOBALS['__delete_option_calls'][] = $key;
+        return true;
+    }
+}
+if (!function_exists('set_transient')) {
+    function set_transient($key, $value, $expiration = 0) {
+        $GLOBALS['__transients'][$key] = $value;
+        return true;
+    }
+}
+if (!function_exists('get_transient')) {
+    function get_transient($key) {
+        return $GLOBALS['__transients'][$key] ?? false;
+    }
+}
+if (!function_exists('delete_transient')) {
+    function delete_transient($key) {
+        unset($GLOBALS['__transients'][$key]);
+        return true;
+    }
+}
 if (!function_exists('wp_date')) {
     function wp_date($format, $timestamp = null) { return gmdate((string) $format, $timestamp ?? 0); }
 }
@@ -108,6 +135,14 @@ if (!function_exists('current_user_can')) {
     function current_user_can($capability) {
         global $TEST_CURRENT_USER_CAN;
         return isset($TEST_CURRENT_USER_CAN) ? (bool) $TEST_CURRENT_USER_CAN : true;
+    }
+}
+// Admin code that only runs on certain screens (the unavailability notice, asset enqueue) reads
+// this; tests place themselves on a screen with $TEST_CURRENT_SCREEN = (object) ['id' => '...'].
+if (!function_exists('get_current_screen')) {
+    function get_current_screen() {
+        global $TEST_CURRENT_SCREEN;
+        return $TEST_CURRENT_SCREEN ?? null;
     }
 }
 if (!function_exists('check_ajax_referer')) {
@@ -176,6 +211,12 @@ if (!class_exists('WC_Payment_Gateway')) {
     {
         public $id = '';
         public $plugin_id = 'woocommerce_';
+        // Declared like WooCommerce does so tests whose gateway constructor is disabled can still
+        // set/read it (the unavailability notice prints it) without a dynamic-property deprecation.
+        public $method_title = '';
+        // Declared like WooCommerce does: is_available() reads it, and an undeclared property
+        // can't be set through reflection by tests that need a specific enabled state.
+        public $enabled = 'no';
         public function get_option($key, $empty_value = null) { return $empty_value; }
         public function register_paycrypto_me_log($message, $level = 'info') { return null; }
         public function get_post_data() { return $_POST; }

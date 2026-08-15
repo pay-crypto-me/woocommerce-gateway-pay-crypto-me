@@ -39,7 +39,7 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
         if ($existing && !$this->invoice_expired($existing['expires_at'])) {
             $response = new LightningInvoiceResponse($existing['invoice_id'], $existing['payment_request'], $existing['status']);
 
-            return $this->finalize_payment_data($payment_data, $response, $order, $this->remaining_expiry_hours($existing['expires_at']));
+            return $this->finalize_payment_data($payment_data, $response, $order, $this->expires_at_timestamp($existing['expires_at']));
         }
 
         $args = apply_filters(
@@ -66,7 +66,8 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
         }
 
         $expiry_seconds = (int) ($args['expiry'] ?? 3600);
-        $expires_at     = gmdate('Y-m-d H:i:s', time() + $expiry_seconds);
+        $expires_ts     = time() + $expiry_seconds;
+        $expires_at     = gmdate('Y-m-d H:i:s', $expires_ts);
         $amount_sats    = isset($args['amount_sats']) ? (int) $args['amount_sats'] : null;
 
         $persisted = $existing
@@ -86,12 +87,22 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
         }
 
         // Align WC payment expiry with the actual Lightning invoice expiry.
-        return $this->finalize_payment_data($payment_data, $response, $order, (string) ceil($expiry_seconds / 3600));
+        return $this->finalize_payment_data($payment_data, $response, $order, $expires_ts);
     }
 
-    private function finalize_payment_data(array $payment_data, LightningInvoiceResponse $response, \WC_Order $order, string $expires_at_hours): array
+    /**
+     * payment_expires_at stays a whole-hour count for backward compatibility (it is already
+     * written as order meta on live sites), but the display anchors those hours to the order's
+     * creation date — and a reused invoice's remaining hours do not start there. So the absolute
+     * expiry goes out alongside it: without it, revisiting a long-lived invoice (up to the 24h
+     * maximum) an hour before it lapses recorded "1 hour", which the order page resolved to one
+     * hour after the ORDER was created, i.e. long past — showing "Expired" and hiding the QR code
+     * for an invoice the node would still have settled.
+     */
+    private function finalize_payment_data(array $payment_data, LightningInvoiceResponse $response, \WC_Order $order, int $expires_ts): array
     {
-        $payment_data['payment_expires_at']   = $expires_at_hours;
+        $payment_data['payment_expires_at']   = (string) (int) ceil(max(0, $expires_ts - time()) / HOUR_IN_SECONDS);
+        $payment_data['payment_expires_ts']   = $expires_ts;
         $payment_data['payment_request']      = $response->payment_request;
         $payment_data['lightning_invoice_id'] = $response->invoice_id;
 
@@ -104,13 +115,6 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
     private function invoice_expired(string $expires_at): bool
     {
         return $this->expires_at_timestamp($expires_at) <= time();
-    }
-
-    private function remaining_expiry_hours(string $expires_at): string
-    {
-        $remaining_seconds = max(0, $this->expires_at_timestamp($expires_at) - time());
-
-        return (string) ceil($remaining_seconds / 3600);
     }
 
     private function expires_at_timestamp(string $expires_at): int

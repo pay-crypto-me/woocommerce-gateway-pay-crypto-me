@@ -35,6 +35,25 @@
     width: 7px;
 }
 
+/* Expired reads as a settled, negative state — the amber "waiting" palette and the pulsing
+   dot both imply something is still in progress. */
+.paycrypto-me-order-details__status-badge--expired {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.paycrypto-me-order-details__status-badge--expired .paycrypto-me-order-details__status-dot {
+    animation: none;
+    background: #dc2626;
+}
+
+.paycrypto-me-order-details__expired-hint,
+.paycrypto-me-order-details__error {
+    color: #991b1b;
+    font-size: .85rem;
+    margin: 8px 0 0;
+}
+
 @keyframes paycrypto-me-pulse {
 
     0%,

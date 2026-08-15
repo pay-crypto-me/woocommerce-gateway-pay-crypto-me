@@ -152,6 +152,58 @@ class AbstractLightningProcessorTest extends TestCase
         $this->assertSame('lightning:lnbc1existing', $result['payment_uri']);
     }
 
+    public function test_reused_invoice_carries_its_absolute_expiry_not_just_remaining_hours(): void
+    {
+        // payment_expires_at is a whole-hour count the order page anchors to the order's creation
+        // date. For a reused invoice those hours start at the retry instead, so the same number
+        // resolves to a past moment and the page declares a payable invoice expired. The absolute
+        // timestamp goes out alongside it.
+        $expires_ts = time() + 6 * 3600;
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(53);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->expects($this->never())->method('create_invoice');
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn([
+            'order_id'        => 53,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_long',
+            'payment_request' => 'lnbc1long',
+            'status'          => 'New',
+            'expires_at'      => gmdate('Y-m-d H:i:s', $expires_ts),
+            'amount_sats'     => null,
+        ]);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        $this->assertSame($expires_ts, $result['payment_expires_ts']);
+        $this->assertSame('6', $result['payment_expires_at']);
+    }
+
+    public function test_new_invoice_expiry_is_reported_both_ways(): void
+    {
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(54);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv7', 'lnbc1seven', 'New', null));
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_invoice')->willReturn(true);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        // Gateway option is unset in this mock, so the processor's own 3600s default applies.
+        $this->assertSame('1', $result['payment_expires_at']);
+        $this->assertEqualsWithDelta(time() + 3600, $result['payment_expires_ts'], 5);
+    }
+
     public function test_replaces_expired_invoice_instead_of_diverging_meta_and_db(): void
     {
         $order = $this->createMock(\WC_Order::class);

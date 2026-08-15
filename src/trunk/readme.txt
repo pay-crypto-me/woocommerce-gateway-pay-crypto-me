@@ -60,7 +60,7 @@ Notes:
 - The plugin is not responsible for the data provided or who accesses it — safeguarding your xPub, API keys and macaroons is the store administrator's responsibility.
 - Only Bitcoin is currently supported (on-chain and Lightning). Support for additional networks may be considered in future updates.
 - Payment confirmation is currently a manual, admin-driven step — see "What this plugin intentionally does not do" above.
-- **PHP extensions:** the Bitcoin On-Chain gateway requires the `gmp` extension to derive addresses — without it, On-Chain is hidden from checkout (with an admin notice) but Lightning keeps working normally. The payment QR code requires `gd`; if it's missing, the order-details page still shows the address/invoice and a copy button, just without the QR image.
+- **PHP extensions:** deriving addresses from an xPub/yPub/zPub requires the `gmp` extension. Without it, that route is unavailable (with an admin notice explaining it), but you can still accept On-Chain payments by configuring a single fixed bech32 address (`bc1…`/`tb1…`), which needs no such extension — every order is then paid to that same address, which is worse for privacy but works. Lightning is unaffected either way. The payment QR code requires `gd`; if it's missing, the order-details page still shows the address/invoice and a copy button, just without the QR image.
 
 == Screenshots ==
 
@@ -113,6 +113,18 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 
 == Changelog ==
 
+= 0.1.1 =
+* On-chain payments now work on hosts without the PHP GMP extension, as long as a single fixed bech32 address (bc1…/tb1…) is configured. On those hosts a perfectly valid xPub used to be rejected as "not valid for the selected network" — a host limitation reported as your mistake.
+* A gateway that is enabled but cannot take payments no longer vanishes from checkout without explanation: its settings screen now lists exactly what is missing (a PHP extension, the network/xPub, or the BTCPay/lnd credentials for the selected node type).
+* Fixed: a BTCPay Server or lnd URL that could not be stored was saved empty while the page reported "settings saved".
+* Fixed: the connection tester now shows the real transport error (DNS, TLS, timeout) instead of "Request failed (HTTP 0)", and says so when a TLS certificate could not be written to a temporary file.
+* Fixed: an expired Lightning invoice is shown as "Expired" instead of "Awaiting Payment", without a QR code no wallet would accept. An invoice reused on a checkout retry is no longer shown as expired while the node would still settle it.
+* Fixed: copying the payment address on the admin order screen no longer submits the order form.
+* Fixed: the On-Chain "Hide for Non-Admin Users" setting no longer hides the Lightning gateway as well.
+* Fixed: a database table that fails to install is retried instead of being recorded as up to date, and the warning stays visible until the problem is actually solved.
+* Fixed: an order-details panel that fails to render now says so instead of showing an empty page, and a QR code that cannot be generated is logged.
+* Changed: admin errors, warnings and logs are always in English now. Everything your customers read stays translated (7 locales, 100%).
+
 = 0.1.0 =
 * Initial public release.
 * Bitcoin On-Chain gateway: HD address derivation from xPub/yPub/zPub, mainnet and testnet, configurable payment timeout and required confirmations.
@@ -125,6 +137,9 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 * Developer extension points reserved for the upcoming premium add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
 
 == Upgrade Notice ==
+
+= 0.1.1 =
+Admin errors, warnings and logs are now always in English; customer-facing text stays translated. A gateway that cannot take payments explains why instead of vanishing from checkout, and on-chain works without the GMP extension when a fixed bech32 address is configured.
 
 = 0.1.0 =
 Initial release.

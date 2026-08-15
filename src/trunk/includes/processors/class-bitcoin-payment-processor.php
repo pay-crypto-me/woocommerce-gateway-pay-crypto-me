@@ -34,8 +34,11 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
         $payment_data['payment_number_confirmations'] = (int) abs((int) $this->gateway->get_option('payment_number_confirmations', 0));
         $payment_data['crypto_network']               = (string) $this->gateway->get_option('selected_network', 'mainnet');
 
-        $xPub    = $this->gateway->get_option('network_identifier');
-        $network = $this->gateway->get_option('selected_network');
+        $xPub = $this->gateway->get_option('network_identifier');
+        // Same value that goes into the order meta and the wallet row, not a second read of the
+        // option: read separately without the 'mainnet' default, an unset setting recorded the
+        // order as mainnet while resolve_bitcoin_network() derived a testnet address for it.
+        $network = $payment_data['crypto_network'];
 
         $bitcoin_network = $this->resolve_bitcoin_network($network);
 
