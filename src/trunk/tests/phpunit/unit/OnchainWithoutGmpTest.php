@@ -183,7 +183,10 @@ class OnchainWithoutGmpTest extends TestCase
         $this->assertStringContainsString('notice-warning', $html);
         $this->assertStringContainsString('GMP', $html);
         $this->assertStringContainsString('bc1', $html);
-        $this->assertStringContainsString('Lightning payments are unaffected', $html);
+        // Stays inside its own method's domain: this is the On-Chain settings screen, so it says
+        // nothing about the Lightning gateway (it used to close with "Lightning payments are
+        // unaffected", which is true but not this screen's business).
+        $this->assertStringNotContainsString('Lightning', $html);
     }
 
     public function test_settings_screen_notice_is_silent_when_the_extension_is_present()

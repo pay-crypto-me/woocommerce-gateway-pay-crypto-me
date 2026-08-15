@@ -53,11 +53,8 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         do_action('paycryptome_for_woocommerce_gateway_loaded', $this);
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
 
-        // Only when the gateway claims to be enabled: a disabled gateway being absent from
-        // checkout is expected, not a problem worth reporting.
-        if ('yes' === $this->enabled) {
-            add_action('admin_notices', array($this, 'render_unavailability_notice'));
-        }
+        // render_unavailability_notice() is deliberately NOT hooked here — WC_PayCryptoMe hooks it
+        // once for every loaded gateway instead. See the comment there.
     }
 
     abstract protected function admin_enqueue_scripts_content(\WP_Screen|null $screen);
@@ -345,7 +342,9 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
      *
      * Single source of truth for both is_available() and render_unavailability_notice(), so the
      * reason a gateway silently vanishes from checkout can never drift from what the admin is
-     * told. Two buckets because they deserve different visibility (see the notice).
+     * told. Two buckets because they are different kinds of problem: an environment reason is a
+     * host defect the owner has to escalate (and a gateway may already report it inline — see
+     * renders_environment_notice_inline()), a configuration reason is a field on this screen.
      *
      * @return array{environment: string[], configuration: string[]}
      */
@@ -368,24 +367,43 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         return empty($reasons['environment']) && empty($reasons['configuration']);
     }
 
+    /**
+     * Whether admin_options() already prints this gateway's environment reasons inline, next to
+     * the field they concern. When it does, the notice above the form must not repeat them: both
+     * render on the same screen, so the second copy is pure noise.
+     */
+    protected function renders_environment_notice_inline(): bool
+    {
+        return false;
+    }
+
     public function render_unavailability_notice()
     {
+        // A disabled gateway being absent from checkout is expected, not a problem worth
+        // reporting. Checked here rather than at hook registration so the answer comes from the
+        // gateway instance that is current when the notice renders.
+        if ('yes' !== $this->enabled) {
+            return;
+        }
+
         if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Scoped to this gateway's own settings section. The notice names one gateway and lists
+        // that gateway's fields, so anywhere else it reports a problem the current page cannot
+        // act on — and since both gateways hook admin_notices, every WooCommerce screen used to
+        // carry both notices at once, each one out of its own method's domain.
+        if (!$this->on_own_settings_screen()) {
             return;
         }
 
         $reasons = $this->unavailability_reasons();
 
-        // Environment problems (a missing PHP extension) show everywhere: they are host defects
-        // the store owner has to escalate, and they explain an otherwise inexplicable
-        // disappearance. Configuration gaps show only on the WooCommerce screens where they can
-        // be acted on — a store deliberately using just one of the two gateways would otherwise
-        // carry a permanent notice about the other one on every admin page.
-        $messages = $reasons['environment'];
-
-        if ($this->on_woocommerce_admin_screen()) {
-            $messages = array_merge($messages, $reasons['configuration']);
-        }
+        $messages = array_merge(
+            $this->renders_environment_notice_inline() ? array() : $reasons['environment'],
+            $reasons['configuration']
+        );
 
         if (empty($messages)) {
             return;
@@ -407,7 +425,14 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
         echo '</ul></div>';
     }
 
-    private function on_woocommerce_admin_screen(): bool
+    /**
+     * The gateway's own settings section (WooCommerce > Settings > Payments > this gateway).
+     *
+     * Matched on the exact section id, never a prefix: 'paycrypto_me' is a prefix of
+     * 'paycrypto_me_lightning', so a prefix match would put the On-Chain notice on the Lightning
+     * screen again.
+     */
+    private function on_own_settings_screen(): bool
     {
         if (!function_exists('get_current_screen')) {
             return false;
@@ -415,12 +440,14 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
 
         $screen = get_current_screen();
 
-        if (!$screen) {
+        if (!$screen || $screen->id !== 'woocommerce_page_wc-settings') {
             return false;
         }
 
-        return in_array($screen->id, array('woocommerce_page_wc-settings', 'woocommerce_page_wc-orders', 'shop_order', 'plugins'), true)
-            || strpos($screen->id, 'woocommerce_page_wc-settings') === 0;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only settings-section check for a notice; no state change.
+        $section = isset($_GET['section']) ? sanitize_text_field(wp_unslash($_GET['section'])) : '';
+
+        return strtolower($section) === $this->id;
     }
 
     public function process_pre_order_payment($order)

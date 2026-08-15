@@ -72,7 +72,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
         if (!empty($missing) && $this->configured_identifier_requires_gmp()) {
             $environment[] = sprintf(
                 /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
-                esc_html__('This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
+                esc_html__('This server is missing the PHP %1$s extension, which is required to derive addresses from an xPub. Ask your host to enable it, or configure a single fixed address starting with %2$s instead.', 'paycrypto-me-for-woocommerce'),
                 esc_html(EnvironmentRequirements::describe($missing)),
                 esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet')))
             );
@@ -114,6 +114,16 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
     }
 
     /**
+     * render_missing_extension_notice() below covers the environment bucket on this screen, in a
+     * longer form that can point at "the field below" — so render_unavailability_notice() leaves
+     * it out and only lists the configuration gaps.
+     */
+    protected function renders_environment_notice_inline(): bool
+    {
+        return true;
+    }
+
+    /**
      * WooCommerce renders this gateway's settings screen through admin_options(), which makes it
      * the one place a warning is guaranteed to be visible exactly where the merchant configures
      * the key — and only there.
@@ -136,7 +146,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
                 esc_html__('This server cannot derive addresses from an extended public key.', 'paycrypto-me-for-woocommerce'),
                 wp_kses_post(sprintf(
                     /* translators: 1: list of missing PHP extensions, e.g. "GMP". 2: bech32 address prefix, e.g. "bc1". */
-                    __('The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension. Lightning payments are unaffected.', 'paycrypto-me-for-woocommerce'),
+                    __('The PHP %1$s extension is not installed, so an xPub/yPub/zPub cannot be used here — ask your host to enable it. You can still accept on-chain payments right now by entering a single fixed address starting with %2$s in the field below; every order is then paid to that same address, which is worse for privacy but works without the extension.', 'paycrypto-me-for-woocommerce'),
                     esc_html(EnvironmentRequirements::describe($missing)),
                     '<code>' . esc_html($this->segwit_prefix($this->get_option('selected_network', 'mainnet'))) . '</code>'
                 ))

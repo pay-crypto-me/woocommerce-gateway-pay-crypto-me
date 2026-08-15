@@ -17,7 +17,13 @@ All notable changes to this project are documented in this file.
    too; each gateway now honors only its own setting.
  - Both gateways now explain in the admin why they are hidden from checkout (missing PHP extension,
    no network/xPub, or missing BTCPay/lnd credentials for the selected node type) instead of
-   disappearing silently after a save that reported success.
+   disappearing silently after a save that reported success. Each explanation shows only on that
+   gateway's own settings screen, where its fields are, instead of both appearing together on every
+   WooCommerce admin page. Saving the settings no longer prints that explanation twice, and it can
+   no longer report the state the gateway was in before the save.
+ - A Lightning invoice reused on a checkout retry no longer risks being shown as expired while the
+   node would still settle it: the order page now reads the invoice's actual expiry instead of
+   re-anchoring its remaining hours to the order's creation date.
  - A BTCPay/lnd URL that could not be stored is now reported instead of being silently saved empty.
  - Connection tests report the real transport error (DNS, TLS, timeout) instead of "HTTP 0", and say
    so when a configured TLS certificate could not be written to a temporary file.
@@ -25,6 +31,8 @@ All notable changes to this project are documented in this file.
    order-details panel that fails to render shows a message instead of nothing at all.
  - An expired Lightning invoice now shows as "Expired" instead of "Awaiting Payment", without a QR
    code that no wallet would accept.
+ - Copying the payment address on the admin order screen no longer submits the order form and
+   reports "Order updated." — the button only copies, as it always did on the customer's page.
  - The default payment-failure message shown to customers is now translatable.
 
 ### Added

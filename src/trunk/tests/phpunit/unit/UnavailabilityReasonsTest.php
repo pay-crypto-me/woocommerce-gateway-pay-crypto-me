@@ -71,15 +71,17 @@ class UnavailabilityReasonsTest extends TestCase
 
     public function test_onchain_reports_a_missing_extension_as_an_environment_reason()
     {
+        // An xPub, not a bech32 address: only xPub derivation needs GMP, so a fixed bc1 address
+        // must stay reason-free on a host without it (OnchainWithoutGmpTest pins that side). This
+        // case used to configure bc1 and still expect an environment reason when GMP was absent,
+        // which contradicted the rule it was meant to protect and failed on the GMP-less run.
         $gateway = $this->make_gateway(WC_Gateway_PayCryptoMe::class, [
             'selected_network'   => 'mainnet',
-            'network_identifier' => 'bc1qexample',
+            'network_identifier' => 'xpub6BmGNiA6M7CTF1nDvz7muM4HrK4dYGu3V36jsUDZTnqo7tCyyVRoVYz6nhhC2HHGXoTcZzEWC7KLAykkTutVFq3r3zHktaoRgQ4PyZyBULh',
         ]);
 
         $reasons = $this->reasons($gateway, WC_Gateway_PayCryptoMe::class);
 
-        // The suite needs GMP to run the derivation tests at all, so on this host the list is
-        // empty; the assertion pins the classification, which is what the notice depends on.
         $expected = extension_loaded('gmp') ? 0 : 1;
         $this->assertCount($expected, $reasons['environment']);
     }

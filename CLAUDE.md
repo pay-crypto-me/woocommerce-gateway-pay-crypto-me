@@ -128,10 +128,23 @@ owner's mistake:
    `unavailability_reasons(): array{environment: string[], configuration: string[]}`;
    `Abstract_WC_Gateway_PayCryptoMe::is_available()` derives from it and
    `render_unavailability_notice()` renders it, so the applied reason and the displayed reason
-   cannot drift. Environment reasons show on every admin page (host defects the owner must
-   escalate); configuration reasons only on WooCommerce screens, so a store deliberately using one
-   of the two gateways doesn't carry a permanent notice about the other. Concrete gateways must not
-   re-implement `is_available()`.
+   cannot drift. Concrete gateways must not re-implement `is_available()`.
+   The notice renders **only on that gateway's own settings section**
+   (`on_own_settings_screen()`: screen `woocommerce_page_wc-settings` + `$_GET['section']` matching
+   `$this->id` **exactly** — a prefix match would put the On-Chain notice back on the Lightning
+   screen, since `paycrypto_me` is a prefix of `paycrypto_me_lightning`). It used to render on
+   every WooCommerce screen, which meant both gateways posted their notice side by side on each
+   other's settings page, on Orders and on Plugins — each one out of its own method's domain.
+   A gateway that already prints its environment reasons inline from `admin_options()` returns true
+   from `renders_environment_notice_inline()` (the On-Chain one does, via
+   `render_missing_extension_notice()`) so the same host defect isn't stated twice on one screen.
+   The `admin_notices` hook lives in `WC_PayCryptoMe::render_gateway_unavailability_notices()` — one
+   registration that loops the loaded gateways — **never in the gateway constructor**: WooCommerce
+   rebuilds every gateway after a settings save (`WC_Settings_Payment_Gateways::save()` →
+   `WC_Payment_Gateways::init()`), and WordPress cannot dedupe two callbacks bound to two distinct
+   objects, so a per-instance hook printed the warning twice on the screen just saved (and the
+   first copy came from the pre-save instance, whose `$this->settings` snapshot was already stale).
+   The `enabled` check is made when rendering, not when hooking, for the same reason.
 
 The same principle applies to silent degradation: `QrCodeService` takes an optional `?callable
 $logger` (forwarded by `PaymentDisplayDataBuilder::build()` from the gateway) so a QR that cannot be
@@ -142,6 +155,8 @@ raises an error when `esc_url_raw()` empties a URL instead of silently saving no
 ### Order-details rendering (shared between gateways)
 
 `Abstract_WC_Gateway_PayCryptoMe` owns `render_admin_order_details_section()`/`render_checkout_order_details_section()`; each gateway only implements the abstract `build_order_display_args(\WC_Order $order): ?array` hook (guard-meta check, network label, crypto amount/currency, confirmations required — the parts that actually differ). The shared `PaymentDisplayDataBuilder` (constructor-injected with `QrCodeService`) turns those args into the final display array (QR code, formatted expiry, `crypto_label`) consumed by `templates/order-details/paycrypto-me-order-details.php`.
+
+That template renders in two very different contexts: the customer's order page (no surrounding form) and the admin order screen, where it sits **inside WooCommerce's order `<form>`**. Every `<button>` there must therefore carry an explicit `type="button"` — the HTML default is `submit`, so the copy-address button used to save the order and answer "Order updated." on every click. `OrderDetailsTemplateMarkupTest` pins this, since `wc_get_template()` is stubbed in the unit suite and nothing else can see the markup.
 
 ### Custom DB tables (created on plugin activation)
 
@@ -164,7 +179,7 @@ Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — 
 | `BtcpayInvoiceService` | `services/class-btcpay-invoice-service.php` | Creates/resolves/checks BTCPay Server invoices via REST |
 | `LndRestInvoiceService` | `services/class-lnd-rest-invoice-service.php` | Creates/checks lnd invoices via its REST API (macaroon auth, optional TLS cert via `request_with_cert()`) |
 | `LightningConnectionTester` | `services/class-lightning-connection-tester.php` | Backs the admin "Test connection" AJAX buttons for BTCPay/lnd (via `HttpClientContract`, never `wp_remote_get` directly) |
-| `PaymentDisplayDataBuilder` | `services/class-payment-display-data-builder.php` | Turns a gateway's `build_order_display_args()` output into the final order-details display array (QR, formatted expiry, `crypto_label`) — shared by both gateways' render methods on the abstract class |
+| `PaymentDisplayDataBuilder` | `services/class-payment-display-data-builder.php` | Turns a gateway's `build_order_display_args()` output into the final order-details display array (QR, formatted expiry, `is_expired`, `crypto_label`) — shared by both gateways' render methods on the abstract class. Expiry comes from `_paycrypto_me_payment_expires_ts` (absolute, written by the Lightning processor) when present; the legacy `_paycrypto_me_payment_expires_at` hours meta is only a fallback, because it is anchored to the order's creation date and a reused invoice's remaining hours don't start there |
 | `LightningConfigValidator` | `validators/class-lightning-config-validator.php` | Pure/stateless validation logic for the Lightning gateway's 9 `validate_*_field()` settings + `is_lnd_rest_selected()` decision. The gateway keeps one-line public stubs delegating here (required for WooCommerce's `method_exists($this, 'validate_<key>_field')` dispatch) |
 | `QrCodeService` | `services/class-qr-code-service.php` | Generate QR code as data URI (uses `endroid/qr-code`) |
 | `AssetManager` | `utils/class-asset-manager.php` | Register WooCommerce Gutenberg block scripts/styles |

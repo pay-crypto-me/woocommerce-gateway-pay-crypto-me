@@ -137,6 +137,14 @@ if (!function_exists('current_user_can')) {
         return isset($TEST_CURRENT_USER_CAN) ? (bool) $TEST_CURRENT_USER_CAN : true;
     }
 }
+// Admin code that only runs on certain screens (the unavailability notice, asset enqueue) reads
+// this; tests place themselves on a screen with $TEST_CURRENT_SCREEN = (object) ['id' => '...'].
+if (!function_exists('get_current_screen')) {
+    function get_current_screen() {
+        global $TEST_CURRENT_SCREEN;
+        return $TEST_CURRENT_SCREEN ?? null;
+    }
+}
 if (!function_exists('check_ajax_referer')) {
     function check_ajax_referer($action, $query_arg = false) {
         global $TEST_CHECK_AJAX_REFERER;
@@ -203,6 +211,9 @@ if (!class_exists('WC_Payment_Gateway')) {
     {
         public $id = '';
         public $plugin_id = 'woocommerce_';
+        // Declared like WooCommerce does so tests whose gateway constructor is disabled can still
+        // set/read it (the unavailability notice prints it) without a dynamic-property deprecation.
+        public $method_title = '';
         // Declared like WooCommerce does: is_available() reads it, and an undeclared property
         // can't be set through reflection by tests that need a specific enabled state.
         public $enabled = 'no';

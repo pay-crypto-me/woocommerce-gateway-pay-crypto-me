@@ -64,8 +64,38 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             add_action('woocommerce_blocks_loaded', [$this, 'load_blocks_support']);
             add_action('init', [$this, 'load_textdomain']);
             add_action('admin_notices', [DbInstaller::class, 'render_activation_errors']);
+            add_action('admin_notices', [__CLASS__, 'render_gateway_unavailability_notices']);
 
             DbInstaller::maybe_upgrade();
+        }
+
+        /**
+         * Renders each PayCrypto.Me gateway's "enabled but hidden from checkout" notice.
+         *
+         * Hooked here, once, rather than from each gateway's own constructor: WooCommerce rebuilds
+         * every gateway after a settings save (WC_Settings_Payment_Gateways::save() calls
+         * WC_Payment_Gateways::init() again), so a per-instance callback got registered a second
+         * time — two distinct objects are not a duplicate callback as far as WordPress is
+         * concerned, so the same warning was printed twice on the very screen the merchant had
+         * just saved. Iterating the loaded gateways also means the notice always reflects the
+         * CURRENT instance instead of a settings snapshot taken before that save.
+         */
+        public static function render_gateway_unavailability_notices()
+        {
+            $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+
+            // Coarse gate only: each gateway still decides for itself, on its own settings section
+            // (Abstract_WC_Gateway_PayCryptoMe::on_own_settings_screen()). It is here so that an
+            // unrelated admin page doesn't pay for instantiating every registered payment gateway.
+            if (!$screen || $screen->id !== 'woocommerce_page_wc-settings' || !function_exists('WC')) {
+                return;
+            }
+
+            foreach (WC()->payment_gateways()->payment_gateways() as $gateway) {
+                if ($gateway instanceof Abstract_WC_Gateway_PayCryptoMe) {
+                    $gateway->render_unavailability_notice();
+                }
+            }
         }
 
         public function load_textdomain()

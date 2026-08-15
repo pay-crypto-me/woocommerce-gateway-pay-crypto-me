@@ -23,5 +23,6 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 delete_option('woocommerce_paycrypto_me_settings');
 delete_option('woocommerce_paycrypto_me_lightning_settings');
 
-// Stale admin-notice buffer, not a payment record.
+// Stale admin-notice buffer and the failed-upgrade throttle, not payment records.
 delete_option('paycrypto_me_db_activation_errors');
+delete_transient('paycrypto_me_db_upgrade_retry');

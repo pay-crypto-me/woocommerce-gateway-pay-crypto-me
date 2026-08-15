@@ -40,8 +40,8 @@ class PaymentDisplayDataBuilder
         $show_expiry          = $args['show_expiry'] ?? true;
         $expires_hours        = (int) $order->get_meta('_paycrypto_me_payment_expires_at');
         $order_date           = $order->get_date_created();
-        $expires_at_timestamp = ($show_expiry && $expires_hours > 0 && $order_date)
-            ? $order_date->getTimestamp() + $expires_hours * HOUR_IN_SECONDS
+        $expires_at_timestamp = $show_expiry
+            ? $this->resolve_expiry_timestamp($order, $expires_hours, $order_date)
             : null;
         $expires_at_formatted = $expires_at_timestamp === null
             ? null
@@ -68,6 +68,30 @@ class PaymentDisplayDataBuilder
             'is_expired'             => $is_expired,
             'confirmations_required' => $args['confirmations_required'],
         ];
+    }
+
+    /**
+     * Prefers the absolute expiry a gateway recorded (Lightning writes it as
+     * `_paycrypto_me_payment_expires_ts`, from the invoice the node will actually honour).
+     *
+     * The hours fallback is anchored to the order's creation date, which only holds while the
+     * payment request was created with the order: an invoice reused on a checkout retry has its
+     * remaining hours counted from that retry, so the same number resolves to a moment already in
+     * the past. Kept as a fallback for orders paid before the absolute value was written.
+     */
+    private function resolve_expiry_timestamp(\WC_Order $order, int $expires_hours, $order_date): ?int
+    {
+        $absolute = (int) $order->get_meta('_paycrypto_me_payment_expires_ts');
+
+        if ($absolute > 0) {
+            return $absolute;
+        }
+
+        if ($expires_hours > 0 && $order_date) {
+            return $order_date->getTimestamp() + $expires_hours * HOUR_IN_SECONDS;
+        }
+
+        return null;
     }
 
     private function crypto_label($crypto_currency): string

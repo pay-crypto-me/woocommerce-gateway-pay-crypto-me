@@ -80,7 +80,9 @@ if ($payment_display_data['payment_identifier']): ?>
             <?php endif; ?>
             <div class="paycrypto-me-order-details__wrapper paycrypto-me-order-details__wrapper--address">
                 <small class="paycrypto-me-order-details__address"><?php echo esc_html($payment_display_data['payment_identifier']); ?></small>
+                <?php // type="button" is required, not decorative: this section also renders on the admin order screen, inside WooCommerce's order <form>, where a button with no type defaults to submit — copying the address saved the order and reported "Order updated." ?>
                 <button
+                    type="button"
                     class="paycrypto-me-order-details__copy-address-button"
                     data-address="<?php echo esc_attr($payment_display_data['payment_identifier']); ?>"
                     aria-label="<?php esc_attr_e('Copy to clipboard', 'paycrypto-me-for-woocommerce'); ?>">
