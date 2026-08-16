@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O plugin base (`paycrypto-me-for-woocommerce`, v0.1.0, GPL-3.0, no WordPress.org) foi
+O plugin base (`paycrypto-me-for-woocommerce`, v0.1.1, GPL-3.0, no WordPress.org) foi
 desenhado desde o início para receber um **add-on premium separado**. O `CLAUDE.md` reserva
 explicitamente duas capacidades para esse add-on (confirmação async via webhook/polling e
 fiat→sats), e o próprio código marca campos de settings como `paycrypto-premium-field`
@@ -59,7 +59,7 @@ do Lightning não tem nenhum caller em produção).
   ```
   `WC_PayCryptoMe::VERSION` é a fonte de verdade da versão do base
   (`src/trunk/paycrypto-me-for-woocommerce.php:38`). Os seams de enablement (§2) fazem parte da
-  própria **0.1.0** (ainda em pré-release), então o guard só exige o base presente em ≥ 0.1.0.
+  própria **0.1.0**, então o guard só exige o base presente em ≥ 0.1.0.
 - **Reuso do `HttpClientContract` do base:** todo HTTP (providers, nós, webhook re-verify) passa
   pelo `WpHttpClient` do base (`includes/http/class-wp-http-client.php`) — uniformiza logging e
   torna tudo mockável com o `FakeHttpClient` já existente nos testes.
