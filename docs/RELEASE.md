@@ -351,7 +351,7 @@ git push origin v1.2.0
 ##### Como funciona (leia antes de rodar)
 
 - **Working copy persistente em `releases/svn/`** (fora do diretório de build efêmero; já coberto pelo `.gitignore`). Não é apagado automaticamente ao final — fica disponível para inspeção entre execuções. Staging intermediário em `releases/.svn-stage/`.
-- **A fonte da verdade é o zip aprovado** em `releases/{slug}-{version}.zip`, nunca um rebuild. O WP.org **reconstrói** o download a partir da tag SVN — o requisito é fidelidade de **conteúdo dos arquivos**, não do `.zip` em si. Ainda assim publicamos a partir do zip já validado: re-rodar `composer install` contra os forks privados (`lucas-rosa95/bitcoin`, `bitwasp/buffertools`) é risco real de divergência ou falha de resolução.
+- **A fonte da verdade é o zip aprovado** em `releases/{slug}-{version}.zip`, nunca um rebuild. O WP.org **reconstrói** o download a partir da tag SVN — o requisito é fidelidade de **conteúdo dos arquivos**, não do `.zip` em si. Ainda assim publicamos a partir do zip já validado: re-rodar `composer install` no momento da publicação reintroduz o risco de o `vendor/` divergir do que foi testado. As dependências são todas oficiais (Packagist), mas o artefato que passou pela verificação é o zip aprovado — é ele que vai ao ar.
 - **`--svn`/`--svn-commit` exigem `--no-build --no-tests --no-zip`.** O script recusa rodar (erro duro) se qualquer flag de build estiver ativa — garante que nunca se publique algo diferente do zip já aprovado.
 - **Commit é opt-in.** `--svn` sozinho prepara o working copy e imprime um resumo do que mudaria (gate de revisão) — **nada é commitado**. `--svn-commit` faz o ciclo completo: commit de `trunk/` + `assets/`, depois cria a tag por cópia server-side.
 - **Tags do WP.org são imutáveis por convenção.** Rodar `--svn-commit` de novo na mesma versão falha com erro claro — nunca sobrescreve nem aninha a tag existente (`svn cp` para um destino já existente aninharia em vez de falhar, por isso o script checa antes). Para republicar, bump a versão e rode de novo.
@@ -543,9 +543,9 @@ docker compose run --rm release bash -c "npm ci && npm run build"
 
 ---
 
-### Composer falha no build dir (dependências privadas)
+### Composer falha no build dir
 
-O projeto usa dependências de repositórios privados GitHub (`lucas-rosa95/bitcoin-php`). Se o container não tiver acesso ao GitHub, o `composer install` falhará.
+As dependências vêm todas do Packagist (nenhum repositório VCS privado). Se o container não tiver acesso à internet, o `composer install` falhará.
 
 **Solução:** Garantir que o container tem acesso à internet e que `composer.lock` está atualizado:
 ```bash

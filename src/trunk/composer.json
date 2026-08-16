@@ -15,16 +15,8 @@
             "email": "contact@paycrypto.me"
         }
     ],
-    "minimum-stability": "dev",
-    "prefer-stable": true,
     "version": "0.1.1",
     "config": {
-        "audit": {
-            "ignore": [
-                "PKSA-j43q-24zh-tyzv",
-                "PKSA-36gf-zqdd-tq5m"
-            ]
-        },
         "platform": {
             "php": "7.4"
         }
@@ -33,19 +25,9 @@
         "ext-gmp": "*",
         "ext-gd": "*",
         "endroid/qr-code": "^4.6",
-        "lucas-rosa95/bitcoin": "dev-master"
+        "bitwasp/bitcoin": "^1.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5"
-    },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/lucas-rosa95/bitcoin-php"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/lucas-rosa95/buffertools-php"
-        }
-    ]
+    }
 }

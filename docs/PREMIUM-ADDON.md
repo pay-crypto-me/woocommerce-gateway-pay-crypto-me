@@ -63,7 +63,7 @@ do Lightning não tem nenhum caller em produção).
 - **Reuso do `HttpClientContract` do base:** todo HTTP (providers, nós, webhook re-verify) passa
   pelo `WpHttpClient` do base (`includes/http/class-wp-http-client.php`) — uniformiza logging e
   torna tudo mockável com o `FakeHttpClient` já existente nos testes.
-- **Composer do add-on é leve:** não precisa das libs Bitcoin forked (`lucas-rosa95/bitcoin`) —
+- **Composer do add-on é leve:** não precisa das libs Bitcoin do base (`bitwasp/bitcoin`) —
   o add-on **consome** endereços/invoices já derivados e persistidos pelo base, e faz HTTP a
   block explorers / nós / feeds. Só `phpunit` como dev-dep.
 

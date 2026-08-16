@@ -161,8 +161,10 @@ fi
 if [[ $USE_DOCKER -eq 1 ]]; then
   if docker compose version >/dev/null 2>&1; then
     log "Build/tests will run in the ephemeral '$RELEASE_SERVICE' service (dev stack not required)."
-    # Forward the repo-root auth.json to Composer inside the container (avoids GitHub
-    # rate limits when resolving the private bitcoin fork). Optional — safe if absent.
+    # Forward the repo-root auth.json to Composer inside the container. Optional — safe
+    # if absent, and no longer required now that all deps come from Packagist (the private
+    # bitcoin fork is gone); kept only to avoid GitHub API rate limits on dist downloads
+    # when an auth.json happens to be present.
     if [[ -f "$ROOT_DIR/auth.json" ]]; then
       export COMPOSER_AUTH="$(cat "$ROOT_DIR/auth.json")"
       log "Forwarding auth.json to Composer via COMPOSER_AUTH."

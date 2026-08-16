@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f25ee759716c30b25985aeb85136d330",
+    "content-hash": "47bd765315dd730d44ac3b6e90395667",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -105,6 +105,117 @@
                 "source": "https://github.com/Bit-Wasp/bech32/tree/more-tests"
             },
             "time": "2018-02-05T22:23:47+00:00"
+        },
+        {
+            "name": "bitwasp/bitcoin",
+            "version": "v1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Bit-Wasp/bitcoin-php.git",
+                "reference": "527b1ee7d2cd958b5ce011c7918801ffbfb53f97"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Bit-Wasp/bitcoin-php/zipball/527b1ee7d2cd958b5ce011c7918801ffbfb53f97",
+                "reference": "527b1ee7d2cd958b5ce011c7918801ffbfb53f97",
+                "shasum": ""
+            },
+            "require": {
+                "bitwasp/bech32": "^0.0.1",
+                "bitwasp/buffertools": "^0.5.0",
+                "composer/semver": "^1.4.0|^3.2.0",
+                "lastguest/murmurhash": "v2.0.0",
+                "paragonie/ecc": "^2.1.0",
+                "php-64bit": ">=7.0",
+                "pleonasm/merkle-tree": "1.0.0"
+            },
+            "require-dev": {
+                "bitwasp/bitcoinconsensus": "v3.0.0",
+                "bitwasp/secp256k1-php": "^v0.2.0",
+                "ext-json": "*",
+                "nbobtc/bitcoind-php": "v2.0.2",
+                "phpunit/phpunit": "^5.4.0",
+                "squizlabs/php_codesniffer": "^2.0.0"
+            },
+            "suggest": {
+                "ext-bitcoinconsensus": "The bitcoinconsensus library for safest possible script verification",
+                "ext-secp256k1": "The secp256k1 library for fast and safe elliptic curve operations"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Script/functions.php"
+                ],
+                "psr-4": {
+                    "BitWasp\\Bitcoin\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Unlicense"
+            ],
+            "authors": [
+                {
+                    "name": "Thomas Kerin",
+                    "homepage": "https://thomaskerin.io",
+                    "role": "Author"
+                }
+            ],
+            "description": "PHP Bitcoin library with functions for transactions, signatures, serialization, Random/Deterministic ECDSA keys, blocks, RPC bindings",
+            "homepage": "https://github.com/bit-wasp/bitcoin-php",
+            "support": {
+                "issues": "https://github.com/Bit-Wasp/bitcoin-php/issues",
+                "source": "https://github.com/Bit-Wasp/bitcoin-php/tree/v1.1.0"
+            },
+            "time": "2026-02-25T12:01:13+00:00"
+        },
+        {
+            "name": "bitwasp/buffertools",
+            "version": "v0.5.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Bit-Wasp/buffertools-php.git",
+                "reference": "133746d0b514e0016d8479b54aa97475405a9f1f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Bit-Wasp/buffertools-php/zipball/133746d0b514e0016d8479b54aa97475405a9f1f",
+                "reference": "133746d0b514e0016d8479b54aa97475405a9f1f",
+                "shasum": ""
+            },
+            "require": {
+                "php-64bit": ">=7.0.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^6.0",
+                "squizlabs/php_codesniffer": "~2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "BitWasp\\Buffertools\\": "src/Buffertools/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Thomas Kerin",
+                    "homepage": "https://thomaskerin.io"
+                },
+                {
+                    "name": "Ruben de Vries",
+                    "email": "ruben@rubensayshi.com"
+                }
+            ],
+            "description": "Toolbox for working with binary and hex data. Similar to NodeJS Buffer.",
+            "support": {
+                "issues": "https://github.com/Bit-Wasp/buffertools-php/issues",
+                "source": "https://github.com/Bit-Wasp/buffertools-php/tree/v0.5.7"
+            },
+            "time": "2020-01-17T21:31:49+00:00"
         },
         {
             "name": "composer/semver",
@@ -430,126 +541,6 @@
                 "source": "https://github.com/lastguest/murmurhash-php/tree/master"
             },
             "time": "2017-10-10T15:16:12+00:00"
-        },
-        {
-            "name": "lucas-rosa95/bitcoin",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/lucas-rosa95/bitcoin-php.git",
-                "reference": "fb5f0d2357048ae462327e5afcabd56ad70947bb"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/lucas-rosa95/bitcoin-php/zipball/fb5f0d2357048ae462327e5afcabd56ad70947bb",
-                "reference": "fb5f0d2357048ae462327e5afcabd56ad70947bb",
-                "shasum": ""
-            },
-            "require": {
-                "bitwasp/bech32": "^0.0.1",
-                "composer/semver": "^1.4.0|^3.2.0",
-                "lastguest/murmurhash": "v2.0.0",
-                "lucas-rosa95/buffertools-php": "dev-master",
-                "paragonie/ecc": "^2.5",
-                "php-64bit": ">=7.0",
-                "pleonasm/merkle-tree": "1.0.0"
-            },
-            "require-dev": {
-                "bitwasp/bitcoinconsensus": "v3.0.0",
-                "bitwasp/secp256k1-php": "^v0.2.0",
-                "ext-json": "*",
-                "nbobtc/bitcoind-php": "v2.0.2",
-                "phpunit/phpunit": "^5.4.0",
-                "squizlabs/php_codesniffer": "^2.0.0"
-            },
-            "suggest": {
-                "ext-bitcoinconsensus": "The bitcoinconsensus library for safest possible script verification",
-                "ext-secp256k1": "The secp256k1 library for fast and safe elliptic curve operations"
-            },
-            "default-branch": true,
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "BitWasp\\Bitcoin\\": "src/"
-                },
-                "files": [
-                    "src/Script/functions.php"
-                ]
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "BitWasp\\Bitcoin\\Tests\\": "tests/"
-                }
-            },
-            "license": [
-                "Unlicense"
-            ],
-            "authors": [
-                {
-                    "name": "Thomas Kerin",
-                    "homepage": "https://thomaskerin.io",
-                    "role": "Author"
-                }
-            ],
-            "description": "PHP Bitcoin library with functions for transactions, signatures, serialization, Random/Deterministic ECDSA keys, blocks, RPC bindings",
-            "homepage": "https://github.com/bit-wasp/bitcoin-php",
-            "support": {
-                "source": "https://github.com/lucas-rosa95/bitcoin-php/tree/master"
-            },
-            "time": "2026-01-03T21:20:49+00:00"
-        },
-        {
-            "name": "lucas-rosa95/buffertools-php",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/lucas-rosa95/buffertools-php.git",
-                "reference": "7dbacdbdaa410583c5b7c592ddca97f23162f0d5"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/lucas-rosa95/buffertools-php/zipball/7dbacdbdaa410583c5b7c592ddca97f23162f0d5",
-                "reference": "7dbacdbdaa410583c5b7c592ddca97f23162f0d5",
-                "shasum": ""
-            },
-            "require": {
-                "php-64bit": ">=7.0.0"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "v0.9.x",
-                "phpunit/phpunit": "^6.0",
-                "squizlabs/php_codesniffer": "~2.0"
-            },
-            "default-branch": true,
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "BitWasp\\Buffertools\\": "src/Buffertools/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "BitWasp\\Buffertools\\Tests\\": "tests/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Thomas Kerin",
-                    "homepage": "https://thomaskerin.io"
-                },
-                {
-                    "name": "Ruben de Vries",
-                    "email": "ruben@rubensayshi.com"
-                }
-            ],
-            "description": "Toolbox for working with binary and hex data. Similar to NodeJS Buffer.",
-            "support": {
-                "source": "https://github.com/lucas-rosa95/buffertools-php/tree/master"
-            },
-            "time": "2026-01-03T21:23:52+00:00"
         },
         {
             "name": "paragonie/ecc",
@@ -2625,11 +2616,9 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "dev",
-    "stability-flags": {
-        "lucas-rosa95/bitcoin": 20
-    },
-    "prefer-stable": true,
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "ext-gmp": "*",

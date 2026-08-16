@@ -6,7 +6,7 @@
 - [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
 - [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
-- [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **approved plan, not started.** Why the two `lucas-rosa95/*` forks exist, why they no longer earn their keep (measured), and the move back to official `bitwasp/*` packages. Read it before touching the crypto dependencies in `src/trunk/composer.json`.
+- [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **done.** The record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
 **Status:** v0.1.0 **live on WordPress.org** since 2026-08-08. Production-hardening and the WordPress.org review round are both complete and verified (334 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
@@ -252,21 +252,24 @@ npm run translate:mo
 
 ### Composer dependencies (important)
 
-Two dependencies come from forked VCS repos, declared under `repositories` in
-`src/trunk/composer.json`:
-- `lucas-rosa95/bitcoin` — fork of `bitwasp/bitcoin-php`, the only one in `require`
-- `lucas-rosa95/buffertools-php` — fork of `bitwasp/buffertools`; **not** in `require`, it enters
-  only because the fork above requires it
+The crypto dependencies are the official upstream packages, resolved from Packagist — no forks and
+no VCS `repositories` block. `bitwasp/bitcoin` `^1.1` is the only crypto package in `require`; it
+pulls in `bitwasp/buffertools`, `bitwasp/bech32` and `paragonie/ecc` (the hardened fork with
+`ConstantTimeMath`) transitively. A fresh `composer install` needs only Packagist: no GitHub
+access, no `minimum-stability: dev`.
 
-Running `composer install` in a fresh environment requires access to these GitHub repos. That is
-also why `minimum-stability: dev` and the two `config.audit.ignore` entries are there.
+`config.platform.php` is pinned to `7.4` **on purpose and must stay**: `bitwasp/bitcoin v1.1.0`
+fixes `lastguest/murmurhash` to `v2.0.0`, which declares `php: ^7`, so an honest PHP 8 resolution
+would refuse to install. The pin makes Composer resolve as if on 7.4. `murmurhash` is only reachable
+from `Bloom/BloomFilter.php` and one method of `Crypto/Hash.php` — the plugin references neither, so
+the package is installed and never executed.
 
-> **Retiring these is planned and approved** — see
-> [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). Short version, all measured: the
-> `bitcoin` fork carries no source fix of its own, is one method *behind* upstream (whose absence is
-> a fatal on class load), and upstream `v1.1.0` passes the full suite and all 60 address vectors
-> unchanged. The suppressed advisories are for `mdanter/ecc`, which is no longer in the tree.
-> **Do not deepen the forks; do not add new patches to them.**
+> **The two `lucas-rosa95/*` forks were retired** — see
+> [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). The `bitcoin` fork carried no source
+> fix of its own, was one method *behind* upstream (its absence a fatal on class load), and upstream
+> `v1.1.0` passes the full suite and all 60 address vectors unchanged. The side-channel advisories
+> that used to sit in `config.audit.ignore` were for `mdanter/ecc`, no longer in the tree, so
+> `composer audit` is now clean with no ignore list.
 
 ---
 

@@ -1,7 +1,11 @@
 # Voltar `bitwasp/bitcoin` para o upstream oficial e aposentar os forks
 
-> **Status: plano aprovado, não iniciado.** Aprovado em 2026-08-14. Os forks descritos abaixo
-> continuam em uso; nada aqui foi implementado ainda.
+> **Status: executado e verificado em 2026-08-15** (aprovado em 2026-08-14). Os forks
+> `lucas-rosa95/*` foram aposentados e o plugin voltou aos pacotes oficiais `bitwasp/*`. A
+> verificação abaixo rodou e passou: suíte **355/743/4 skipped**, `composer audit --locked` limpo
+> **sem lista de ignore**, **60/60** vetores de endereço idênticos, `Signature` instanciável (o
+> fatal latente de E2 sumiu), smoke de host mínimo verde e plugin check **sem ERROR em código
+> enviado**. Feito na branch `chore/retire-crypto-forks`.
 >
 > Documento auto-suficiente: quem executar não precisa da conversa que o originou. Prosa em
 > português; identificadores, caminhos e nomes de teste em inglês, como no resto do repo.
@@ -113,25 +117,28 @@ E a suíte completa do plugin, numa cópia isolada com o upstream instalado e **
 do plugin**:
 
 ```
-Tests: 334, Assertions: 709, Skipped: 3   — OK
+Tests: 355, Assertions: 743, Skipped: 4   — OK
 ```
 
-### E6 — O fork compra 1 deprecation, e só no PHP 8.3
+### E6 — Deprecations no caminho real: 7 (fork) → 12 (upstream), no PHP 8.3
 
-Carregando as 9 classes que o plugin importa, mais o caminho `Serializer\Types` que o fork corrige:
+Medido executando o caminho de produção — os 60 vetores de `tests/vectors/bitcoin_addresses.json`
+via `BitcoinAddressService::generate_address_from_xPub()`, mais `validate_extended_pubkey()` e
+`validate_bitcoin_address()` — com `error_reporting(E_ALL)` e um coletor em `set_error_handler`:
 
-| | PHP 8.3 | PHP 8.4 |
+| Diagnóstico (PHP 8.3) | Fork | Upstream |
 |---|---|---|
-| Fork | **0** | **22** |
-| Upstream | **1** | **23** |
+| `Return type ... or #[\ReturnTypeWillChange]` — `bitcoin/src/Script/Opcodes.php`, `bitcoin/src/Script/Parser/Parser.php` | 7 | 7 |
+| `Use of "parent" in callables` — `buffertools/src/Buffertools/CachingTypeFactory.php` (3 sítios) | 0 | 5 |
+| **total** | **7** | **12** |
 
-A única diferença é `Use of "parent" in callables` em
-`buffertools/src/Buffertools/CachingTypeFactory.php` — o único commit de código real do fork de
-buffertools (`90e244c`, 28 linhas). No PHP 8.4 as 22 restantes são `Implicitly marking parameter
-... as nullable`, presentes nos **dois**.
+A base nunca foi zero: as 7 comuns estão no `src/` do próprio `bitcoin` e independem do fork. O
+preço da troca é **+5 ocorrências**, correspondentes ao único commit de código do fork de
+buffertools (`90e244c`, `CachingTypeFactory.php`, 28 linhas) — ver E8. Todas só aparecem com
+`WP_DEBUG` ligado.
 
-**Leitura estratégica:** o fork foi criado para resolver compatibilidade com PHP 8.x e resolve
-1 de 23 no 8.4. Ele não é solução para o problema de longevidade — ver "Horizonte PHP 9".
+**Leitura estratégica:** o fork foi criado para resolver compatibilidade com PHP 8.x e resolve 5 de
+12 no caminho real. Ele não é solução para o problema de longevidade — ver "Horizonte PHP 9".
 
 ### E7 — O bloqueio real do upstream, e por que ele não importa aqui
 
@@ -170,18 +177,29 @@ vendor/lucas-rosa95 presente? NAO
 
 Remover os dois entries de `repositories` apenas apaga a referência que já não é usada.
 
-**A ressalva honesta:** este é o único dos dois forks com justificativa real. Ele tem um commit de
-código legítimo (`90e244c`, `CachingTypeFactory.php`, 28 linhas) corrigindo
-`Use of "parent" in callables`, e o upstream `bitwasp/buffertools` está **sem manutenção desde
-2020-01-17** (último commit; `v0.5.7` é a versão que o composer resolve). Ou seja: aqui a troca é de
-um fork que tem uma correção por um upstream oficial que não tem.
+**A ressalva honesta:** este é o único dos dois forks com um commit de código próprio — `90e244c`,
+`CachingTypeFactory.php`, 28 linhas, corrigindo `Use of "parent" in callables`. Mas ele **não** é
+"upstream + essa correção". O `Bit-Wasp/buffertools-php` tem duas linhas: `master` (último commit
+2020-01-17), de onde o fork foi tirado, e o branch de release `0.5`, onde vive a tag `v0.5.7` — a
+versão que o composer resolve. As duas divergiram em `debe860` (2018-11-10) e nenhuma é ancestral
+da outra. Resultado: o `src/` do fork difere do `v0.5.7` em 8 arquivos, e em 7 deles é o fork que
+está atrás:
 
-É exatamente a deprecation contabilizada em E6 — a diferença de 1 entre fork e upstream. Aceita
-conscientemente porque é ruído sob `WP_DEBUG`, e porque no PHP 8.4 ela é 1 de 23. Manter só esse
-fork não é opção barata: ele foi **renomeado** para `lucas-rosa95/buffertools-php`, então já não
-satisfaz o `bitwasp/buffertools` que o upstream exige — seria preciso ginástica de
-`replace`/`provide` mais o `repositories` e o `minimum-stability: dev` de volta, para corrigir uma
-deprecation.
+| Presente no `v0.5.7`, ausente no fork | Commit |
+|---|---|
+| `Uint32: should use pack, much faster` | `03f960b` |
+| `VarInt: performance speedup, use pack instead of our int objects` (+ caminho 64-bit e guarda de overflow) | `99e8edc` |
+| `ByteString: don't count how many base conversions there were` | `19442af` |
+| `ByteString: should accept BufferInterface, not specifically Buffer` | `40febbb` |
+
+O `ByteString` do fork ainda faz `gmp_init()`/`gmp_strval()` em todo read/write; o do `v0.5.7` opera
+direto sobre binário. Saldo da troca: ganham-se essas quatro melhorias da linha de release e
+perde-se apenas o fix do `CachingTypeFactory` — as +5 deprecations de E6.
+
+Manter só esse fork também não é opção barata: ele foi **renomeado** para
+`lucas-rosa95/buffertools-php`, então já não satisfaz o `bitwasp/buffertools` que o upstream exige —
+seria preciso ginástica de `replace`/`provide` mais o `repositories` e o `minimum-stability: dev` de
+volta, para corrigir uma deprecation e abrir mão de quatro melhorias.
 
 Se essa deprecation virar fatal (PHP 9), os caminhos estão em "Horizonte PHP 9" — não é resolver com
 fork.
@@ -192,12 +210,13 @@ fork.
 
 **Voltar aos pacotes oficiais — os dois.** O fork de `bitcoin` é uma cópia estritamente pior: zero
 ganho de código, um fatal latente, dependência de repositórios pessoais na cadeia de suprimentos, e
-`dev-master` sem versionamento. O de `buffertools` sai transitivamente (E8), custando a única
-deprecation que ele corrigia.
+`dev-master` sem versionamento. O de `buffertools` sai transitivamente (E8), custando as +5
+ocorrências que o fix `CachingTypeFactory` suprimia — e, em troca, ganhando as quatro melhorias da
+linha de release `v0.5.7` que o fork não tinha.
 
-Preço aceito conscientemente: **uma** deprecation a mais no PHP 8.3
-(`parent` in callables, visível só com `WP_DEBUG`). Não vale montar infraestrutura de patch para
-corrigir 1 de 23 — ver "Fora de escopo".
+Preço aceito conscientemente: **+5 ocorrências** de deprecation no PHP 8.3
+(`parent` in callables, visíveis só com `WP_DEBUG`). Não vale montar infraestrutura de patch para
+corrigir 5 de 12 — ver "Fora de escopo".
 
 ---
 
@@ -211,7 +230,7 @@ corrigir 1 de 23 — ver "Fora de escopo".
 | `repositories` | dois entries VCS (`lucas-rosa95/bitcoin-php`, `lucas-rosa95/buffertools-php`) | **remover o bloco inteiro** |
 | `minimum-stability` / `prefer-stable` | `"dev"` / `true` | **remover ambos** — só existiam por causa do `dev-master` |
 | `config.audit.ignore` | dois IDs `PKSA-*` | **remover** (E4: são resíduo; removê-los devolve sentido ao `composer audit`) |
-| `config.platform.php` | `"7.4"` | **manter** (E7) — com comentário explicando que existe por causa do pin de `lastguest/murmurhash` no upstream |
+| `config.platform.php` | `"7.4"` | **manter** (E7) — a razão fica documentada na seção *Composer dependencies* do `CLAUDE.md` (JSON não tem comentário, e não deve ganhar um `_comment` só para isso) |
 
 Depois: `composer update bitwasp/bitcoin --with-dependencies` dentro do container `release`, para
 regravar `composer.lock`.
@@ -239,17 +258,17 @@ Rodar da raiz do repo. Os itens 1–3 são o núcleo; 4–6 fecham o release.
 
 | # | Comando | Esperado |
 |---|---|---|
-| 1 | `docker-compose run --rm release ./vendor/bin/phpunit` | **334 testes, 709 asserções, 3 skipped, 0 falhas** — idêntico ao baseline com o fork. |
-| 2 | `docker-compose run --rm release composer audit --locked` | `No security vulnerability advisories found` — **agora sem lista de ignore**, então o resultado passa a ter significado. |
+| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | **355 testes, 743 asserções, 4 skipped, 0 falhas** — idêntico ao baseline com o fork. |
+| 2 | `docker compose run --rm release composer audit --locked` | `No security vulnerability advisories found` — **agora sem lista de ignore**, então o resultado passa a ter significado. |
 | 3 | Vetores contra o vendor novo: derivar os 12 xpubs de `tests/vectors/bitcoin_addresses.json` e comparar os 60 endereços | Zero divergências. Já coberto por `BitcoinAddressVectorsTest` na suíte do item 1 — confirmar que ele roda e passa. |
 | 4 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando. |
-| 5 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 verdes (host sem GMP). |
-| 6 | `docker-compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv` | Nenhum `ERROR` em código enviado. |
+| 5 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 testes, 17 asserções, 1 skipped, OK (host sem GMP). O 1 skip é o teste do caso *com* GMP, que se auto-pula quando a extensão está ausente. |
+| 6 | `docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv` | Nenhum `ERROR` em código enviado. |
 
 Checagem extra específica desta frente — o fatal de E2 deve desaparecer:
 
 ```bash
-docker-compose run --rm release php -r '
+docker compose run --rm release php -r '
 require "/plugin/vendor/autoload.php";
 $c = new ReflectionClass("BitWasp\\Bitcoin\\Crypto\\EcAdapter\\Impl\\PhpEcc\\Signature\\Signature");
 echo $c->isInstantiable() ? "OK: instanciável\n" : "FALHOU: ainda incompleta\n";'
@@ -267,8 +286,8 @@ ls src/trunk/vendor/lucas-rosa95 # não deve existir
 ## Fora de escopo (decisões conscientes)
 
 **Não adicionar camada de patch** (`cweagans/composer-patches`) para a deprecation de
-`CachingTypeFactory`. Corrigiria 1 de 23 no PHP 8.4, ao custo de mais uma peça móvel num fluxo de
-release já validado em produção.
+`CachingTypeFactory`. Corrigiria 5 de 12 no caminho real (PHP 8.3), ao custo de mais uma peça móvel
+num fluxo de release já validado em produção.
 
 **Não reescrever a criptografia agora.** Ver abaixo.
 
@@ -276,10 +295,11 @@ release já validado em produção.
 
 ## Horizonte PHP 9 (decisão futura, não agora)
 
-As deprecations medidas em E6 — `parent` in callables e `Implicitly marking parameter as nullable`
-— tendem a virar **erro fatal no PHP 9**, no fork **e** no upstream. Ou seja: nenhuma das duas
-opções atuais sobrevive ao PHP 9 sem intervenção. Voltar ao upstream **não** resolve isso; apenas
-coloca o plugin de volta numa base mantida, onde a correção pode vir de fora.
+As deprecations medidas em E6 — `parent` in callables e os tentative return types
+(`Return type ... #[\ReturnTypeWillChange]`, presentes nos dois vendors, dentro do próprio
+`bitwasp/bitcoin`) — tendem a virar **erro fatal no PHP 9**, no fork **e** no upstream. Ou seja:
+nenhuma das duas opções atuais sobrevive ao PHP 9 sem intervenção. Voltar ao upstream **não**
+resolve isso; apenas coloca o plugin de volta numa base mantida, onde a correção pode vir de fora.
 
 Três caminhos, para avaliar quando o PHP 9 tiver data:
 

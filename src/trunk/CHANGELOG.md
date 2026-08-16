@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+ - Switched the Bitcoin cryptography libraries from personal forks to the official
+   `bitwasp/bitcoin` packages, resolved from Packagist. No functional change: the same addresses
+   are derived, and the full test suite plus all 60 address vectors pass unchanged. The two
+   side-channel advisories that `composer.json` used to suppress were filed against `mdanter/ecc`,
+   a package this plugin has never shipped, so the suppression list is gone and `composer audit`
+   now runs clean without it.
+
 ### Planned
 
  - Add support for additional blockchain networks (planned).
