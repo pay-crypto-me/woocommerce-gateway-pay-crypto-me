@@ -46,7 +46,7 @@ para que possam ser re-checados, e para que ninguém "corrija" as decisões de v
 | F4 | **`dbDelta()` nunca remove** coluna nem índice. | Comportamento documentado do WP core; consistente com F1–F3. |
 | F5 | **`get_by_order_id()` usa `INNER JOIN`** nas tabelas de derivação, então uma linha sem carteira/índice **não é legível** mesmo que exista. | Leitura de `pay-crypto-me-db-statements-service.php:57-67`. |
 | F6 | **Não existe CI** no repositório (sem `.github/workflows`, sem outro runner). Todo teste que exige ambiente é rodado à mão. | `ls -a .github/workflows` e busca por outros runners. |
-| F7 | **A suíte atual (355 testes) não pode pegar problemas de `dbDelta`**, porque usa shims de `wpdb`. F1 só apareceu ao rodar contra MySQL real. | `tests/_support/wp-helpers.php`, `tests/phpunit/unit/ActivateDbDeltaTest.php` (define seu próprio `dbDelta` de mentira). |
+| F7 | **A suíte atual (363 testes) não pode pegar problemas de `dbDelta`**, porque usa shims de `wpdb`. F1 só apareceu ao rodar contra MySQL real. | `tests/_support/wp-helpers.php`, `tests/phpunit/unit/ActivateDbDeltaTest.php` (define seu próprio `dbDelta` de mentira). |
 
 **Consequência direta de F1:** a modelagem "tornar `derivation_index_id`/`wallet_xpubkeys_id`
 nullable + bump de `DB_VERSION`" **foi descartada**. Ela passaria nos testes unitários, funcionaria
@@ -63,7 +63,7 @@ este plano existe para eliminar.
 | **Forward-only e aditivo** em vez de rollback/down-migrations. | As 4 tabelas são o histórico financeiro da loja — é por isso que `uninstall.php` não as apaga. Down-migration que remove coluna destrói registro que não existe em outro lugar. O caso real de "voltar atrás" é o usuário instalar versão antiga do plugin; contra isso protege a invariante aditiva, não reversão. |
 | **Não usar a suíte oficial de testes do WordPress** (`wp scaffold plugin-tests`). | O ganho dela é isolamento em CI, e não há CI (F6). A trilha de integração segue o padrão que já funciona no repo: script + container, como `scripts/smoke-minimal-host.sh`. |
 | **Passos de migração versionados ficam para depois** (frente C). | Sem uma migração real, a forma dela seria especulação. Com a rede de testes (frente B) montada, adicioná-la depois é barato e seguro. |
-| **Suíte unitária continua rápida e sem WordPress.** A trilha MySQL é uma suíte separada, opt-in. | Preserva o ciclo de feedback atual (5s para 355 testes). |
+| **Suíte unitária continua rápida e sem WordPress.** A trilha MySQL é uma suíte separada, opt-in. | Preserva o ciclo de feedback atual (5s para 363 testes). |
 
 ---
 
@@ -403,7 +403,7 @@ docker compose up -d wordpress wp_db          # este host só tem o binário doc
 
 | # | Comando | Esperado |
 |---|---|---|
-| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | Suíte unitária verde, incluindo os novos testes das frentes 1 e A. Baseline antes de começar: **355 testes, 743 asserções, 4 skipped**. |
+| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | Suíte unitária verde, incluindo os novos testes das frentes 1 e A. Baseline antes de começar: **363 testes, 755 asserções, 4 skipped**. |
 | 2 | `./scripts/schema-tests.sh` | Trilha de integração verde (frente B). |
 | 3 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando (não deve regredir). |
 | 4 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 testes, 1 skipped (o teste do caso *com* GMP se auto-pula). Os 4 skipped do item 1 só são observáveis num host **sem** a extensão GMP. |

@@ -7,9 +7,10 @@
 - [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
 - [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
 - [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **done.** The record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`.
+- [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **done.** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1**. Production-hardening and the WordPress.org review round are both complete and verified (355 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1**. Production-hardening and the WordPress.org review round are both complete and verified (363 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
@@ -152,6 +153,16 @@ drawn is reported instead of producing a blank order page, `HttpClientContract::
 the transport reason so a DNS/TLS failure isn't shown as "HTTP 0", and `LightningConfigValidator`
 raises an error when `esc_url_raw()` empties a URL instead of silently saving nothing.
 
+The inverse case — silencing *accepted third-party* noise — is scoped just as tightly.
+`BitcoinAddressService::suppress_vendor_deprecations()` masks **only** `E_DEPRECATED`, and only
+around the `bitwasp` calls, because those libraries emit `Use of "parent" in callables` (and
+tentative return-type) notices mid-request that printed during the On-Chain settings save and broke
+its post-save redirect ("headers already sent"). It restores `error_reporting()` in a `finally` and
+**never catches** — a missing-extension `\Error` still propagates under rule 1, and the eventual
+PHP 9 fatal (a thrown `Error`, not a diagnostic) is not hidden. It is not a general tool: never
+widen it to silence our own deprecations. See
+[docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md).
+
 ### Order-details rendering (shared between gateways)
 
 `Abstract_WC_Gateway_PayCryptoMe` owns `render_admin_order_details_section()`/`render_checkout_order_details_section()`; each gateway only implements the abstract `build_order_display_args(\WC_Order $order): ?array` hook (guard-meta check, network label, crypto amount/currency, confirmations required — the parts that actually differ). The shared `PaymentDisplayDataBuilder` (constructor-injected with `QrCodeService`) turns those args into the final display array (QR code, formatted expiry, `crypto_label`) consumed by `templates/order-details/paycrypto-me-order-details.php`.
@@ -231,7 +242,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 355 tests, 743 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 363 tests, 755 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Smoke test for environment-dependent fatals
 

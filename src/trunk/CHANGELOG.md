@@ -14,6 +14,12 @@ All notable changes to this project are documented in this file.
    a package this plugin has never shipped, so the suppression list is gone and `composer audit`
    now runs clean without it.
 
+### Fixed
+
+ - Saving the On-Chain gateway settings no longer prints PHP deprecation notices from the Bitcoin
+   library, and no longer breaks the post-save redirect ("headers already sent"), on hosts that
+   display PHP errors (e.g. with WP_DEBUG on). Address derivation at checkout is quiet the same way.
+
 ### Planned
 
  - Add support for additional blockchain networks (planned).

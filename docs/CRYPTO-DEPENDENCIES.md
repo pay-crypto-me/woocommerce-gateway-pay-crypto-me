@@ -289,6 +289,13 @@ ls src/trunk/vendor/lucas-rosa95 # não deve existir
 `CachingTypeFactory`. Corrigiria 5 de 12 no caminho real (PHP 8.3), ao custo de mais uma peça móvel
 num fluxo de release já validado em produção.
 
+> **Atualização (2026-08-16):** essas deprecations do `CachingTypeFactory`, além de ruído, **quebravam
+> o redirect do save das settings On-Chain** ("headers already sent") em host com `display_errors`
+> ligado — a severidade estava subestimada aqui. Foram mitigadas por supressão de runtime escopada a
+> `E_DEPRECATED` no boundary do `BitcoinAddressService` (`suppress_vendor_deprecations()`). **Não** é
+> patch de vendor — a decisão acima segue valendo — e o fatal do PHP 9 continua não mascarado. Ver
+> [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](CRYPTO-DEPRECATION-CONTINGENCY.md).
+
 **Não reescrever a criptografia agora.** Ver abaixo.
 
 ---

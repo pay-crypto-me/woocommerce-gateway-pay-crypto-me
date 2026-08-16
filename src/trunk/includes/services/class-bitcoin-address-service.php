@@ -59,6 +59,37 @@ class BitcoinAddressService
     }
 
     /**
+     * Runs $fn with E_DEPRECATED masked, always restoring the previous level.
+     *
+     * ONLY for the consciously-accepted bitwasp deprecations that fire on the serialization path —
+     * "Use of parent in callables" from buffertools/CachingTypeFactory, plus the tentative return
+     * types in bitcoin's Script\Opcodes/Parser. Those print mid-request under WP_DEBUG display and
+     * broke the admin settings-save redirect ("headers already sent"). This masks E_DEPRECATED
+     * ALONE — never any other level — and does NOT catch anything: a missing-extension \Error still
+     * propagates, preserving the \Exception-only validation contract (see the note above
+     * validate_bitcoin_address() and EnvironmentRequirements). error_reporting() governs which
+     * diagnostics are emitted, not thrown Throwables, so it cannot hide the GMP \Error nor the
+     * eventual PHP 9 fatal (which arrives as a thrown Error). Not a general tool — do not use it to
+     * silence our own deprecations.
+     */
+    private static function suppress_vendor_deprecations(callable $fn)
+    {
+        // error_reporting() here only NARROWS the reported level (masks E_DEPRECATED) and restores
+        // it in finally — it reduces diagnostic disclosure, the opposite of the sniff's full-path-
+        // disclosure concern, and narrowing it is the whole purpose of this helper.
+        // phpcs:disable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting
+        $previous = error_reporting();
+        error_reporting($previous & ~E_DEPRECATED);
+
+        try {
+            return $fn();
+        } finally {
+            error_reporting($previous);
+        }
+        // phpcs:enable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting
+    }
+
+    /**
      * Generate an address from an extended public key (xpub/ypub/zpub...)
      *
      * This method is intentionally thin: it validates inputs, derives the
@@ -77,62 +108,68 @@ class BitcoinAddressService
             throw new \InvalidArgumentException('Derivation index must be a non-negative integer.');
         }
 
-        $currentPrefix = $this->get_prefix_from_xpub($xPub);
+        // The derivation/generation body runs inside suppress_vendor_deprecations(): fromExtended,
+        // derivePath and the p2pkh/p2sh/p2wpkh generators all exercise the bitwasp serialization
+        // path that emits accepted E_DEPRECATED notices. Wrapping here keeps them out of the
+        // response on the checkout/order-pay derivation the same way the validators do on save.
+        return self::suppress_vendor_deprecations(function () use ($xPub, $index, $network, $forceType, $logger): string {
+            $currentPrefix = $this->get_prefix_from_xpub($xPub);
 
-        $converted = $this->convert_extended_pubkey_prefix($xPub, $network);
-        $hdKey = $this->get_hd_factory()->fromExtended($converted, $network);
+            $converted = $this->convert_extended_pubkey_prefix($xPub, $network);
+            $hdKey = $this->get_hd_factory()->fromExtended($converted, $network);
 
-        // Do NOT attempt to derive hardened paths (those with a trailing ').
-        // Hardened derivation requires the private key; deriving hardened
-        // children from an extended public key will fail. Instead, assume the
-        // provided extended pubkey is at (or above) the account/external level
-        // and derive the external chain child `0/{index}` non-hardened.
-        $childKey = $hdKey->derivePath("0/{$index}");
-        $publicKey = $childKey->getPublicKey();
+            // Do NOT attempt to derive hardened paths (those with a trailing ').
+            // Hardened derivation requires the private key; deriving hardened
+            // children from an extended public key will fail. Instead, assume the
+            // provided extended pubkey is at (or above) the account/external level
+            // and derive the external chain child `0/{index}` non-hardened.
+            $childKey = $hdKey->derivePath("0/{$index}");
+            $publicKey = $childKey->getPublicKey();
 
-        // Ensure the provided extended pubkey is an account-level key.
-        // Account-level keys typically have depth >= 3 (e.g. m/84'/1'/0').
+            // Ensure the provided extended pubkey is an account-level key.
+            // Account-level keys typically have depth >= 3 (e.g. m/84'/1'/0').
 
-        // $depth = $hdKey->getDepth();
-        // if ($depth < 3) {
-        //     // Continue deriving from the provided node (external chain 0). This
-        //     // allows using vpub/upub/etc. even when they are not account-level,
-        //     // but wallets may not recognise these addresses as the same account.
-        // }
+            // $depth = $hdKey->getDepth();
+            // if ($depth < 3) {
+            //     // Continue deriving from the provided node (external chain 0). This
+            //     // allows using vpub/upub/etc. even when they are not account-level,
+            //     // but wallets may not recognise these addresses as the same account.
+            // }
 
-        $publicKeyHash = $publicKey->getPubKeyHash();
+            $publicKeyHash = $publicKey->getPubKeyHash();
 
-        if ($forceType !== null) {
-            $type = $forceType;
-        } else {
-            try {
-                $meta = $this->get_prefix_meta($currentPrefix);
-                $type = $meta['type'];
-            } catch (\InvalidArgumentException $e) {
-                if ($logger !== null) {
-                    $logger(
-                        \sprintf(
-                            'Unsupported extended public key prefix: %s. Falling back to bech32 address generation.',
-                            esc_html( wp_strip_all_tags( (string) $currentPrefix ) )
-                        ),
-                        'warning'
-                    );
+            if ($forceType !== null) {
+                $type = $forceType;
+            } else {
+                try {
+                    $meta = $this->get_prefix_meta($currentPrefix);
+                    $type = $meta['type'];
+                } catch (\InvalidArgumentException $e) {
+                    if ($logger !== null) {
+                        $logger(
+                            \sprintf(
+                                'Unsupported extended public key prefix: %s. Falling back to bech32 address generation.',
+                                esc_html( wp_strip_all_tags( (string) $currentPrefix ) )
+                            ),
+                            'warning'
+                        );
+                    }
+                    $type = 'p2wpkh';
                 }
-                $type = 'p2wpkh';
             }
-        }
 
-        switch ($type) {
-            case 'p2pkh':
-                return $this->generate_p2pkh_from_pubhash($publicKeyHash, $network);
+            switch ($type) {
+                case 'p2pkh':
+                    return $this->generate_p2pkh_from_pubhash($publicKeyHash, $network);
 
-            case 'p2sh-p2wpkh':
-                return $this->generate_p2sh_p2wpkh_from_pubhash($publicKeyHash, $network);
+                case 'p2sh-p2wpkh':
+                    return $this->generate_p2sh_p2wpkh_from_pubhash($publicKeyHash, $network);
 
-            case 'p2wpkh':
-            default:
-                return $this->generate_p2wpkh_from_pubhash($publicKeyHash, $network);
-        }
+                case 'p2wpkh':
+                default:
+                    return $this->generate_p2wpkh_from_pubhash($publicKeyHash, $network);
+            }
+        });
     }
 
     public function get_prefix_from_xpub(string $xPub): string
@@ -204,14 +241,17 @@ class BitcoinAddressService
 
         $newHex = $network !== null ? $network->getHDPubByte() : $meta['hex'];
 
-        $buffer = Base58::decodeCheck($xPub);
+        // Base58::decodeCheck/encodeCheck + Buffer reach the buffertools serialization path that
+        // emits the accepted E_DEPRECATED notices; keep them out of the response.
+        return self::suppress_vendor_deprecations(function () use ($xPub, $newHex): string {
+            $buffer = Base58::decodeCheck($xPub);
 
-        $hexData = $buffer->getHex();
-        $newHexData = $newHex . substr($hexData, 8);
-        $newBuffer = Buffer::hex($newHexData);
-        $converted = Base58::encodeCheck($newBuffer);
+            $hexData = $buffer->getHex();
+            $newHexData = $newHex . substr($hexData, 8);
+            $newBuffer = Buffer::hex($newHexData);
 
-        return $converted;
+            return Base58::encodeCheck($newBuffer);
+        });
     }
 
     /**
@@ -243,13 +283,17 @@ class BitcoinAddressService
     public function validate_segwit_address(string $address, NetworkInterface $network, ?callable $logger = null): bool
     {
         try {
-            [$version, $program] = \BitWasp\Bech32\decodeSegwit($network->getSegwitBech32Prefix(), $address);
+            // Wrapped (not the catch) so bitwasp parse \Exceptions still fall to false below and an
+            // \Error still propagates; only the accepted E_DEPRECATED notices are masked.
+            self::suppress_vendor_deprecations(function () use ($network, $address): void {
+                [$version, $program] = \BitWasp\Bech32\decodeSegwit($network->getSegwitBech32Prefix(), $address);
 
-            // WitnessProgram::v0() enforces the 20/32-byte program length, exactly as
-            // AddressCreator does — the accepted/rejected set stays identical.
-            $version === 0
-                ? WitnessProgram::v0(new Buffer($program))
-                : new WitnessProgram($version, new Buffer($program));
+                // WitnessProgram::v0() enforces the 20/32-byte program length, exactly as
+                // AddressCreator does — the accepted/rejected set stays identical.
+                $version === 0
+                    ? WitnessProgram::v0(new Buffer($program))
+                    : new WitnessProgram($version, new Buffer($program));
+            });
 
             return true;
         } catch (\Exception $e) {
@@ -280,8 +324,10 @@ class BitcoinAddressService
 
         try {
             // Uses the lazy accessor like every other method here; this one used to build its own
-            // AddressCreator and silently ignore the injected one.
-            $this->get_address_creator()->fromString($address, $network);
+            // AddressCreator and silently ignore the injected one. Wrapped so the base58 path's
+            // accepted E_DEPRECATED notices stay out of the response; the \Exception-not-\Throwable
+            // contract is untouched (the wrap does not catch).
+            self::suppress_vendor_deprecations(fn () => $this->get_address_creator()->fromString($address, $network));
 
             return true;
         } catch (\Exception $e) {
@@ -300,10 +346,15 @@ class BitcoinAddressService
     {
 
         try {
-            $replaceHex = $this->convert_extended_pubkey_prefix($xPub, $network);
+            // Wrapped so the Base58 + HD-key parse (the settings-save deprecation trigger) keeps its
+            // accepted E_DEPRECATED notices out of the response. The wrap does not catch, so a parse
+            // \Exception still falls to false below and a missing-extension \Error still propagates.
+            self::suppress_vendor_deprecations(function () use ($xPub, $network): void {
+                $replaceHex = $this->convert_extended_pubkey_prefix($xPub, $network);
 
-            $hdFactory = new HierarchicalKeyFactory();
-            $hdFactory->fromExtended($replaceHex, $network);
+                $hdFactory = new HierarchicalKeyFactory();
+                $hdFactory->fromExtended($replaceHex, $network);
+            });
 
             return true;
         } catch (\Exception $e) {

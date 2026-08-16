@@ -15,10 +15,26 @@ class BitcoinAddressValidationTest extends TestCase
     private const TESTNET_P2PKH_ADDRESS = 'msohpncHRZ77VqoVmw8M4sNoM5zkfZCJNX';
 
     private BitcoinAddressService $svc;
+    private int $originalErrorReporting = 0;
 
     protected function setUp(): void
     {
         $this->svc = new BitcoinAddressService();
+        $this->originalErrorReporting = error_reporting();
+    }
+
+    protected function tearDown(): void
+    {
+        // The suppress_vendor_deprecations() tests below set error_reporting(); never leak it.
+        error_reporting($this->originalErrorReporting);
+    }
+
+    private function invokeSuppress(callable $fn)
+    {
+        $method = new \ReflectionMethod(BitcoinAddressService::class, 'suppress_vendor_deprecations');
+        $method->setAccessible(true);
+
+        return $method->invoke(null, $fn);
     }
 
     // --- validate_extended_pubkey() ---------------------------------------------------
@@ -299,5 +315,110 @@ class BitcoinAddressValidationTest extends TestCase
         $svc = new BitcoinAddressService(null, $creator);
 
         $this->assertTrue($svc->validate_bitcoin_address(self::MAINNET_BECH32_ADDRESS, NetworkFactory::bitcoin()));
+    }
+
+    // --- suppress_vendor_deprecations() ------------------------------------------------
+    //
+    // Masks E_DEPRECATED around the bitwasp calls so the accepted "Use of parent in callables"
+    // (and tentative return-type) notices stop printing mid-request and breaking the settings-save
+    // redirect. Private static; tested via reflection (see invokeSuppress), like OnchainWithoutGmpTest.
+    //
+    // We assert the error_reporting() BIT STATE, not a captured notice: since PHP 8.0 a
+    // set_error_handler() collector runs regardless of the error_reporting() mask (false negative),
+    // and `& ~E_DEPRECATED` clears the engine E_DEPRECATED bit, not E_USER_DEPRECATED, so a
+    // trigger_error(E_USER_DEPRECATED) probe would mislead. Real display suppression is covered by
+    // the manual acceptance test in docs/CRYPTO-DEPRECATION-CONTINGENCY.md.
+
+    public function test_suppress_vendor_deprecations_returns_the_callables_value()
+    {
+        $this->assertSame(42, $this->invokeSuppress(fn () => 42));
+
+        $obj = new \stdClass();
+        $this->assertSame($obj, $this->invokeSuppress(fn () => $obj));
+    }
+
+    public function test_suppress_vendor_deprecations_masks_only_e_deprecated_inside()
+    {
+        error_reporting(E_ALL);
+
+        $seen = null;
+        $this->invokeSuppress(function () use (&$seen) {
+            $seen = error_reporting();
+        });
+
+        $this->assertSame(0, $seen & E_DEPRECATED, 'E_DEPRECATED must be cleared inside the callable');
+        $this->assertNotSame(0, $seen & E_WARNING, 'E_WARNING must be preserved inside');
+        $this->assertNotSame(0, $seen & E_NOTICE, 'E_NOTICE must be preserved inside');
+    }
+
+    public function test_suppress_vendor_deprecations_restores_after_normal_return()
+    {
+        error_reporting(E_ALL);
+        $before = error_reporting();
+
+        $this->invokeSuppress(fn () => null);
+
+        $this->assertSame($before, error_reporting());
+    }
+
+    public function test_suppress_vendor_deprecations_restores_after_a_throw()
+    {
+        error_reporting(E_ALL);
+        $before = error_reporting();
+
+        try {
+            $this->invokeSuppress(function () {
+                throw new \RuntimeException('boom');
+            });
+        } catch (\RuntimeException $e) {
+            // expected — we only care that error_reporting was restored anyway.
+        }
+
+        $this->assertSame($before, error_reporting());
+    }
+
+    public function test_suppress_vendor_deprecations_does_not_catch_error()
+    {
+        // The GMP-missing contract: a missing extension surfaces as \Error and must propagate,
+        // never be swallowed by the deprecation suppression.
+        $this->expectException(\Error::class);
+
+        $this->invokeSuppress(function () {
+            throw new \Error('Call to undefined function gmp_init()');
+        });
+    }
+
+    public function test_suppress_vendor_deprecations_does_not_catch_type_error()
+    {
+        $this->expectException(\TypeError::class);
+
+        $this->invokeSuppress(function () {
+            throw new \TypeError('bad type');
+        });
+    }
+
+    public function test_suppress_vendor_deprecations_does_not_catch_exception()
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $this->invokeSuppress(function () {
+            throw new \RuntimeException('parse failed');
+        });
+    }
+
+    public function test_suppress_vendor_deprecations_nesting_restores_lifo()
+    {
+        error_reporting(E_ALL);
+        $before = error_reporting();
+
+        $innerSaw = null;
+        $this->invokeSuppress(function () use (&$innerSaw) {
+            $this->invokeSuppress(function () use (&$innerSaw) {
+                $innerSaw = error_reporting();
+            });
+        });
+
+        $this->assertSame(0, $innerSaw & E_DEPRECATED, 'nested inner call still masks E_DEPRECATED');
+        $this->assertSame($before, error_reporting(), 'error_reporting restored to the original after nesting');
     }
 }
