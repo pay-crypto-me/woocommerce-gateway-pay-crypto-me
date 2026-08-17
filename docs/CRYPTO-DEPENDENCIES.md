@@ -228,8 +228,11 @@ carrega sob demanda, então é a nossa cópia que define as classes globais `Par
 namespace) para o site. Somos o lado que sombreia — o que também é a razão de um polyfill nunca
 poder ser prefixado.
 
-Destravar isso (subir o pin ao piso real e tirar o `murmurhash` da árvore) é frente própria, medida
-mas **ainda não planejada neste repo** — não fazer junto de mudança de lock já verificada.
+Destravar isso — subir o pin ao piso real (`8.1`) e tirar o `murmurhash` da árvore via `replace` — é
+frente própria, com plano medido e aprovado em
+[`docs/LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md). **Não** fazer junto de mudança de lock já
+verificada: o plano tem a própria rodada de verificação, incluindo o install limpo `--no-dev` que é o
+caminho do release.
 
 **(ii) Uma dependência futura entraria calada.** Direta ou transitiva, incompatível com o piso real
 de PHP do plugin: é exatamente a checagem que o Composer faria de graça, desligada por nós.
