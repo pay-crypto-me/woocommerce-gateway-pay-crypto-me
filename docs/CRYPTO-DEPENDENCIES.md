@@ -7,6 +7,12 @@
 > fatal latente de E2 sumiu), smoke de host mínimo verde e plugin check **sem ERROR em código
 > enviado**. Feito na branch `chore/retire-crypto-forks`.
 >
+> Os números de suíte citados aqui (355/743/4) são os desta frente. O baseline atual da branch é
+> **363/755/4** — os 8 testes a mais vêm do helper de supressão de deprecations documentado em
+> [`docs/CRYPTO-DEPRECATION-CONTINGENCY.md`](CRYPTO-DEPRECATION-CONTINGENCY.md), que entrou depois.
+> A revisão independente desta frente está em
+> [`docs/CRYPTO-DEPENDENCIES-AUDIT.md`](CRYPTO-DEPENDENCIES-AUDIT.md) (achados todos aplicados).
+>
 > Documento auto-suficiente: quem executar não precisa da conversa que o originou. Prosa em
 > português; identificadores, caminhos e nomes de teste em inglês, como no resto do repo.
 
@@ -100,6 +106,21 @@ curva com **escalar secreto** — assinatura, chave privada. Este plugin só faz
 partir de xPub. Não há segredo no caminho. Mesmo na época do `mdanter/ecc`, a exploração aqui era
 inexistente.
 
+Duas ressalvas de precisão, medidas em 2026-08-17, que não mudam a conclusão:
+
+- O `ConstantTimeMath` é o que o **pacote** traz; o adaptador que carrega no nosso caminho de
+  derivação é o `GmpMath` (visto em `get_included_files()` rodando os 60 vetores). Coerente com o
+  parágrafo acima — sem escalar secreto, não há o que proteger em tempo constante —, mas não se deve
+  citar `ConstantTimeMath` como se fosse o caminho executado.
+- O `paragonie/ecc` **mantém o namespace do original**: suas classes são `Mdanter\Ecc\*`. Como o
+  WordPress tem um único espaço de classes por processo, outro plugin que embarque o `mdanter/ecc`
+  original e registre o autoloader antes do nosso pode servir `Mdanter\Ecc\*` para o **nosso**
+  `bitwasp/bitcoin` — e o `composer audit` nunca veria, porque audita o lock, não o processo. O
+  desfecho mais provável é fatal ruidoso (o `bitwasp/bitcoin v1.1.0` chama API que só existe no
+  `paragonie/ecc ^2.1`, exatamente o mismatch de E2); o caso silencioso exigiria um `mdanter/ecc`
+  de API próxima o bastante. Prefixar namespaces do vendor é o que fecharia isso de vez — decisão
+  deliberadamente **não** tomada nesta frente, registrada aqui para não se perder.
+
 ### E5 — O upstream instala e produz resultados idênticos
 
 `bitwasp/bitcoin ^1.1` resolve limpo com o **mesmo** `config.platform.php = 7.4` que o plugin já
@@ -153,9 +174,84 @@ O plugin já contorna com `config.platform.php = 7.4`, que faz o composer resolv
 PHP 7.4. **Esse contorno já existe hoje e é o que sustenta o próprio fork** — ele também instala
 `lastguest/murmurhash 2.0.0`.
 
-Risco prático: nenhum. Dentro da lib, `murmurhash` só é alcançado por `Bloom/BloomFilter.php` e um
-método de `Crypto/Hash.php`; o plugin não referencia nenhum dos dois. O pacote é instalado e nunca
+Risco prático: nenhum. Dentro da lib, `murmurhash` só é alcançado por `Bloom/BloomFilter.php:250` e
+`Crypto/Hash.php::murmur3()`; o plugin não referencia nenhum dos dois. O pacote é instalado e nunca
 executado.
+
+#### E7.1 — O bloqueio é o pin exato do upstream, não o pacote (medido 2026-08-17)
+
+Três medições que o E7 original não tinha, e que mudam o que fazer a respeito:
+
+| Fato | Medida |
+|---|---|
+| O constraint do `bitwasp/bitcoin` é **versão exata** | `require` do vendor: `"lastguest/murmurhash": "v2.0.0"` — logo, subir isso pelo nosso `require` dá conflito, não resolve |
+| O pacote **já se consertou** | `2.1.1` declara `php: ^7||^8.0` (a `2.1.0` não declara `php` nenhum); só a `2.0.0` instalada declara `php: ^7` |
+| É o **único** bloqueio | `composer update --dry-run` com `platform.php = 8.1` produz um só `Problem 1`, e é esse pacote. `composer why-not php 8.1` devolve uma única linha |
+
+Ou seja: não há nada errado com a dependência nem com a nossa árvore — o que trava é o
+`bitwasp/bitcoin` ter pinado a versão exata. Isso reposiciona o caminho 1 do "Horizonte PHP 9":
+o PR upstream é literalmente **uma linha** (`v2.0.0` → `^2.0`), sem mudança de código, e o dado
+acima é a justificativa pronta.
+
+#### E7.2 — O gap real do pin, e como ele passou a ser auditado
+
+O murmurhash é inofensivo; o **pin** não é inteiramente. Ele não diz "ignore o php desse pacote",
+diz "resolva a árvore **inteira** como se fosse 7.4" — hoje e para sempre. Isso tem duas
+consequências, e a primeira só foi medida em 2026-08-17:
+
+**(i) O pin segura toda a árvore em versões da era 7.4.** Não é custo hipotético nem cosmético — é
+o que vai para as lojas hoje:
+
+| pacote | com o pin (enviado hoje) | sem o pin |
+|---|---|---|
+| `paragonie/sodium_compat` | **v1.24.0** — declara suporte de PHP 5.2.4 a 8 | **v2.5.0** — `php: ^8.1`, exatamente o piso do plugin |
+| `paragonie/random_compat` | **instalado** — polyfill de `random_bytes` para PHP 5 | **não existe** |
+| `genkgo/php-asn1` | v2.5.0 | v2.9.0 |
+| `endroid/qr-code` | 4.6.1 | 4.8.5 |
+
+O `paragonie/ecc` aceita `sodium_compat ^1|^2`; a escolha da v1 é puro artefato do pin. Medido no
+caminho de produção (60 vetores + validadores, via `get_included_files()`): o `random_compat`
+carrega **0 arquivos** — é polyfill de PHP 5 enviado a toda loja que nunca executa, presente só
+porque o `sodium_compat` v1 o exige. O `sodium_compat` carrega **10 arquivos**, então esse está no
+caminho vivo (diferente do murmurhash, que também é 0).
+
+**Sem inflar:** não há advisory contra a `v1.24.0` — `composer audit` está limpo no lock atual. É
+defasagem de manutenção, não vulnerabilidade.
+
+Duas medições complementares sobre o `sodium_compat`, porque a intuição erra a direção aqui. Ele é
+a **única** entrada de `vendor/composer/autoload_files.php` (declara `"autoload": {"files":
+["autoload.php"]}`), logo é carregado por `require` em **todo request** que carrega o autoloader do
+plugin — 4.62 ms e 506 KB medidos, e funcionalmente inúteis num host com `ext-sodium` nativa. E
+dentro do container `wordpress`, os arquivos de `sodium_compat` carregados num request normal são
+**os nossos**, não os do core: o WP também empacota o dele (`wp-includes/sodium_compat/`), mas
+carrega sob demanda, então é a nossa cópia que define as classes globais `ParagonIE_Sodium_*` (sem
+namespace) para o site. Somos o lado que sombreia — o que também é a razão de um polyfill nunca
+poder ser prefixado.
+
+Destravar isso (subir o pin ao piso real e tirar o `murmurhash` da árvore) é frente própria, medida
+mas **ainda não planejada neste repo** — não fazer junto de mudança de lock já verificada.
+
+**(ii) Uma dependência futura entraria calada.** Direta ou transitiva, incompatível com o piso real
+de PHP do plugin: é exatamente a checagem que o Composer faria de graça, desligada por nós.
+
+Fechado por [`scripts/check-platform-pin.sh`](../scripts/check-platform-pin.sh), que roda
+`composer why-not php <piso>` — comando que **ignora o pin** e lista *todos* os pacotes cujo
+requisito de PHP exclui o piso. O piso é lido do header do plugin (`Requires PHP:`), então subir o
+piso move a checagem junto. Um pacote além do allowlistado reprova com exit != 0, e a allowlist
+existe com uma condição declarada no próprio script: cada entrada precisa de razão aqui **e** da
+prova de que o plugin nunca executa aquele código.
+
+O script também reporta o caso inverso, que é o que normalmente se esquece: quando o ofensor
+conhecido deixar de bloquear o piso (isto é, quando o PR de E7.1 entrar), ele avisa que o pin virou
+peso morto e deve ser **removido**, em vez de herdado indefinidamente. Está ligado na fase
+*Platform pin audit* do `release.sh`, logo depois do PHPUnit — ver
+[`docs/RELEASE.md`](RELEASE.md) → "Auditoria do pin de plataforma".
+
+Alternativa considerada e **rejeitada**: `"replace": {"lastguest/murmurhash": "2.0.0"}` no nosso
+`composer.json`. Funciona — permitiria `platform.php = 8.1` — mas troca "instalado e nunca
+executado" por "não existe": `Hash::murmur3()` sai de no-op para `Class not found` se algum
+consumidor chegar lá (um add-on de terceiro usando `BloomFilter`, por exemplo). É piorar o modo de
+falha em troca de ganho cosmético no `composer.json`.
 
 ### E8 — O segundo fork sai junto, e é o único que perde algo real
 
@@ -256,14 +352,24 @@ Nenhuma string nova. Nenhum arquivo em `includes/`. A frente é de dependência 
 
 Rodar da raiz do repo. Os itens 1–3 são o núcleo; 4–6 fecham o release.
 
+> **Compose:** a forma `docker compose` (plugin v2) é a convenção do repo. Num host que só tem o
+> binário standalone — **é o caso desta máquina** —, troque por `docker-compose`. Os scripts
+> detectam as duas formas sozinhos; só os comandos colados à mão precisam da troca.
+>
+> **Vendor:** conferir que `src/trunk/vendor/` corresponde ao `composer.lock` **antes** de rodar
+> qualquer item daqui (`ls src/trunk/vendor/bitwasp` deve mostrar `bech32 bitcoin buffertools`).
+> Uma árvore instalada antes desta frente ainda carrega os forks e faria a verificação medir o
+> código aposentado. Se preciso: `docker-compose run --rm release composer install`.
+
 | # | Comando | Esperado |
 |---|---|---|
-| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | **355 testes, 743 asserções, 4 skipped, 0 falhas** — idêntico ao baseline com o fork. |
+| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | **355 testes, 743 asserções, 4 skipped, 0 falhas** — idêntico ao baseline com o fork. Depois da contingência de deprecations: **363/755/4**. |
 | 2 | `docker compose run --rm release composer audit --locked` | `No security vulnerability advisories found` — **agora sem lista de ignore**, então o resultado passa a ter significado. |
 | 3 | Vetores contra o vendor novo: derivar os 12 xpubs de `tests/vectors/bitcoin_addresses.json` e comparar os 60 endereços | Zero divergências. Já coberto por `BitcoinAddressVectorsTest` na suíte do item 1 — confirmar que ele roda e passa. |
 | 4 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando. |
 | 5 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 testes, 17 asserções, 1 skipped, OK (host sem GMP). O 1 skip é o teste do caso *com* GMP, que se auto-pula quando a extensão está ausente. |
-| 6 | `docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv` | Nenhum `ERROR` em código enviado. |
+| 6 | `docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv` | Nenhum `ERROR` em código enviado. Exige o `plugin-check` instalado no volume do WP (`wp plugin install plugin-check --activate`); nada no repo o provisiona. |
+| 7 | `./scripts/check-platform-pin.sh` | Só `lastguest/murmurhash` listado, exit 0 — o pin de plataforma segue justificado (E7.2). Já roda dentro do `release.sh`. |
 
 Checagem extra específica desta frente — o fatal de E2 deve desaparecer:
 
@@ -311,9 +417,12 @@ resolve isso; apenas coloca o plugin de volta numa base mantida, onde a correç�
 Três caminhos, para avaliar quando o PHP 9 tiver data:
 
 1. **Contribuir upstream.** Duas mudanças pequenas e de alto retorno: soltar o pin
-   `lastguest/murmurhash: v2.0.0` para `^2.1` (elimina a necessidade do `config.platform` override)
+   `lastguest/murmurhash: v2.0.0` para `^2.0` (elimina a necessidade do `config.platform` override)
    e adicionar tipos nulláveis explícitos. O upstream aceitou commits em 2024 e 2026 — não está
-   morto.
+   morto. **O primeiro está pronto para enviar:** é uma linha em `composer.json`, sem mudança de
+   código, e a justificativa está medida em E7.1 (a `2.1.1` já declara `php: ^7||^8.0`; o pin exato
+   é o único bloqueio de PHP 8 na árvore). Quando entrar,
+   `scripts/check-platform-pin.sh` acusa que o pin virou peso morto — ver E7.2.
 2. **Substituir a fatia estreita.** O plugin usa **9 classes**: `AddressCreator`, `SegwitAddress`,
    `HierarchicalKeyFactory`, `NetworkFactory`, `NetworkInterface`, `ScriptFactory`,
    `WitnessProgram`, `Base58`, `Buffer`. Implementar isso sobre `phpseclib/phpseclib` v3 —

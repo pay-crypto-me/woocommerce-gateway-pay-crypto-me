@@ -398,8 +398,14 @@ submissão ao SVN acontecem depois disso.
 Rodar da **raiz do repo**. O stack de dev precisa estar no ar para tudo que envolve MySQL:
 
 ```bash
-docker compose up -d wordpress wp_db          # este host só tem o binário docker-compose
+docker compose up -d wordpress wp_db
 ```
+
+> **Compose:** os comandos abaixo usam a forma `docker compose` (plugin v2), como o resto do repo.
+> Num host que só tem o binário standalone — **é o caso desta máquina** —, troque por
+> `docker-compose` em todos eles. Os scripts (`release.sh`, `smoke-minimal-host.sh`,
+> `build-translations.sh`) detectam as duas formas sozinhos; só os comandos colados à mão precisam
+> da troca.
 
 | # | Comando | Esperado |
 |---|---|---|

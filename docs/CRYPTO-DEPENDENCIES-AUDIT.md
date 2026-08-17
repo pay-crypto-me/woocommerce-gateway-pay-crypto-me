@@ -34,7 +34,7 @@ Ambiente da auditoria: containers do próprio repo (`docker compose run --rm rel
 | Verificação | Resultado medido |
 |---|---|
 | `composer validate` | válido; `composer.lock` em sincronia com `composer.json` |
-| Suíte completa | **334 testes, 709 asserções, 3 skipped — OK** |
+| Suíte completa | **334 testes, 709 asserções, 3 skipped — OK** (número da árvore auditada em 2026-08-15; o baseline atual da branch é **363/755/4**) |
 | `composer audit --locked` | **`No security vulnerability advisories found`, sem lista de ignore** |
 | 60 vetores de endereço | **60/60 idênticos** — rodados **nos dois** vendors (fork e upstream), zero divergência em ambos |
 | E1 (fork não tem correção própria) | confirmado: o único arquivo diferente em `src/` é `Signature.php`, e a diferença é o upstream **adicionando** `getSignatureType(): string` |
@@ -291,15 +291,29 @@ fork.
 **Onde:** `docs/CRYPTO-DEPENDENCIES.md`, tabela "Verificação" (itens 1, 2, 6, linhas ~246–251) e o
 bloco de checagem do `Signature` (linha ~256).
 
-**O problema:** usam `docker-compose` (com hífen), que **não existe nesta máquina** — só
-`docker compose`. O resto do repo (`docs/RELEASE.md`, `CLAUDE.md`, `scripts/*.sh`) já usa a forma
-com espaço.
+**O problema:** a forma usada não é a mesma do resto do repo (`docs/RELEASE.md`, `CLAUDE.md`,
+`scripts/*.sh`), que padronizou `docker compose`.
 
 **Correção:** trocar `docker-compose ` por `docker compose ` nas 4 ocorrências do arquivo.
 
 ```bash
 grep -n "docker-compose " docs/CRYPTO-DEPENDENCIES.md
 ```
+
+> **Correção do próprio A4 (2026-08-17).** A justificativa original deste achado dizia que o binário
+> `docker-compose` "não existe nesta máquina — só `docker compose`". **É o inverso.** Medido:
+> `command -v docker-compose` → `/usr/local/bin/docker-compose` (v2.39.2), e
+> `docker compose version` → `docker: 'compose' is not a docker command`. Ou seja, a padronização em
+> `docker compose` está certa por convenção do repo, mas **nenhum** dos comandos colados à mão roda
+> nesta máquina como escrito. Consequências tratadas:
+>
+> - `docs/CRYPTO-DEPENDENCIES.md` e `docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md` ganharam nota
+>   explícita de substituição (o segundo tinha ficado autocontraditório: comando `docker compose` ao
+>   lado do comentário "este host só tem o binário docker-compose").
+> - `scripts/release.sh` **abortava** nesse host ("Docker Compose is not available… or pass
+>   `--no-docker`"): era o único dos três scripts sem o fallback para o binário standalone que
+>   `smoke-minimal-host.sh` e `build-translations.sh` já tinham. Corrigido — agora resolve
+>   `DOCKER_COMPOSE` como os outros dois.
 
 ---
 
@@ -321,7 +335,11 @@ grep -n "docker-compose " docs/CRYPTO-DEPENDENCIES.md
 ### Itens opcionais (não bloqueiam)
 
 - **`docker-compose.yml` linha 46** ainda passa `COMPOSER_AUTH: ${COMPOSER_AUTH:-}` ao serviço
-  `release`. É resíduo da era dos repositórios VCS; inofensivo, pode sair.
+  `release`. ~~É resíduo da era dos repositórios VCS; inofensivo, pode sair.~~
+  **Revisto (2026-08-17): manter.** Não é resíduo: os zips de dist vêm de `codeload.github.com`
+  mesmo resolvendo tudo por Packagist, e um `composer install --prefer-dist` anônimo a partir do
+  lock **falhou medido** com `HTTP/2 429 … Source fallback is disabled`. O `auth.json`/`COMPOSER_AUTH`
+  é justamente o que evita esse teto. Alternativa sem token: `--prefer-source`.
 - **Não apague os repositórios `lucas-rosa95/bitcoin-php` e `lucas-rosa95/buffertools-php` no
   GitHub — arquive.** A tag `v0.1.0` existe neste repo e o `composer.lock` dela aponta para eles;
   sem os repositórios, reconstruir a 0.1.0 a partir do fonte deixa de ser possível (o zip publicado
@@ -384,8 +402,14 @@ Na resolução de conflito:
 - Depois do rebase, confirmar que sobrou zero referência aos forks fora do registro histórico:
 
 ```bash
-git grep -n "lucas-rosa95" -- . ':!docs/CRYPTO-DEPENDENCIES.md' ':!docs/CRYPTO-DEPENDENCIES-AUDIT.md'
+git grep -n "lucas-rosa95" -- . \
+  ':!docs/CRYPTO-DEPENDENCIES.md' ':!docs/CRYPTO-DEPENDENCIES-AUDIT.md' \
+  ':!docs/CRYPTO-DEPRECATION-CONTINGENCY.md' ':!CLAUDE.md'
 ```
+
+> As quatro exclusões são registro histórico deliberado, não resíduo: os dois primeiros documentam a
+> troca, o `CRYPTO-DEPRECATION-CONTINGENCY.md` usa os nomes dos forks para descrever como reconhecer
+> uma árvore `vendor/` velha (pré-requisito da seção C), e o `CLAUDE.md` aponta para eles.
 
 Vale lembrar que esta branch carrega junto os 3 commits de `fix/honest-failure-reporting`, que o
 próprio plano marca como **pendentes de validação manual** — o merge para a `main` arrasta essa
@@ -401,6 +425,11 @@ Itens que parecem problema e são decisão consciente. Não "corrigir":
   `lastguest/murmurhash: v2.0.0`, que declara `php: ^7`; sem o pin, a resolução honesta em PHP 8
   falha. `murmurhash` só é alcançável por `Bloom/BloomFilter.php` e um método de `Crypto/Hash.php`,
   nenhum dos dois referenciado pelo plugin.
+  **Complemento (2026-08-17):** continua valendo — mas o pin deixou de ser uma supressão cega. Ele é
+  global (resolve a árvore inteira como 7.4), então uma dependência futura incompatível com o piso
+  de PHP entraria calada; isso passou a ser auditado por `scripts/check-platform-pin.sh`, ligado no
+  `release.sh`. Ver E7.1/E7.2 do `CRYPTO-DEPENDENCIES.md`, incluindo por que `replace` foi rejeitado
+  e o PR upstream de uma linha que aposenta o pin.
 - **`Requires PHP: 8.1` no header do plugin convivendo com `platform.php = 7.4` no composer** é
   esperado: o pin governa só a resolução de dependências, não o runtime. Pré-existente à mudança.
 - **A remoção de `config.audit.ignore` está certa.** As duas entradas eram contra `mdanter/ecc`, que
@@ -418,16 +447,38 @@ Itens que parecem problema e são decisão consciente. Não "corrigir":
 ## Checklist de fechamento
 
 ```
-[ ] A1 — CHANGELOG.md: reescrito o bullet de ### Changed (sem sugerir correção de CVE)
-[ ] A2 — CRYPTO-DEPENDENCIES.md: E6 refeito com os números do caminho real (7 → 12)
-[ ] A2 — CRYPTO-DEPENDENCIES.md: "Horizonte PHP 9" cita tentative return types
-[ ] A3 — CRYPTO-DEPENDENCIES.md: E8 corrigido (linhas master x 0.5, 4 melhorias ganhas)
-[ ] A4 — CRYPTO-DEPENDENCIES.md: docker-compose → docker compose (4 ocorrências)
-[ ] A5 — CRYPTO-DEPENDENCIES.md: linha do config.platform e o esperado do OnchainWithoutGmpTest
-[ ] Commit isolado da frente de cripto (sem código PHP junto)
-[ ] Rebase sobre origin/main, com CLAUDE.md e PREMIUM-ADDON.md resolvidos conforme a Parte 3
-[ ] git grep "lucas-rosa95" limpo fora dos dois documentos históricos
+[x] A1 — CHANGELOG.md: reescrito o bullet de ### Changed (sem sugerir correção de CVE)
+[x] A2 — CRYPTO-DEPENDENCIES.md: E6 refeito com os números do caminho real (7 → 12)
+[x] A2 — CRYPTO-DEPENDENCIES.md: "Horizonte PHP 9" cita tentative return types
+[x] A3 — CRYPTO-DEPENDENCIES.md: E8 corrigido (linhas master x 0.5, 4 melhorias ganhas)
+[x] A4 — CRYPTO-DEPENDENCIES.md: docker-compose → docker compose (4 ocorrências)
+[x] A5 — CRYPTO-DEPENDENCIES.md: linha do config.platform e o esperado do OnchainWithoutGmpTest
+[x] Commit isolado da frente de cripto (sem código PHP junto) — 7194e12; o código PHP entrou
+    depois, em df73406, que é a outra frente (contingência de deprecations)
+[x] Rebase sobre origin/main, com CLAUDE.md e PREMIUM-ADDON.md resolvidos conforme a Parte 3
+    — a branch está 3 commits à frente e 0 atrás; PREMIUM-ADDON.md é a versão de 651 linhas da
+    `main` com a troca reaplicada
+[x] git grep "lucas-rosa95" limpo fora dos documentos históricos (ver a nota na Parte 3 sobre as
+    quatro exclusões deliberadas)
 [ ] (no release) readme.txt == Changelog == sincronizado com o CHANGELOG.md
+```
+
+Achados da revalidação de 2026-08-17 (fora do escopo original deste audit, todos aplicados):
+
+```
+[x] A4: premissa invertida corrigida no próprio achado; nota de substituição de compose nos dois
+    docs; fallback para o binário standalone em scripts/release.sh
+[x] Item opcional do COMPOSER_AUTH revisto de "pode sair" para "manter" (429 do codeload medido)
+[x] CLAUDE.md: "no GitHub access" ajustado; link para este audit; Plugin Check documentado como
+    não provisionado; status da contingência alinhado ("seção C pendente")
+[x] phpcs:disable do suppress_vendor_deprecations() passou a nomear também o sniff próprio do
+    Plugin Check — eram 3 WARNING em código enviado
+[x] Números de suíte reconciliados entre os três docs (334 / 355 / 363)
+[x] Gap do config.platform.php fechado: scripts/check-platform-pin.sh + fase no release.sh,
+    E7.1/E7.2 no CRYPTO-DEPENDENCIES.md, replace rejeitado, PR upstream registrado
+[x] docs/RELEASE.md: rsync no host e a forma do compose adicionados ao pre-flight
+[ ] src/trunk/vendor/ reinstalado a partir do lock antes do teste manual (a árvore local ainda
+    tinha os forks de 2026-08-14, o que invalidaria a seção C da contingência)
 ```
 
 Nada nesta lista exige rodar a suíte de novo, a menos que algum arquivo em `src/trunk/includes/`

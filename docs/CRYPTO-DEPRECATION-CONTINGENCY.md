@@ -8,6 +8,14 @@
 > manual de aceitação no navegador (seção C). Contingência para um defeito observado após a troca
 > para os pacotes oficiais `bitwasp/*` (ver [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md)).
 >
+> **Revalidação independente (2026-08-17):** tudo acima reproduzido contra uma instalação limpa do
+> `composer.lock` — o vendor cru imprime **590 bytes** de `Deprecated` (`CachingTypeFactory`
+> 376/36/88), o serviço envolvido imprime **0** e devolve `true`; 60/60 vetores; num host sem gmp o
+> `\Error` (`Call to undefined function BitWasp\Bitcoin\gmp_init()`) propaga e a rota bech32 segue
+> devolvendo `true`/`false` corretamente, sem imprimir nada. Dois ajustes saíram dela: o
+> `phpcs:disable` passou a nomear também o sniff próprio do Plugin Check (eram 3 `WARNING` em código
+> enviado) e a seção C ganhou o pré-requisito de vendor.
+>
 > Documento auto-suficiente: quem executar não precisa da conversa que o originou. Prosa em
 > português; identificadores, caminhos e nomes de teste em inglês, como no resto do repo.
 > Restrição do solicitante: **não editar arquivos dentro de `vendor/`** — mudanças ali se perdem
@@ -130,6 +138,16 @@ private static function suppress_vendor_deprecations(callable $fn)
 }
 ```
 
+> **Anotação de sniff (obrigatória, medida).** As três chamadas a `error_reporting()` disparam
+> **dois** sniffs, não um: o do WPCS
+> (`WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting`) e o próprio do
+> Plugin Check (`PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall`, "Detected
+> production-time change to PHP error reporting"), que roda independente do WPCS. O
+> `phpcs:disable`/`phpcs:enable` precisa nomear **os dois** — nomear só o primeiro deixava 3
+> `WARNING` em código enviado, exatamente o tipo de linha que a revisão do WordPress.org questiona
+> num plugin de pagamento. São `WARNING`, não `ERROR`: o gate "nenhum `ERROR` em código enviado"
+> passa de qualquer forma, mas isso não é razão para deixá-los lá.
+
 **(b)** Rotear **apenas a região bitwasp** dos 5 métodos por ele (envolver só as chamadas à lib,
 não a lógica nossa em volta):
 
@@ -145,6 +163,14 @@ Colocar o wrap **dentro** do `try` de cada `validate_*` garante que `\Exception`
 `false` e `\Error` ainda propaga. **Nesting é seguro** (restauração LIFO): `validate_extended_pubkey`
 chama `convert_extended_pubkey_prefix`, ambos envolvidos — o `finally` interno restaura ao nível já
 mascarado, o externo ao original.
+
+> **Ressalva de escopo em `generate_address_from_xPub`.** Nesse método a closure é o corpo inteiro,
+> então a máscara cobre também um pouco de código nosso: `get_prefix_from_xpub()`,
+> `get_prefix_meta()` e a chamada ao `$logger` do fallback de prefixo. É consequência de as chamadas
+> bitwasp estarem intercaladas com essa lógica — quebrar em wraps menores exigiria espalhar 4 ou 5
+> deles pelo método. Nada ali emite `E_DEPRECATED` hoje; se algum dia emitir, é o único ponto do
+> plugin onde a regra "só a região bitwasp" está mais larga do que diz. Nos outros 4 métodos o wrap
+> é estritamente a região da lib.
 
 **Nenhuma mudança** em `class-wc-gateway-paycrypto-me.php`, `class-bitcoin-payment-processor.php`,
 vendor, ou `composer.json`/autoload. As chamadas `NetworkFactory::bitcoin()/bitcoinTestnet()`
@@ -197,6 +223,21 @@ docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli \
 ```
 
 ### C — Teste manual de aceitação (reproduz/confirma o bug real)
+
+> **Pré-requisito que já quebrou uma rodada de validação.** O container `wordpress` monta
+> `./src/trunk`, então ele usa o `vendor/` que está no host. Uma árvore instalada **antes** da troca
+> de pacotes ainda carrega `lucas-rosa95/bitcoin` + `lucas-rosa95/buffertools-php`, e o
+> `CachingTypeFactory.php` do fork **tem** o fix de `parent`-in-callables: o bug não reproduz, o
+> "antes" não aparece, e o teste valida código aposentado. Conferir primeiro:
+>
+> ```bash
+> ls src/trunk/vendor/bitwasp        # deve mostrar: bech32  bitcoin  buffertools
+> ls src/trunk/vendor/lucas-rosa95   # não deve existir
+> ```
+>
+> Se divergir: `docker-compose run --rm release composer install` (use `--prefer-source` se o
+> `codeload.github.com` estiver devolvendo `429`).
+
 Host PHP 8.3, `WP_DEBUG_DISPLAY=true`, **com** gmp:
 1. **Antes:** WooCommerce → Settings → Payments → Bitcoin On-Chain → xPub/zpub válido → Save →
    observar as notices `Deprecated ... CachingTypeFactory` + "headers already sent" + redirect quebrado.

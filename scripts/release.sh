@@ -26,9 +26,15 @@ step()   { echo -e "${CYAN}  →${NC} $*"; }
 # with the dev `wordpress` service, so the dev stack does not need to be up.
 RELEASE_SERVICE="release"
 
+# Compose v2 ships as the `docker compose` plugin, but plenty of hosts only have the standalone
+# `docker-compose` binary (also v2 nowadays) — same fallback as smoke-minimal-host.sh and
+# build-translations.sh. Without it this script refused to run on exactly those hosts. Resolved
+# for real in the Docker check below; this is only the default.
+DOCKER_COMPOSE=(docker compose)
+
 # Run a command in a throwaway `release` container (working dir /plugin = src/trunk).
 docker_exec() {
-    docker compose run --rm "$RELEASE_SERVICE" bash -c "$1"
+    "${DOCKER_COMPOSE[@]}" run --rm "$RELEASE_SERVICE" bash -c "$1"
 }
 
 # === HELP ===
@@ -159,7 +165,11 @@ fi
 # Check Docker — the `release` service is ephemeral (built/run on demand), so the dev
 # stack does NOT need to be up; we only need the Docker CLI + Compose available.
 if [[ $USE_DOCKER -eq 1 ]]; then
-  if docker compose version >/dev/null 2>&1; then
+  if docker compose version >/dev/null 2>&1 || command -v docker-compose >/dev/null 2>&1; then
+    if ! docker compose version >/dev/null 2>&1; then
+      DOCKER_COMPOSE=(docker-compose)
+      log "Using the standalone 'docker-compose' binary (the 'docker compose' plugin is not installed)."
+    fi
     log "Build/tests will run in the ephemeral '$RELEASE_SERVICE' service (dev stack not required)."
     # Forward the repo-root auth.json to Composer inside the container. Optional — safe
     # if absent, and no longer required now that all deps come from Packagist (the private
@@ -170,8 +180,9 @@ if [[ $USE_DOCKER -eq 1 ]]; then
       log "Forwarding auth.json to Composer via COMPOSER_AUTH."
     fi
   else
-    error "Docker Compose is not available. Install Docker (with Compose), or pass --no-docker"
-    error "to run build/tests on the host (requires local Node.js, PHP, Composer)."
+    error "Neither 'docker compose' nor 'docker-compose' is available. Install Docker (with"
+    error "Compose), or pass --no-docker to run build/tests on the host (requires local"
+    error "Node.js, PHP, Composer)."
     exit 1
   fi
 fi
@@ -223,6 +234,17 @@ if [[ $DO_TESTS -eq 1 ]]; then
     fi
     log "Running PHPUnit on host..."
     run bash -c "cd '$TRUNK' && ./vendor/bin/phpunit --configuration phpunit.xml.dist"
+  fi
+
+  # `config.platform.php = 7.4` makes Composer resolve the whole tree as if on PHP 7.4, so a
+  # dependency incompatible with the plugin's real floor would install silently. This audits that
+  # blind spot against the floor in the plugin header and fails on anything beyond the one known,
+  # documented package. Cheap (no dev stack needed) and hard to forget when it lives here.
+  header "Platform pin audit"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    "$ROOT_DIR/scripts/check-platform-pin.sh"
+  else
+    step "[dry-run] scripts/check-platform-pin.sh"
   fi
 fi
 
@@ -325,7 +347,7 @@ log "Running: composer install --no-dev --optimize-autoloader --prefer-dist"
 
 if [[ $DRY_RUN -eq 0 ]]; then
   if [[ $USE_DOCKER -eq 1 ]]; then
-    docker compose run --rm \
+    "${DOCKER_COMPOSE[@]}" run --rm \
       -v "$BUILD_DIR/$SLUG:/release-build" \
       -w /release-build \
       "$RELEASE_SERVICE" bash -c \
@@ -339,7 +361,7 @@ if [[ $DRY_RUN -eq 0 ]]; then
     fi
   fi
 else
-  step "[dry-run] docker compose run: composer install --no-dev --optimize-autoloader in build dir"
+  step "[dry-run] ${DOCKER_COMPOSE[*]} run: composer install --no-dev --optimize-autoloader in build dir"
 fi
 
 # === VENDOR CLEANUP (residual files) ===

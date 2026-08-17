@@ -147,11 +147,13 @@ Antes de executar o release, verifique:
 | Requisito | Como verificar |
 |---|---|
 | Está na raiz do repositório | `ls docker-compose.yml scripts/ src/trunk/` |
-| Docker + Compose disponíveis (o release roda em container efêmero `release`; o stack de dev **não** precisa estar no ar) | `docker compose version` |
+| Docker + Compose disponíveis (o release roda em container efêmero `release`; o stack de dev **não** precisa estar no ar) | `docker compose version` — ou `docker-compose version`; os scripts aceitam as duas formas |
+| `rsync` disponível **no host** (o `release.sh` sincroniza o build dir fora do container) | `command -v rsync` |
 | Branch `main` limpa (sem changes pendentes) | `git status` |
 | `readme.txt` atualizado com changelog da nova versão | Ver seção acima |
 | Todos os testes passando | `./scripts/release.sh ... --no-zip` primeiro |
 | Smoke de host mínimo passando (**stack de dev precisa estar no ar** — diferente do resto do release) | `docker compose up -d wordpress` e depois `./scripts/smoke-minimal-host.sh` — ver seção abaixo |
+| Auditoria do pin de plataforma passando | `./scripts/check-platform-pin.sh` — **já roda automaticamente** na fase de testes do `release.sh`; ver seção abaixo |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
 | Credenciais SVN configuradas (se for submeter ao WP.org) | Ver seção "Configurando Credenciais SVN" abaixo |
 
@@ -196,6 +198,43 @@ temporários em `src/trunk/.smoke-minimal-host-tmp/` (necessário para rodar via
 > num host que realmente não tenha a extensão compilada (como o WordPress Playground do
 > revisor) — o smoke test cobre a parte que É simulável: a construção/listagem dos gateways
 > nunca deve tocar `gmp_init` diretamente.
+
+---
+
+## Auditoria do pin de plataforma (roda dentro do `release.sh`)
+
+`./scripts/check-platform-pin.sh` fecha o ponto cego que o `config.platform.php = 7.4` do
+`src/trunk/composer.json` abre. Esse pin existe por **um** pacote: o `bitwasp/bitcoin v1.1.0` exige
+`lastguest/murmurhash` na versão **exata** `v2.0.0`, que declara `php: ^7` — sem o pin, uma
+resolução honesta em PHP 8 se recusa a instalar. O pacote só é alcançável por
+`Crypto/Hash.php::murmur3()` (chamado de `Bloom/BloomFilter.php`), e o plugin não referencia nenhum
+dos dois: é instalado e nunca executado. Detalhe medido em
+[docs/CRYPTO-DEPENDENCIES.md](CRYPTO-DEPENDENCIES.md) → E7.
+
+O problema é que o pin é **global e permanente**: ele manda o Composer resolver a árvore **inteira**
+como se fosse 7.4, hoje e no futuro. Uma dependência nova (direta ou transitiva) incompatível com o
+piso real de PHP do plugin entraria **calada** — justamente a checagem que o Composer daria de graça.
+
+O script roda `composer why-not php <piso>`, que **ignora o pin** e lista *todos* os pacotes cujo
+requisito de PHP exclui aquele piso. O piso vem do header do plugin (`Requires PHP:`), então subir o
+piso move a checagem junto. Qualquer pacote além do único allowlistado reprova com exit != 0:
+
+```bash
+./scripts/check-platform-pin.sh
+```
+
+Três resultados possíveis, todos acionáveis:
+
+| Resultado | O que significa |
+|---|---|
+| só `lastguest/murmurhash` | esperado — pin justificado e auditado |
+| qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `CRYPTO-DEPENDENCIES.md` primeiro |
+| nenhum pacote | o pin virou peso morto — **remova-o** do `composer.json`, regrave o lock e apague a nota do E7. É o que vai acontecer quando o upstream soltar o pin exato do murmurhash (a `2.1.1` já declara `php: ^7||^8.0`) |
+
+Não precisa do stack de dev no ar: usa o serviço efêmero `release`, e cai para um `composer` do host
+se não houver Docker. Já está ligado na fase **Platform pin audit** do `release.sh`, logo depois do
+PHPUnit, e é pulado junto com os testes por `--no-tests` (então o fluxo `--svn`, que exige
+`--no-tests`, não o reexecuta).
 
 ---
 

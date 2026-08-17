@@ -76,8 +76,11 @@ class BitcoinAddressService
     {
         // error_reporting() here only NARROWS the reported level (masks E_DEPRECATED) and restores
         // it in finally — it reduces diagnostic disclosure, the opposite of the sniff's full-path-
-        // disclosure concern, and narrowing it is the whole purpose of this helper.
-        // phpcs:disable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting
+        // disclosure concern, and narrowing it is the whole purpose of this helper. Both sniffs that
+        // flag the call are listed: WPCS's path-disclosure one and Plugin Check's own
+        // DirectErrorReportingCall, which fires independently and would otherwise leave three
+        // warnings on shipped code.
+        // phpcs:disable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting, PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall
         $previous = error_reporting();
         error_reporting($previous & ~E_DEPRECATED);
 
@@ -86,7 +89,7 @@ class BitcoinAddressService
         } finally {
             error_reporting($previous);
         }
-        // phpcs:enable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting
+        // phpcs:enable WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting, PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall
     }
 
     /**
