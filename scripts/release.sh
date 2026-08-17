@@ -236,10 +236,11 @@ if [[ $DO_TESTS -eq 1 ]]; then
     run bash -c "cd '$TRUNK' && ./vendor/bin/phpunit --configuration phpunit.xml.dist"
   fi
 
-  # `config.platform.php = 7.4` makes Composer resolve the whole tree as if on PHP 7.4, so a
-  # dependency incompatible with the plugin's real floor would install silently. This audits that
-  # blind spot against the floor in the plugin header and fails on anything beyond the one known,
-  # documented package. Cheap (no dev stack needed) and hard to forget when it lives here.
+  # `config.platform.php` decides which PHP Composer resolves the whole tree against. Pinned at or
+  # above the plugin's real floor it hides nothing and just makes resolution reproducible; pinned
+  # below it (as it was at 7.4), a dependency incompatible with that floor installs silently. This
+  # audits both regimes against the floor in the plugin header and fails on any package that blocks
+  # it. Cheap (no dev stack needed) and hard to forget when it lives here.
   header "Platform pin audit"
   if [[ $DRY_RUN -eq 0 ]]; then
     "$ROOT_DIR/scripts/check-platform-pin.sh"

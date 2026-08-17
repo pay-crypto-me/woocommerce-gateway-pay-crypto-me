@@ -123,8 +123,8 @@ Duas ressalvas de precisão, medidas em 2026-08-17, que não mudam a conclusão:
 
 ### E5 — O upstream instala e produz resultados idênticos
 
-`bitwasp/bitcoin ^1.1` resolve limpo com o **mesmo** `config.platform.php = 7.4` que o plugin já
-usa, trazendo exatamente as mesmas dependências (`paragonie/ecc v2.5.0`, `bitwasp/bech32 v0.0.1`,
+`bitwasp/bitcoin ^1.1` resolve limpo com o **mesmo** `config.platform.php = 7.4` que o plugin usava
+à época desta medição (hoje o pin é `8.1` — ver E7.2), trazendo exatamente as mesmas dependências (`paragonie/ecc v2.5.0`, `bitwasp/bech32 v0.0.1`,
 `bitwasp/buffertools v0.5.7`).
 
 Os **12 vetores** de `tests/vectors/bitcoin_addresses.json` (60 endereços, cobrindo
@@ -163,6 +163,12 @@ buffertools (`90e244c`, `CachingTypeFactory.php`, 28 linhas) — ver E8. Todas s
 
 ### E7 — O bloqueio real do upstream, e por que ele não importa aqui
 
+> **Estado final (executado em 2026-08-17, ver [`LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md)):** o
+> pin foi para `8.1` (o piso real do plugin) e o `murmurhash` saiu da árvore via
+> `"replace": {"lastguest/murmurhash": "2.0.0"}`. O E7/E7.1/E7.2 abaixo mantêm o histórico de por
+> que o pin de 7.4 existiu e o que ele custava — não foram reescritos como se ele nunca tivesse
+> existido, porque é esse histórico que impede alguém de reintroduzi-lo.
+
 `bitwasp/bitcoin` v1.1.0 fixa `lastguest/murmurhash: v2.0.0` (versão exata), que declara
 `php: ^7`. Numa resolução honesta em PHP 8 isso falha:
 
@@ -170,13 +176,13 @@ buffertools (`90e244c`, `CachingTypeFactory.php`, 28 linhas) — ver E8. Todas s
 lastguest/murmurhash 2.0.0 requires php ^7 -> your php version (8.3.33) does not satisfy that
 ```
 
-O plugin já contorna com `config.platform.php = 7.4`, que faz o composer resolver como se fosse
-PHP 7.4. **Esse contorno já existe hoje e é o que sustenta o próprio fork** — ele também instala
-`lastguest/murmurhash 2.0.0`.
+O plugin contornava com `config.platform.php = 7.4`, que fazia o composer resolver como se fosse
+PHP 7.4. **Esse contorno já existia antes da troca e era o que sustentava o próprio fork** — ele
+também instalava `lastguest/murmurhash 2.0.0`.
 
 Risco prático: nenhum. Dentro da lib, `murmurhash` só é alcançado por `Bloom/BloomFilter.php:250` e
-`Crypto/Hash.php::murmur3()`; o plugin não referencia nenhum dos dois. O pacote é instalado e nunca
-executado.
+`Crypto/Hash.php::murmur3()`; o plugin não referencia nenhum dos dois. O pacote era instalado e nunca
+executado — e hoje não é nem instalado.
 
 #### E7.1 — O bloqueio é o pin exato do upstream, não o pacote (medido 2026-08-17)
 
@@ -193,46 +199,59 @@ Ou seja: não há nada errado com a dependência nem com a nossa árvore — o q
 o PR upstream é literalmente **uma linha** (`v2.0.0` → `^2.0`), sem mudança de código, e o dado
 acima é a justificativa pronta.
 
+**Ainda não enviado, e continua sendo o desfecho melhor** (reconferido em 2026-08-17: o
+`bitwasp/bitcoin` segue em `v1.1.0`, lançada em 2026-02-25, com o pin exato intacto). Ele é
+estritamente superior ao que fizemos: dispensa o `replace`, dispensa o `VendorReplaceGuardTest` e
+mantém o `murmur3()` funcional, sem abrir mão do pin como declaração do piso. Quando entrar, tire o
+`replace` e o teste de guarda; o pin em `8.1` fica.
+
 #### E7.2 — O gap real do pin, e como ele passou a ser auditado
 
 O murmurhash é inofensivo; o **pin** não é inteiramente. Ele não diz "ignore o php desse pacote",
 diz "resolva a árvore **inteira** como se fosse 7.4" — hoje e para sempre. Isso tem duas
 consequências, e a primeira só foi medida em 2026-08-17:
 
-**(i) O pin segura toda a árvore em versões da era 7.4.** Não é custo hipotético nem cosmético — é
-o que vai para as lojas hoje:
+**(i) O pin segurava toda a árvore em versões da era 7.4.** Não era custo hipotético nem cosmético —
+era o que ia para as lojas até 2026-08-17:
 
-| pacote | com o pin (enviado hoje) | sem o pin |
+| pacote | com o pin de 7.4 (enviado até então) | hoje, com o pin em 8.1 |
 |---|---|---|
 | `paragonie/sodium_compat` | **v1.24.0** — declara suporte de PHP 5.2.4 a 8 | **v2.5.0** — `php: ^8.1`, exatamente o piso do plugin |
 | `paragonie/random_compat` | **instalado** — polyfill de `random_bytes` para PHP 5 | **não existe** |
 | `genkgo/php-asn1` | v2.5.0 | v2.9.0 |
 | `endroid/qr-code` | 4.6.1 | 4.8.5 |
 
-O `paragonie/ecc` aceita `sodium_compat ^1|^2`; a escolha da v1 é puro artefato do pin. Medido no
+O `paragonie/ecc` aceita `sodium_compat ^1|^2`; a escolha da v1 era puro artefato do pin. Medido no
 caminho de produção (60 vetores + validadores, via `get_included_files()`): o `random_compat`
-carrega **0 arquivos** — é polyfill de PHP 5 enviado a toda loja que nunca executa, presente só
-porque o `sodium_compat` v1 o exige. O `sodium_compat` carrega **10 arquivos**, então esse está no
-caminho vivo (diferente do murmurhash, que também é 0).
+carregava **0 arquivos** — polyfill de PHP 5 enviado a toda loja que nunca executava, presente só
+porque o `sodium_compat` v1 o exigia. O `sodium_compat` carrega **10 arquivos** na v1 e **8** na v2,
+então esse está no caminho vivo (diferente do murmurhash, que também era 0).
 
-**Sem inflar:** não há advisory contra a `v1.24.0` — `composer audit` está limpo no lock atual. É
-defasagem de manutenção, não vulnerabilidade.
+**Sem inflar:** não há advisory contra a `v1.24.0` — `composer audit` estava limpo no lock antigo e
+continua limpo no novo. Foi defasagem de manutenção, não vulnerabilidade.
 
-Duas medições complementares sobre o `sodium_compat`, porque a intuição erra a direção aqui. Ele é
-a **única** entrada de `vendor/composer/autoload_files.php` (declara `"autoload": {"files":
-["autoload.php"]}`), logo é carregado por `require` em **todo request** que carrega o autoloader do
-plugin — 4.62 ms e 506 KB medidos, e funcionalmente inúteis num host com `ext-sodium` nativa. E
-dentro do container `wordpress`, os arquivos de `sodium_compat` carregados num request normal são
-**os nossos**, não os do core: o WP também empacota o dele (`wp-includes/sodium_compat/`), mas
-carrega sob demanda, então é a nossa cópia que define as classes globais `ParagonIE_Sodium_*` (sem
-namespace) para o site. Somos o lado que sombreia — o que também é a razão de um polyfill nunca
-poder ser prefixado.
+Duas medições complementares sobre o `sodium_compat`, porque a intuição erra a direção aqui. Ele
+declara `"autoload": {"files": ["autoload.php"]}`, logo é carregado por `require` em **todo request**
+que carrega o autoloader do plugin — 505 KB medidos e poucos milissegundos, funcionalmente inúteis
+num host com `ext-sodium` nativa. E dentro do container `wordpress`, os arquivos de `sodium_compat`
+carregados num request normal são **os nossos**, não os do core: o WP também empacota o dele
+(`wp-includes/sodium_compat/`), mas carrega sob demanda, então é a nossa cópia que define as classes
+globais `ParagonIE_Sodium_*` (sem namespace) para o site. Somos o lado que sombreia — o que também é
+a razão de um polyfill nunca poder ser prefixado.
 
-Destravar isso — subir o pin ao piso real (`8.1`) e tirar o `murmurhash` da árvore via `replace` — é
-frente própria, com plano medido e aprovado em
-[`docs/LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md). **Não** fazer junto de mudança de lock já
-verificada: o plano tem a própria rodada de verificação, incluindo o install limpo `--no-dev` que é o
-caminho do release.
+> **Correção de medição (2026-08-17, na execução do plano).** Este parágrafo dizia que o
+> `sodium_compat` era a **única** entrada de `vendor/composer/autoload_files.php`. Não é, e nunca
+> foi: num install `--no-dev` são **três**, e as outras duas são `bitwasp/bech32/src/bech32.php` e
+> `bitwasp/bitcoin/src/Script/functions.php`. Medido nas duas árvores, a antiga e a nova — logo é
+> erro de leitura do `grep` original (que filtrava por `sodium_compat`), não efeito da troca. O que
+> continua verdade é o que sustenta o argumento: o `sodium_compat` é carregado eager em todo request.
+> A troca de major **não** reduziu esse custo — 505 KB / 10 arquivos na v1 contra 518 KB / 8 arquivos
+> na v2, tempo dentro do ruído nas duas. O que caiu foi o disco: 1.8 MB → 1.1 MB.
+
+Isso foi destravado em 2026-08-17 — pin no piso real (`8.1`) e `murmurhash` fora da árvore via
+`replace` — como frente própria, medida e registrada em
+[`docs/LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md), com a própria rodada de verificação incluindo o
+install limpo `--no-dev` que é o caminho do release.
 
 **(ii) Uma dependência futura entraria calada.** Direta ou transitiva, incompatível com o piso real
 de PHP do plugin: é exatamente a checagem que o Composer faria de graça, desligada por nós.
@@ -240,21 +259,34 @@ de PHP do plugin: é exatamente a checagem que o Composer faria de graça, desli
 Fechado por [`scripts/check-platform-pin.sh`](../scripts/check-platform-pin.sh), que roda
 `composer why-not php <piso>` — comando que **ignora o pin** e lista *todos* os pacotes cujo
 requisito de PHP exclui o piso. O piso é lido do header do plugin (`Requires PHP:`), então subir o
-piso move a checagem junto. Um pacote além do allowlistado reprova com exit != 0, e a allowlist
-existe com uma condição declarada no próprio script: cada entrada precisa de razão aqui **e** da
-prova de que o plugin nunca executa aquele código.
+piso move a checagem junto.
 
-O script também reporta o caso inverso, que é o que normalmente se esquece: quando o ofensor
-conhecido deixar de bloquear o piso (isto é, quando o PR de E7.1 entrar), ele avisa que o pin virou
-peso morto e deve ser **removido**, em vez de herdado indefinidamente. Está ligado na fase
+Desde 2026-08-17 o script distingue **dois regimes**, porque o mesmo pin significa coisas opostas
+conforme a relação com o piso (comparação por versão, não por string — `8.10` não é menor que `8.9`):
+
+| relação | regime | o que o script faz |
+|---|---|---|
+| `platform.php` **>=** piso | **declaração** — o pin não esconde nada, só torna a resolução reproduzível em vez de depender do PHP do container de build | qualquer pacote bloqueando o piso **reprova**: não é workaround, é incompatibilidade real em código que vai para as lojas |
+| `platform.php` **<** piso | **supressão** — resolve a árvore inteira num PHP mais velho que o piso | audita contra a `ALLOWED_OFFENDERS`, e avisa quando um allowlistado deixa de aparecer |
+
+Hoje o regime é **declaração** e a `ALLOWED_OFFENDERS` está **vazia** — o estado saudável. Baixar o
+pin para fazer o script passar, ou alargar a allowlist, nunca é a correção: cada entrada precisaria
+de razão aqui **e** da prova de que o plugin nunca executa aquele código. No regime de supressão o
+script também reporta o caso inverso, que é o que normalmente se esquece: quando o ofensor conhecido
+deixa de bloquear o piso, ele avisa que o pin virou peso morto. Está ligado na fase
 *Platform pin audit* do `release.sh`, logo depois do PHPUnit — ver
 [`docs/RELEASE.md`](RELEASE.md) → "Auditoria do pin de plataforma".
 
-Alternativa considerada e **rejeitada**: `"replace": {"lastguest/murmurhash": "2.0.0"}` no nosso
-`composer.json`. Funciona — permitiria `platform.php = 8.1` — mas troca "instalado e nunca
-executado" por "não existe": `Hash::murmur3()` sai de no-op para `Class not found` se algum
-consumidor chegar lá (um add-on de terceiro usando `BloomFilter`, por exemplo). É piorar o modo de
-falha em troca de ganho cosmético no `composer.json`.
+Alternativa antes rejeitada e depois **adotada**: `"replace": {"lastguest/murmurhash": "2.0.0"}` no
+nosso `composer.json`. A objeção continua correta e não foi anulada — o `replace` troca "instalado e
+nunca executado" por "não existe", então `Hash::murmur3()` sai de no-op para `Class not found` se
+algum consumidor chegar lá. O que mudou foi o outro prato da balança: o "ganho cosmético no
+`composer.json`" não era cosmético, era a árvore inteira presa na era 7.4 (i). Adotado **com**
+mitigação: o `VendorReplaceGuardTest` reprova em desenvolvimento se código do plugin referenciar
+`lastguest\Murmur`, `murmur3` ou `BloomFilter`, com granularidade de **método** — as outras oito
+estáticas de `Crypto\Hash` (`sha256`, `hmac`, `pbkdf2`, …) continuam intactas e usáveis. A metade da
+objeção que sobrevive é a do consumidor terceiro alcançando `BloomFilter`, e ela some sozinha quando
+o PR de E7.1 entrar.
 
 ### E8 — O segundo fork sai junto, e é o único que perde algo real
 
@@ -424,8 +456,10 @@ Três caminhos, para avaliar quando o PHP 9 tiver data:
    e adicionar tipos nulláveis explícitos. O upstream aceitou commits em 2024 e 2026 — não está
    morto. **O primeiro está pronto para enviar:** é uma linha em `composer.json`, sem mudança de
    código, e a justificativa está medida em E7.1 (a `2.1.1` já declara `php: ^7||^8.0`; o pin exato
-   é o único bloqueio de PHP 8 na árvore). Quando entrar,
-   `scripts/check-platform-pin.sh` acusa que o pin virou peso morto — ver E7.2.
+   é o único bloqueio de PHP 8 na árvore). **Segue não enviado** (reconferido em 2026-08-17). Quando
+   entrar, o desfecho já não é "remover o pin": o pin agora *declara* o piso e fica; o que sai é o
+   `"replace"` e o `VendorReplaceGuardTest` — ver E7.2 e
+   [`LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md).
 2. **Substituir a fatia estreita.** O plugin usa **9 classes**: `AddressCreator`, `SegwitAddress`,
    `HierarchicalKeyFactory`, `NetworkFactory`, `NetworkInterface`, `ScriptFactory`,
    `WitnessProgram`, `Base58`, `Buffer`. Implementar isso sobre `phpseclib/phpseclib` v3 —

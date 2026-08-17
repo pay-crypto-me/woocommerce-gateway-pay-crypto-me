@@ -8,11 +8,11 @@
 - [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
 - [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **done.** The record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`.
 - [docs/CRYPTO-DEPENDENCIES-AUDIT.md](docs/CRYPTO-DEPENDENCIES-AUDIT.md) — **done.** Independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
-- [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md) — **approved plan, not started.** `config.platform.php = 7.4` resolves the *whole* tree as if on PHP 7.4, not just the one package it exists for, so the plugin ships `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executes. Plan to move the pin to the real floor (8.1) and drop `murmurhash` via `replace`, measured green in an isolated tree. Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`.
+- [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md) — **done.** `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`.
 - [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; browser acceptance test (its section C) still pending.** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1**. Production-hardening and the WordPress.org review round are both complete and verified (363 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1**. Production-hardening and the WordPress.org review round are both complete and verified (367 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
@@ -244,7 +244,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 363 tests, 755 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 367 tests, 760 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Smoke test for environment-dependent fatals
 
@@ -303,29 +303,41 @@ clean install can fail with `HTTP/2 429 … Source fallback is disabled`, measur
 repo-root `auth.json` (`release.sh` forwards it via `COMPOSER_AUTH`, which is why that plumbing is
 still there), or `--prefer-source`, which clones instead of downloading zips.
 
-`config.platform.php` is pinned to `7.4` **on purpose and must stay**: `bitwasp/bitcoin v1.1.0`
-fixes `lastguest/murmurhash` to the **exact** version `v2.0.0`, which declares `php: ^7`, so an
-honest PHP 8 resolution would refuse to install. The pin makes Composer resolve as if on 7.4.
-`murmurhash` is only reachable from `Bloom/BloomFilter.php:250` and `Crypto/Hash.php::murmur3()` —
-the plugin references neither, so the package is installed and never executed. Raising it from our
-own `require` is impossible (the upstream constraint is an exact version, so anything else
-conflicts), and `replace`-ing it away is **rejected**: that turns "installed, never executed" into
-`Class not found` for any consumer that does reach `BloomFilter`, which is a worse failure mode for
-a cosmetic gain.
+`config.platform.php` is pinned to **`8.1`** — the plugin's real PHP floor, the same value as
+`Requires PHP:` in the header — and `composer.json` carries
+`"replace": {"lastguest/murmurhash": "2.0.0"}`. The two go together and neither works alone:
+`bitwasp/bitcoin v1.1.0` fixes `murmurhash` to the **exact** version `v2.0.0`, which declares
+`php: ^7`, so an honest PHP 8 resolution refuses to install it; `replace` drops it from the tree so
+the pin no longer has to lie about the platform. Raising the version from our own `require` is
+impossible — the upstream constraint is an exact version, so anything else conflicts.
 
-The pin's real cost is that it is **global**: it resolves the whole tree as if on 7.4, so a future
-dependency incompatible with the plugin's PHP floor would install silently. That blind spot is
-audited by **`./scripts/check-platform-pin.sh`**, which runs `composer why-not php <floor>` (the
-floor read from the plugin header, so bumping it moves the check) — the pin cannot hide anything
-from that command. Exactly one package may show up; anything else fails the script, and **widening
-its allowlist to make it pass is not the fix**. It also flags the opposite case: when the known
-offender stops blocking the floor, the pin is dead weight and must be removed. It runs automatically
-in `release.sh`'s *Platform pin audit* phase. Background and the measurements:
-[docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) → E7/E7.1/E7.2.
+The pin used to be `7.4`, and that was **not** a narrow exemption for one package: it resolved the
+whole tree as if on 7.4, so the plugin shipped `paragonie/sodium_compat` a major behind (v1 instead
+of v2) and `paragonie/random_compat`, a PHP 5 polyfill measured at **0 files loaded**. Both are gone;
+the crypto chain (`bitwasp/*`, `paragonie/ecc`) is byte-identical across the change. Full record and
+measurements: [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md).
 
-Upstream fix, ready to send and one line: `lastguest/murmurhash: v2.0.0` → `^2.0` in
-`bitwasp/bitcoin` — `2.1.1` already declares `php: ^7||^8.0`, and that exact pin is the only PHP 8
-blocker measured in the tree. When it lands, the pin goes away and the script says so.
+What `replace` costs, explicitly: `murmurhash` goes from *installed and never executed* to *not
+installed*, so `BitWasp\Bitcoin\Crypto\Hash::murmur3()` — reachable only from
+`Bloom/BloomFilter.php:250` — would now fatal instead of no-op. The mitigation is
+`VendorReplaceGuardTest`, which greps `includes/` and `exceptions/` for `lastguest\Murmur`,
+`murmur3` and `BloomFilter` and fails in development rather than in a store. Granularity is the
+**method**, not the class: `Hash::sha256()` and the other seven statics are unaffected and safe to
+use, so never widen that guard to ban `Crypto\Hash` wholesale.
+
+**`./scripts/check-platform-pin.sh`** audits the pin via `composer why-not php <floor>` (the floor
+read from the plugin header, so bumping it moves the check), and distinguishes two regimes:
+**pin >= floor** is a *declaration* — it hides nothing and only makes resolution reproducible, so
+**any** package blocking the floor fails the script; **pin < floor** is a *suppression* and gets
+audited against `ALLOWED_OFFENDERS`, which is now **empty** and should stay that way. Widening that
+allowlist, or lowering the pin to make the script pass, is never the fix. It runs automatically in
+`release.sh`'s *Platform pin audit* phase. Background: [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) → E7/E7.1/E7.2.
+
+Upstream fix, still unsent and still one line: `lastguest/murmurhash: v2.0.0` → `^2.0` in
+`bitwasp/bitcoin` — `2.1.1` already declares `php: ^7||^8.0`. It is the strictly better outcome
+because it removes the need for `replace` (and therefore for the guard test) while keeping
+`murmur3()` functional. When it lands, drop the `replace` and the guard, and keep the pin as the
+declaration it now is.
 
 > **The two `lucas-rosa95/*` forks were retired** — see
 > [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). The `bitcoin` fork carried no source

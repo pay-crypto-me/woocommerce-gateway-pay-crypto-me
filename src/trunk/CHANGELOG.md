@@ -7,6 +7,13 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+ - Updated the bundled dependencies to the versions built for the PHP 8.1 this plugin already
+   requires. Composer had been resolving the entire dependency tree as if it were running on PHP 7.4,
+   so the published package carried a cryptography compatibility layer a full major version behind
+   and a PHP 5 compatibility package that never ran on any supported host. Both are gone and the
+   published package is two packages smaller. This is dependency maintenance, not a security fix —
+   no advisory applied to the previous versions. Address derivation, Lightning invoices and QR codes
+   are unchanged, and the Bitcoin libraries themselves are byte-for-byte the same.
  - Switched the Bitcoin cryptography libraries from personal forks to the official
    `bitwasp/bitcoin` packages, resolved from Packagist. No functional change: the same addresses
    are derived, and the full test suite plus all 60 address vectors pass unchanged. The two

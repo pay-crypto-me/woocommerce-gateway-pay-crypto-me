@@ -3,28 +3,34 @@ set -euo pipefail
 
 # Audits the `config.platform.php` pin in src/trunk/composer.json.
 #
-# WHY THE PIN EXISTS
-#   composer.json pins config.platform.php to 7.4, so Composer resolves the tree as if it were
-#   running on PHP 7.4. It is needed for exactly ONE package: `bitwasp/bitcoin` v1.1.0 requires
-#   `lastguest/murmurhash` at the EXACT version v2.0.0, and 2.0.0 declares `php: ^7`. Without the
-#   pin, an honest resolution on PHP 8 refuses to install. murmurhash is only reachable from
-#   `Crypto/Hash.php::murmur3()` (called from `Bloom/BloomFilter.php`), and the plugin references
-#   neither — it is installed and never executed. See docs/CRYPTO-DEPENDENCIES.md -> E7.
+# WHAT THE PIN IS TODAY
+#   composer.json pins config.platform.php to the plugin's real PHP floor (8.1, the same value as
+#   "Requires PHP:" in the plugin header), so Composer resolves the tree exactly as a supported host
+#   would. It used to be pinned to 7.4 to smuggle in ONE package: `bitwasp/bitcoin` v1.1.0 requires
+#   `lastguest/murmurhash` at the EXACT version v2.0.0, and 2.0.0 declares `php: ^7`. That pin was
+#   global — it resolved the WHOLE tree as if on 7.4 — so the plugin shipped a crypto polyfill a
+#   major behind plus a PHP 5 polyfill that never ran. murmurhash is now dropped via `replace`
+#   instead, and the pin states the floor rather than hiding it. See docs/LEAN-VENDOR-TREE.md, and
+#   docs/CRYPTO-DEPENDENCIES.md -> E7/E7.1/E7.2 for the history.
 #
-# WHAT THE PIN COSTS, AND WHAT THIS SCRIPT BUYS BACK
-#   The pin is global and permanent: it silences the PHP-version check for the WHOLE tree, so a
-#   future dependency (direct or transitive) incompatible with the plugin's real PHP floor would
-#   enter silently — the one thing Composer would otherwise have caught for free.
+# THE TWO REGIMES THIS SCRIPT DISTINGUISHES
+#   Whether a pin is a declaration or a suppression depends entirely on how it compares to the floor:
+#
+#     pin >= floor  DECLARATION — the pin hides nothing. Resolution is reproducible on any machine
+#                   instead of depending on the build container's PHP. Nothing in the tree may block
+#                   the floor; anything that does is a real incompatibility, not a workaround.
+#     pin <  floor  SUPPRESSION — the pin silences the PHP-version check for the WHOLE tree, so a
+#                   dependency (direct or transitive) incompatible with the plugin's real floor
+#                   enters silently. Every offender must be on ALLOWED_OFFENDERS with a documented
+#                   reason and proof the plugin never executes its code.
 #
 #   `composer why-not php <floor>` ignores the pin and lists EVERY package whose php requirement
-#   excludes that floor. This script runs it against the floor declared in the plugin header
-#   ("Requires PHP:"), and fails if anything shows up beyond the single package we knowingly accept.
-#   A blanket suppression becomes an audited one.
+#   excludes that floor, so it is the right probe in both regimes. The floor is read from the plugin
+#   header ("Requires PHP:"), which means bumping the floor moves this check with it.
 #
-#   It also reports the reverse, which is the point people forget: when the known offender stops
-#   blocking the floor, the pin is dead weight and should be REMOVED, not inherited forever.
-#   murmurhash 2.1.1 already declares `php: ^7||^8.0` — the blocker is upstream's exact-version
-#   pin, not the package, so the day that pin is loosened this script says so.
+#   In the suppression regime the script also reports the reverse, which is the case people forget:
+#   when the known offender stops blocking the floor, the pin is dead weight and should be REMOVED,
+#   not inherited forever.
 #
 # Usage: ./scripts/check-platform-pin.sh
 # Run from anywhere. Needs either Docker (uses the ephemeral `release` service — the dev stack does
@@ -42,10 +48,12 @@ info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[FAIL]${NC} $*" >&2; }
 
-# Packages allowed to require a PHP version older than the plugin's floor. Every entry needs a
-# reason in docs/CRYPTO-DEPENDENCIES.md and a check that the plugin never executes its code —
+# Packages allowed to require a PHP version older than the plugin's floor. Only meaningful in the
+# suppression regime (pin < floor). Empty is the healthy state, and it is the state today: the one
+# package that ever belonged here, `lastguest/murmurhash`, left the tree via `replace`. Every entry
+# needs a reason in docs/CRYPTO-DEPENDENCIES.md and a check that the plugin never executes its code —
 # this list is not a place to park a real incompatibility.
-ALLOWED_OFFENDERS=("lastguest/murmurhash")
+ALLOWED_OFFENDERS=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -82,6 +90,30 @@ if [[ -z "$PLATFORM_PIN" ]]; then
     exit 0
 fi
 
+# --- Which regime are we in? --------------------------------------------------------------------
+# Version-aware, never lexicographic: as strings "8.10" sorts before "8.9", which would silently
+# flip the regime on a future floor bump.
+version_lt() {
+    [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" == "$1" ]]
+}
+
+if version_lt "$PLATFORM_PIN" "$PHP_FLOOR"; then
+    REGIME="suppression"
+    warn "Regime: ${BOLD}SUPPRESSION${NC} — the pin (${PLATFORM_PIN}) is BELOW the declared floor"
+    warn "(${PHP_FLOOR}), so it resolves the whole tree as if on ${PLATFORM_PIN} and can hide a real"
+    warn "incompatibility. Auditing against the allowlist."
+else
+    REGIME="declaration"
+    if [[ "$PLATFORM_PIN" == "$PHP_FLOOR" ]]; then
+        info "Regime: ${BOLD}DECLARATION${NC} — the pin states the plugin's real floor, hiding nothing."
+        info "It makes resolution reproducible instead of depending on the build container's PHP."
+    else
+        warn "Regime: ${BOLD}DECLARATION${NC} — the pin (${PLATFORM_PIN}) is ABOVE the declared floor"
+        warn "(${PHP_FLOOR}). Resolution may then pick packages that the floor cannot run; the check"
+        warn "below is what catches it. Align the two unless there is a recorded reason not to."
+    fi
+fi
+
 # --- How to run composer -----------------------------------------------------------------------
 # Compose v2 ships as the `docker compose` plugin, but plenty of hosts only have the standalone
 # `docker-compose` binary (also v2 nowadays).
@@ -104,19 +136,38 @@ OFFENDER_LINES="$(run_composer why-not php "$PHP_FLOOR" --no-interaction 2>/dev/
     | sed 's/\r$//' | grep -E '^[a-z0-9._-]+/[a-z0-9._-]+ ' || true)"
 
 if [[ -z "$OFFENDER_LINES" ]]; then
+    if [[ "$REGIME" == "declaration" ]]; then
+        log "Nothing in the tree requires a PHP older than ${PHP_FLOOR}."
+        log "check-platform-pin: pin is a declaration of the floor, and the tree honours it."
+        exit 0
+    fi
+
     warn "Nothing in the tree requires a PHP older than ${PHP_FLOOR} any more."
-    warn "The pin (config.platform.php = ${PLATFORM_PIN}) has become dead weight: remove it from"
-    warn "src/trunk/composer.json, re-run 'composer update --lock', and drop the E7 workaround note"
-    warn "from docs/CRYPTO-DEPENDENCIES.md and the Composer section of CLAUDE.md."
+    warn "The pin (config.platform.php = ${PLATFORM_PIN}) has become dead weight: raise it to"
+    warn "${PHP_FLOOR} or remove it from src/trunk/composer.json, re-run 'composer update --lock',"
+    warn "and drop the workaround note from docs/CRYPTO-DEPENDENCIES.md and CLAUDE.md."
     exit 0
 fi
 
 echo
-info "Packages requiring a PHP older than ${PHP_FLOOR} (the pin hides these from resolution):"
+info "Packages requiring a PHP older than ${PHP_FLOOR}:"
 while IFS= read -r line; do
     echo "    $line"
 done <<< "$OFFENDER_LINES"
 echo
+
+if [[ "$REGIME" == "declaration" ]]; then
+    error "The tree does not satisfy the plugin's declared PHP floor (${PHP_FLOOR})."
+    error ""
+    error "The pin is NOT hiding these — it states the floor (${PLATFORM_PIN}). A package above is a"
+    error "real incompatibility that ships to stores, in code the plugin's own header promises runs"
+    error "on PHP ${PHP_FLOOR}."
+    error ""
+    error "Do NOT lower the pin to make this pass: that turns an audited declaration back into the"
+    error "blanket suppression this script exists to prevent. Either drop/replace the dependency, or"
+    error "prove it is unreachable and record the reasoning in docs/CRYPTO-DEPENDENCIES.md first."
+    exit 1
+fi
 
 UNEXPECTED=()
 SEEN=()
@@ -125,30 +176,36 @@ while IFS= read -r line; do
     SEEN+=("$pkg")
 
     allowed=0
-    for ok in "${ALLOWED_OFFENDERS[@]}"; do
-        [[ "$pkg" == "$ok" ]] && allowed=1 && break
-    done
+    # With `set -u`, expanding an empty array aborts on bash < 4.4 — and the allowlist is empty in
+    # the healthy state, so this guard is load-bearing, not defensive noise.
+    if [[ ${#ALLOWED_OFFENDERS[@]} -gt 0 ]]; then
+        for ok in "${ALLOWED_OFFENDERS[@]}"; do
+            [[ "$pkg" == "$ok" ]] && allowed=1 && break
+        done
+    fi
     [[ $allowed -eq 0 ]] && UNEXPECTED+=("$pkg")
 done <<< "$OFFENDER_LINES"
 
 # An allowlisted package that no longer appears is also news: the list should shrink, never rot.
-for ok in "${ALLOWED_OFFENDERS[@]}"; do
-    found=0
-    for pkg in "${SEEN[@]}"; do
-        [[ "$pkg" == "$ok" ]] && found=1 && break
+if [[ ${#ALLOWED_OFFENDERS[@]} -gt 0 ]]; then
+    for ok in "${ALLOWED_OFFENDERS[@]}"; do
+        found=0
+        for pkg in "${SEEN[@]}"; do
+            [[ "$pkg" == "$ok" ]] && found=1 && break
+        done
+        if [[ $found -eq 0 ]]; then
+            warn "'${ok}' is allowlisted but no longer blocks PHP ${PHP_FLOOR} — drop it from"
+            warn "ALLOWED_OFFENDERS in this script, and check whether the pin is still needed at all."
+        fi
     done
-    if [[ $found -eq 0 ]]; then
-        warn "'${ok}' is allowlisted but no longer blocks PHP ${PHP_FLOOR} — drop it from"
-        warn "ALLOWED_OFFENDERS in this script, and check whether the pin is still needed at all."
-    fi
-done
+fi
 
 if [[ ${#UNEXPECTED[@]} -gt 0 ]]; then
     error "Unexpected package(s) hidden by the platform pin: ${UNEXPECTED[*]}"
     error ""
-    error "The pin exists for ${ALLOWED_OFFENDERS[*]} only (installed, never executed — see"
-    error "docs/CRYPTO-DEPENDENCIES.md -> E7). Something above is a real PHP-version"
-    error "incompatibility that the pin is currently silencing, in code that ships to stores."
+    error "The pin resolves the whole tree as if on PHP ${PLATFORM_PIN}, below the plugin's floor of"
+    error "${PHP_FLOOR}. Something above is a real PHP-version incompatibility that the pin is"
+    error "currently silencing, in code that ships to stores."
     error ""
     error "Do NOT widen ALLOWED_OFFENDERS to make this pass. Either the dependency is reachable"
     error "from plugin code — in which case it is a bug, not a workaround — or it is provably"
@@ -156,5 +213,5 @@ if [[ ${#UNEXPECTED[@]} -gt 0 ]]; then
     exit 1
 fi
 
-log "Only the known, documented package is hidden by the pin (${ALLOWED_OFFENDERS[*]})."
+log "Only the known, documented package(s) are hidden by the pin (${ALLOWED_OFFENDERS[*]})."
 log "check-platform-pin: pin is still justified and still audited."

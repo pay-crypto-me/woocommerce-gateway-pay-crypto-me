@@ -1,0 +1,122 @@
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+/**
+ * composer.json declares `"replace": {"lastguest/murmurhash": "2.0.0"}`, which is what lets
+ * config.platform.php state the plugin's real PHP floor (8.1) instead of resolving the whole tree
+ * as if on 7.4 — bitwasp/bitcoin v1.1.0 pins murmurhash to the exact v2.0.0, and that version
+ * declares `php: ^7`. See docs/LEAN-VENDOR-TREE.md.
+ *
+ * The cost is explicit: `lastguest\Murmur` is not installed, so BitWasp\Bitcoin\Crypto\Hash::murmur3()
+ * — reachable only from Bloom/BloomFilter.php — goes from dead code that works to dead code that
+ * fatals. This test is the mitigation: the day plugin code reaches for those symbols, it shows up
+ * as a red test in development instead of a Class-not-found in a store.
+ *
+ * Granularity is the METHOD, not the class, and that is deliberate. Crypto\Hash exposes nine public
+ * statics (sha256, sha256d, ripemd160, hmac, pbkdf2, ...) and the replace affects exactly one of
+ * them; banning the class would make Hash::sha256() — which works fine and has nothing to do with
+ * murmurhash — fail with a misleading message, and the path of least resistance would be to weaken
+ * this guard rather than fix the caller.
+ *
+ * Deliberately a source grep, not class_exists(): asserting the class is absent would couple the
+ * test to the state of vendor/ and fail on a machine that has the package installed for another
+ * reason — for instance someone testing the upstream one-line PR that would let the replace go away
+ * (docs/CRYPTO-DEPENDENCIES.md -> E7.1), which is precisely the case this must not block. What needs
+ * pinning is our code, not the tree.
+ */
+class VendorReplaceGuardTest extends TestCase
+{
+    /**
+     * @return string[] absolute paths of every PHP file that ships as plugin logic
+     */
+    private function shipped_sources(): array
+    {
+        $trunk = dirname(__DIR__, 3);
+        $files = [];
+
+        foreach (['includes', 'exceptions'] as $dir) {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($trunk . '/' . $dir, RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $file) {
+                if ($file->isFile() && strtolower($file->getExtension()) === 'php') {
+                    $files[] = $file->getPathname();
+                }
+            }
+        }
+
+        return $files;
+    }
+
+    public function replaced_symbols(): array
+    {
+        return [
+            'the replaced package class' => [
+                '/lastguest\\\\Murmur/i',
+                'lastguest\\Murmur',
+                'the package is not installed at all',
+            ],
+            'the only method that reaches it' => [
+                '/\bmurmur3\b/i',
+                'Hash::murmur3()',
+                'it is the single method of BitWasp\\Bitcoin\\Crypto\\Hash that needs lastguest\\Murmur '
+                    . '(the other eight are unaffected and safe to use)',
+            ],
+            'the only caller of that method' => [
+                '/\bBloomFilter\b/i',
+                'BloomFilter',
+                'Bloom/BloomFilter.php is the one place inside the library that calls murmur3()',
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider replaced_symbols
+     */
+    public function test_shipped_code_does_not_reference_a_replaced_symbol(
+        string $pattern,
+        string $symbol,
+        string $why
+    ) {
+        $offenders = [];
+
+        foreach ($this->shipped_sources() as $path) {
+            if (preg_match($pattern, (string) file_get_contents($path))) {
+                $offenders[] = $path;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            sprintf(
+                "%s does not exist in the shipped tree: %s.\n"
+                    . "src/trunk/composer.json declares \"replace\": {\"lastguest/murmurhash\": \"2.0.0\"}, "
+                    . "which is what allows config.platform.php to state the real PHP floor (8.1) instead of "
+                    . "resolving everything as if on 7.4 — see docs/LEAN-VENDOR-TREE.md.\n"
+                    . "To use this symbol the replace has to go first, and then the platform pin becomes "
+                    . "necessary again (or the upstream fix in docs/CRYPTO-DEPENDENCIES.md -> E7.1 has to land). "
+                    . "Do not relax this test to make the reference pass.",
+                $symbol,
+                $why
+            )
+        );
+    }
+
+    /**
+     * A directory scan that silently finds nothing would let every assertion above pass vacuously.
+     */
+    public function test_the_scan_actually_reaches_the_shipped_sources()
+    {
+        $files = $this->shipped_sources();
+
+        $this->assertGreaterThan(30, count($files), 'the source scan lost the plugin tree');
+        $this->assertContains(
+            dirname(__DIR__, 3) . '/includes/services/class-bitcoin-address-service.php',
+            $files,
+            'the one file that talks to the bitwasp libraries is not being scanned'
+        );
+    }
+}

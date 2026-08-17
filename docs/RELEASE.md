@@ -203,33 +203,33 @@ temporários em `src/trunk/.smoke-minimal-host-tmp/` (necessário para rodar via
 
 ## Auditoria do pin de plataforma (roda dentro do `release.sh`)
 
-`./scripts/check-platform-pin.sh` fecha o ponto cego que o `config.platform.php = 7.4` do
-`src/trunk/composer.json` abre. Esse pin existe por **um** pacote: o `bitwasp/bitcoin v1.1.0` exige
-`lastguest/murmurhash` na versão **exata** `v2.0.0`, que declara `php: ^7` — sem o pin, uma
-resolução honesta em PHP 8 se recusa a instalar. O pacote só é alcançável por
-`Crypto/Hash.php::murmur3()` (chamado de `Bloom/BloomFilter.php`), e o plugin não referencia nenhum
-dos dois: é instalado e nunca executado. Detalhe medido em
-[docs/CRYPTO-DEPENDENCIES.md](CRYPTO-DEPENDENCIES.md) → E7.
-
-O problema é que o pin é **global e permanente**: ele manda o Composer resolver a árvore **inteira**
-como se fosse 7.4, hoje e no futuro. Uma dependência nova (direta ou transitiva) incompatível com o
-piso real de PHP do plugin entraria **calada** — justamente a checagem que o Composer daria de graça.
+`./scripts/check-platform-pin.sh` audita o `config.platform.php` do `src/trunk/composer.json`. Hoje
+esse pin vale **`8.1`** — o piso real do plugin, o mesmo valor do `Requires PHP:` do header — e o
+`composer.json` traz `"replace": {"lastguest/murmurhash": "2.0.0"}`. Os dois andam juntos: o
+`bitwasp/bitcoin v1.1.0` exige `murmurhash` na versão **exata** `v2.0.0`, que declara `php: ^7`, e o
+`replace` tira esse pacote da árvore para que o pin não precise mentir sobre a plataforma. Antes ele
+valia `7.4`, o que resolvia a árvore **inteira** na era 7.4 — histórico e medições em
+[docs/CRYPTO-DEPENDENCIES.md](CRYPTO-DEPENDENCIES.md) → E7/E7.2 e
+[docs/LEAN-VENDOR-TREE.md](LEAN-VENDOR-TREE.md).
 
 O script roda `composer why-not php <piso>`, que **ignora o pin** e lista *todos* os pacotes cujo
 requisito de PHP exclui aquele piso. O piso vem do header do plugin (`Requires PHP:`), então subir o
-piso move a checagem junto. Qualquer pacote além do único allowlistado reprova com exit != 0:
+piso move a checagem junto:
 
 ```bash
 ./scripts/check-platform-pin.sh
 ```
 
-Três resultados possíveis, todos acionáveis:
+O que ele reporta depende do **regime**, isto é, de como o pin se compara ao piso — pin `>=` piso é
+*declaração* (não esconde nada, só torna a resolução reproduzível); pin `<` piso é *supressão*:
 
 | Resultado | O que significa |
 |---|---|
-| só `lastguest/murmurhash` | esperado — pin justificado e auditado |
-| qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `CRYPTO-DEPENDENCIES.md` primeiro |
-| nenhum pacote | o pin virou peso morto — **remova-o** do `composer.json`, regrave o lock e apague a nota do E7. É o que vai acontecer quando o upstream soltar o pin exato do murmurhash (a `2.1.1` já declara `php: ^7||^8.0`) |
+| **declaração**, nenhum pacote | esperado hoje — o pin declara o piso e a árvore o respeita, exit 0 |
+| **declaração**, qualquer pacote | **reprova.** O pin não está escondendo nada: o pacote simplesmente não satisfaz o piso que o header do plugin promete. Não baixe o pin para passar — isso devolve a supressão global que o script existe para evitar |
+| **supressão**, só um pacote allowlistado | pin justificado e auditado. Foi o estado até 2026-08-17, com `lastguest/murmurhash` na `ALLOWED_OFFENDERS` — hoje essa lista está **vazia** |
+| **supressão**, qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `CRYPTO-DEPENDENCIES.md` primeiro |
+| **supressão**, nenhum pacote | o pin virou peso morto — suba-o ao piso ou remova-o, regrave o lock e apague a nota do E7 |
 
 Não precisa do stack de dev no ar: usa o serviço efêmero `release`, e cai para um `composer` do host
 se não houver Docker. Já está ligado na fase **Platform pin audit** do `release.sh`, logo depois do

@@ -18,8 +18,11 @@
     "version": "0.1.1",
     "config": {
         "platform": {
-            "php": "7.4"
+            "php": "8.1"
         }
+    },
+    "replace": {
+        "lastguest/murmurhash": "2.0.0"
     },
     "require": {
         "ext-gmp": "*",

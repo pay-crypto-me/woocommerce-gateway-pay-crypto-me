@@ -430,8 +430,14 @@ Itens que parecem problema e são decisão consciente. Não "corrigir":
   de PHP entraria calada; isso passou a ser auditado por `scripts/check-platform-pin.sh`, ligado no
   `release.sh`. Ver E7.1/E7.2 do `CRYPTO-DEPENDENCIES.md`, incluindo por que `replace` foi rejeitado
   e o PR upstream de uma linha que aposenta o pin.
-- **`Requires PHP: 8.1` no header do plugin convivendo com `platform.php = 7.4` no composer** é
-  esperado: o pin governa só a resolução de dependências, não o runtime. Pré-existente à mudança.
+  **Superado em 2026-08-17:** a auditoria acima é justamente o que expôs o custo do pin global, e ele
+  foi trocado — hoje `platform.php = "8.1"` (o piso real) e o `murmurhash` sai da árvore via
+  `replace`, com `VendorReplaceGuardTest` como mitigação. O "deve ficar" desta linha vale para o
+  raciocínio, não para o valor: **não** reintroduza o `7.4`. Ver
+  [`LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md).
+- **`Requires PHP: 8.1` no header do plugin convivendo com `platform.php = 7.4` no composer** era
+  esperado: o pin governa só a resolução de dependências, não o runtime. Pré-existente à mudança —
+  e desde 2026-08-17 os dois valores coincidem, então a divergência deixou de existir.
 - **A remoção de `config.audit.ignore` está certa.** As duas entradas eram contra `mdanter/ecc`, que
   nunca esteve na árvore; sem elas o `composer audit` volta a ter significado (e passa limpo).
 - **A remoção de `minimum-stability: dev` / `prefer-stable` está certa.** Só existiam para permitir

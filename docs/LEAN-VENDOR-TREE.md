@@ -1,9 +1,23 @@
 # Destravar as versões do vendor: sair da resolução presa ao PHP 7.4
 
-> **Status: proposto em 2026-08-17, não iniciado.** Nasceu de uma medição feita ao auditar o
-> `config.platform.php` na branch `chore/retire-crypto-forks` — ver
-> [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md) → E7.1/E7.2. **Depende de aprovação**: mexe
-> em `composer.lock`, e o lock em vigor foi verificado ponta a ponta em 2026-08-17, na branch acima.
+> **Status: executado e verificado em 2026-08-17.** Os 10 itens da Verificação passaram, com os
+> números medidos abaixo. Pendente **apenas** o teste manual no navegador (final da Verificação):
+> salvar as settings On-Chain com um xPub válido e conferir a olho a tela de order-details com e sem
+> logo configurado. O que dá para automatizar dele foi automatizado — os três caminhos do
+> `QrCodeService` foram exercitados contra o `endroid` 4.8.5 real dentro do container `wordpress`
+> (PNG 225×225 nos três, ver "Execução"). O PR upstream de E7.1 **continua não enviado**; quando
+> entrar, o `replace` e o teste de guarda saem e o pin em `8.1` fica.
+>
+> | medido | previsto | resultado |
+> |---|---|---|
+> | suíte | 363 + N | **367 testes / 760 asserções / 4 skipped**, 0 falhas |
+> | pacotes não-dev | 11 | **11** (eram 13), lista idêntica a M4 |
+> | `check-platform-pin.sh` | declaração, allowlist vazia | **declaração**, allowlist vazia, exit 0 |
+> | deprecations (item 10) | 12 | **12** — E6 não foi tocado |
+>
+> Nasceu de uma medição feita ao auditar o `config.platform.php` na branch
+> `chore/retire-crypto-forks` — ver [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md) →
+> E7.1/E7.2.
 >
 > Documento auto-suficiente: quem executar não precisa da conversa que o originou. Prosa em
 > português; identificadores, caminhos e nomes de teste em inglês, como no resto do repo.
@@ -109,10 +123,17 @@ Probe no caminho de produção — os 60 vetores de `tests/vectors/bitcoin_addre
 | `paragonie/sodium_compat` | **10** — está no caminho vivo |
 | `paragonie/ecc` | 36 (`GmpMath.php`, não `ConstantTimeMath`) |
 
-### M3 — O `sodium_compat` é o único autoload **eager** da árvore
+### M3 — O `sodium_compat` carrega **eager**, em todo request
 
-`paragonie/sodium_compat` declara `"autoload": {"files": ["autoload.php"]}`, e é a **única** entrada
-em `vendor/composer/autoload_files.php`. Isso significa que ele é carregado por `require` em **todo
+> **Corrigido na execução (2026-08-17).** O título e a primeira frase originais diziam que ele era o
+> **único** autoload eager da árvore. Não é: num install `--no-dev` o
+> `vendor/composer/autoload_files.php` tem **três** entradas — `sodium_compat/autoload.php`,
+> `bitwasp/bech32/src/bech32.php` e `bitwasp/bitcoin/src/Script/functions.php`. Medido nas duas
+> árvores, antes e depois, então é erro de leitura do `grep` original (que filtrava por
+> `sodium_compat` e por isso só podia devolver uma linha), não efeito da mudança. O resto de M3 vale.
+
+`paragonie/sodium_compat` declara `"autoload": {"files": ["autoload.php"]}`, e está entre as entradas
+de `vendor/composer/autoload_files.php`. Isso significa que ele é carregado por `require` em **todo
 request** que carrega o autoloader do plugin — inclusive requests que nunca tocam Bitcoin.
 
 Custo medido do load, na v1.24.0 que está enviada:
@@ -147,8 +168,21 @@ Dois fatos daí, ambos contraintuitivos:
    namespace) para o site inteiro, chegando antes da do core. Somos o lado que sombreia.
 
 **A v2.5.0 continua eager** (`{"files":["autoload.php"],"psr-4":{"ParagonIE\\Sodium\\":"namespaced/"}}`),
-carregando 8 arquivos em vez de 10. O upgrade **não** elimina esse custo — reduz um pouco. Isso é
-importante para não vender o plano como algo que ele não é.
+carregando 8 arquivos em vez de 10. O upgrade **não** elimina esse custo. Isso é importante para não
+vender o plano como algo que ele não é.
+
+> **Medido na execução (2026-08-17), v1 e v2 lado a lado no mesmo container, 3 repetições:** o
+> upgrade não reduz o custo do load eager — reduz o número de arquivos e nada mais.
+>
+> | | v1.24.0 | v2.5.0 |
+> |---|---|---|
+> | arquivos no `require` | 10 | 8 |
+> | memória | 505 KB | **518 KB** |
+> | tempo | 3.28–3.85 ms | 3.34–3.59 ms (dentro do ruído) |
+> | tamanho no disco | 1.8 MB | **1.1 MB** |
+>
+> Ou seja: a previsão "reduz um pouco [o custo]" estava errada na direção da memória (subiu 13 KB) e
+> irrelevante no tempo. O que caiu de verdade foi o disco — 700 KB, e é isso que vale citar.
 
 ```bash
 grep -o "sodium_compat[^']*" src/trunk/vendor/composer/autoload_files.php
@@ -192,6 +226,11 @@ precisam entrar consciente no diff do lock.
 Ganho de tamanho é modesto (~164 KB de remoção limpa). **O argumento deste plano não é tamanho** —
 é parar de enviar versões da era 7.4 de bibliotecas adjacentes a criptografia, e parar de enviar um
 polyfill de PHP 5 que nunca executa.
+
+> **Medido na execução (2026-08-17):** o ganho é maior que o previsto aqui, porque a v2 do
+> `sodium_compat` não só substitui a v1 como é bem menor — 1.8 MB → 1.1 MB. Total: 112 KB
+> (`murmurhash`) + 52 KB (`random_compat`) + ~700 KB (encolhimento do `sodium_compat`) ≈ **864 KB**,
+> não ~164 KB. A conclusão não muda: o argumento continua não sendo tamanho.
 
 ### M6 — O piso do plugin e o do `sodium_compat` v2 coincidem
 
@@ -277,7 +316,7 @@ passa a ter PHP 8.1 como alvo real, porque o `sodium_compat v2.5.0` declara `php
 
 > **O que essa consequência NÃO é.** Ela não muda o comportamento do `composer install`. O
 > `config.platform` governa a checagem de plataforma **do próprio install**, não só a resolução — a
-> prova está no estado atual: hoje `platform.php = "7.4"` e o `composer install` roda verde no PHP
+> prova estava no estado de então: com `platform.php = "7.4"` o `composer install` rodava verde no PHP
 > 8.3 mesmo com `lastguest/murmurhash` exigindo `php: ^7`. Se o override não governasse o install,
 > esse estado seria impossível. Com o pin em `"8.1"` o Composer passa a assumir 8.1, então um install
 > num host PHP 8.0 continua **funcionando** — a quebra, se houver, é de runtime. Não escreva no
@@ -486,6 +525,58 @@ printf("%.2f ms | %.0f KB\n", (microtime(true)-$t0)*1000, (memory_get_usage()-$m
 
 ---
 
+## Execução — o que foi medido em 2026-08-17
+
+Registro do que rodou, para quem precisar reproduzir ou bissecar. **Forma do compose:** o host tinha
+só o binário standalone `docker-compose` (o plugin `docker compose` não existe lá), então é essa a
+forma abaixo — o `check-platform-pin.sh` e o `smoke-minimal-host.sh` detectaram sozinhos, como
+prometido.
+
+| # | Item | Resultado |
+|---|---|---|
+| — | baseline, antes de tocar em nada | 363 testes / 755 asserções / 4 skipped; 13 pacotes não-dev; 12 deprecations |
+| 1 | suíte | **367 / 760 / 4 skipped**, 0 falhas (+4 testes e +5 asserções, todos do guard) |
+| 2 | `composer audit --locked` | `No security vulnerability advisories found` |
+| 3 | diff do lock | exatamente M4 — 2 remoções, 3 upgrades não-dev, 6 dev-deps; `bitwasp/*` e `paragonie/ecc` com a entrada do lock **byte a byte idêntica** (versão, `dist.reference`, tudo) |
+| 4 | vetores | 60 derivados, 0 divergências |
+| 5 | `check-platform-pin.sh` | regime **declaração**, allowlist vazia, exit 0 |
+| 6 | `smoke-minimal-host.sh` | 5 checks, todos passando |
+| 7 | `OnchainWithoutGmpTest` no `php:8.3-cli` | 10 testes, 17 asserções, 1 skipped |
+| 8 | Plugin Check | 27 `ERROR`, **todos** em `tests/`, `phpunit.xml.dist` e `.phpunit.result.cache` — os caminhos que o `release.sh` exclui. Zero em código enviado; o arquivo novo do guard não gerou nem `ERROR` nem `WARNING` |
+| 9 | install limpo `--no-dev` | 11 pacotes, `vendor/lastguest` e `vendor/paragonie/random_compat` ausentes, `sodium_compat` presente uma vez no `autoload_files.php` |
+| 10 | probe de deprecations | **12**, idênticos aos de E6 → E6 não foi tocado |
+
+Quatro checagens além do roteiro, todas por causa de coisa que o roteiro não podia prever:
+
+- **Os quatro ramos do `check-platform-pin.sh` foram exercitados**, não só o feliz — forçando o pin
+  abaixo do piso e o piso acima/abaixo do pin: declaração-limpa (exit 0), declaração-com-ofensor
+  (exit 1), supressão-sem-ofensor (aviso de peso morto, exit 0) e supressão-com-ofensor e allowlist
+  **vazia** (exit 1, sem abortar no `set -u` — que era o risco apontado no item 3). O `version_lt`
+  foi conferido no caso que motivou a exigência: `8.10` **não** é menor que `8.9`.
+- **O guard foi visto vermelho.** Um arquivo temporário em `includes/` referenciando
+  `Hash::murmur3()` derrubou o `VendorReplaceGuardTest` com a mensagem de contrato; removido em
+  seguida. Um guard que nunca falhou não é guard.
+- **Os três caminhos do `QrCodeService` foram exercitados contra o `endroid` 4.8.5 real**, dentro do
+  container `wordpress` (a suíte usa stubs), via `wp eval-file`: sem logo, com logo, e com logo +
+  borda — que é o caminho GD que usa `getString()` em vez de `getDataUri()`. PNG 225×225 nos três.
+  Isso cobre a cadeia `Builder::create() … ->build()` e as quatro classes do `endroid` citadas
+  acima; o que sobra para o teste manual é o julgamento visual.
+- **v1 vs v2 do `sodium_compat` medidos lado a lado**, no mesmo container e na mesma invocação — é
+  de onde saiu a correção de M3.
+
+Duas notas de ambiente, que não afetam o resultado mas custam tempo se não estiverem escritas:
+
+- O `composer update` rodou sem `auth.json` e sem `--prefer-source`; o `codeload` não devolveu 429
+  desta vez. A saída registrada em "Antes de começar" continua válida para quando devolver.
+- As portas `8080` (WordPress) e `33061` (`wp_db`) estavam ocupadas por outro stack na máquina. O
+  `wordpress` foi subido com um override de compose **fora do repo** (`-f docker-compose.yml -f
+  <scratch>/no-db-port.yml`), mapeando `8090:80` e tirando a porta do `wp_db` — o WordPress fala com
+  o banco pela rede interna, a porta no host é acessório. O `docker-compose.yml` versionado **não**
+  foi tocado, e `docker-compose exec` acha o container do mesmo jeito. Para o teste manual pendente,
+  ou libere a `8080` ou suba com o mesmo override e use `http://localhost:8090`.
+
+---
+
 ## Fora de escopo
 
 - **Prefixar namespaces do vendor.** Frente própria; ver a ressalva do E4 em
@@ -513,6 +604,14 @@ mostrar mais que isso depois do rebase, o rebase saiu errado.
 
 **Antes de executar:** enviar o PR upstream de E7.1. Se ele for aceito, reavaliar — o plano encolhe
 para "trocar o pin por nada", sem `replace` e sem o teste de guarda do item 4.
+
+> **O que aconteceu de fato (2026-08-17).** O PR **não** foi enviado — abrir um PR num repositório de
+> terceiro é ação externa e ficou para o dono do projeto decidir. Antes de executar, foi conferido
+> que o bloqueio continua de pé: o `bitwasp/bitcoin` segue em `v1.1.0` (lançada em 2026-02-25), com o
+> `lastguest/murmurhash: v2.0.0` exato intacto e nenhuma release posterior. Logo o plano rodou na
+> forma cheia, com `replace` e com o teste de guarda. **Ele continua valendo a pena**: quando entrar,
+> tira o `replace` e o `VendorReplaceGuardTest`, devolve o `murmur3()` funcional e mantém o pin em
+> `8.1` como declaração.
 
 **Ao concluir:** atualizar o bloco de *Status* no topo deste arquivo para
 `**Status: executado e verificado em <data>**`, com os números realmente medidos (contagem da suíte,
