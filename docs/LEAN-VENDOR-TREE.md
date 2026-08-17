@@ -564,6 +564,20 @@ Quatro checagens além do roteiro, todas por causa de coisa que o roteiro não p
 - **v1 vs v2 do `sodium_compat` medidos lado a lado**, no mesmo container e na mesma invocação — é
   de onde saiu a correção de M3.
 
+**Qual dos três upgrades pode ter quebrado algo — medido, e é a resposta para "o que testar".** Os
+três pacotes que subiram penduram todos no `paragonie/ecc` ou no `endroid`, mas só dois são
+alcançáveis, e por caminhos diferentes:
+
+| pacote | onde vive | arquivos carregados no caminho de derivação | coberto por |
+|---|---|---|---|
+| `paragonie/sodium_compat` v1→v2 | `paragonie/ecc` exige `^1\|^2` | **8** — caminho vivo | 60 vetores + suíte |
+| `genkgo/php-asn1` v2.5→v2.9 | `paragonie/ecc` exige `^2` | **0** — nunca executa | nada precisa cobrir |
+| `endroid/qr-code` 4.6→4.8 | `require` direto do plugin | **0** na derivação; vive no caminho do QR | probe dos 3 caminhos do `QrCodeService` + olho no navegador |
+
+Ou seja: o `genkgo` está na mesma categoria em que o `murmurhash` estava — instalado e nunca
+executado —, e o único upgrade cuja quebra não seria pega por teste automatizado é o do `endroid`,
+por ser renderização visual. É isso, e só isso, que o teste manual pendente precisa olhar.
+
 Duas notas de ambiente, que não afetam o resultado mas custam tempo se não estiverem escritas:
 
 - O `composer update` rodou sem `auth.json` e sem `--prefer-source`; o `codeload` não devolveu 429
