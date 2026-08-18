@@ -459,6 +459,7 @@ if [[ $DO_GIT -eq 1 ]]; then
       "$README_FILE" \
       "$TRUNK/composer.json" \
       "$TRUNK/package.json" \
+      "$ROOT_DIR/CLAUDE.md" \
     && git commit -m "chore: bump version to $VERSION" || log "No changes to commit")
     (cd "$ROOT_DIR" && git tag -a "v$VERSION" -m "Release v$VERSION" \
       && log "Tag v$VERSION created. Push manually: git push origin v$VERSION" \
