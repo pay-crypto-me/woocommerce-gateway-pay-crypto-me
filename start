@@ -4,16 +4,33 @@ set -e
 WP_SERVICE="wordpress"
 WP_PATH="/var/www/html"
 
+# Compose v2 ships as the `docker compose` plugin, but plenty of hosts only have the standalone
+# `docker-compose` binary (also v2 nowadays). Resolved once, same as release.sh,
+# smoke-minimal-host.sh and build-translations.sh — hardcoding either form breaks this script on
+# exactly the machines that have the other one.
+if docker compose version >/dev/null 2>&1; then
+  DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  DOCKER_COMPOSE=(docker-compose)
+else
+  echo "❌ Nem 'docker compose' nem 'docker-compose' está disponível. Instale o Docker com Compose."
+  exit 1
+fi
+
+compose() {
+  "${DOCKER_COMPOSE[@]}" -f ./docker-compose.yml "$@"
+}
+
 wp_up() {
-  docker compose -f ./docker-compose.yml up -d --force-recreate
+  compose up -d --force-recreate
 }
 
 dc_exec() {
-  docker compose -f ./docker-compose.yml exec -T "$WP_SERVICE" "$@"
+  compose exec -T "$WP_SERVICE" "$@"
 }
 
 wp_exec() {
-  docker compose -f ./docker-compose.yml exec -T "$WP_SERVICE" wp "$@" --path="$WP_PATH" --allow-root
+  compose exec -T "$WP_SERVICE" wp "$@" --path="$WP_PATH" --allow-root
 }
 
 echo "🚀 Iniciando o setup do PayCrypto.Me WooCommerce..."
@@ -60,7 +77,7 @@ else
     echo "✅ WooCommerce instalado e ativado."
   else
     echo "⚠️  Falha ao baixar WooCommerce. Verifique a conexão de rede."
-    echo "   Dica: verifique com 'docker compose exec -T wordpress curl https://downloads.wordpress.org/plugin/woocommerce.zip -I'"
+    echo "   Dica: verifique com '${DOCKER_COMPOSE[*]} exec -T wordpress curl https://downloads.wordpress.org/plugin/woocommerce.zip -I'"
   fi
 fi
 
