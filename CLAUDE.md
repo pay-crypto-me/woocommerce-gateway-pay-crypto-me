@@ -320,13 +320,15 @@ measurements: [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md).
 What `replace` costs, explicitly: `murmurhash` goes from *installed and never executed* to *not
 installed*, so `BitWasp\Bitcoin\Crypto\Hash::murmur3()` — reachable only from
 `Bloom/BloomFilter.php:250` — would now fatal instead of no-op. The mitigation is
-`VendorReplaceGuardTest`, which greps `includes/` and `exceptions/` for `lastguest\Murmur`,
-`murmur3` and `BloomFilter` and fails in development rather than in a store. Granularity is the
+`VendorReplaceGuardTest`, which greps every hand-written PHP file that ships — `includes/`,
+`exceptions/`, `templates/`, the entrypoint and `uninstall.php` — for `lastguest\Murmur`, `murmur3`
+and `BloomFilter`, and fails in development rather than in a store. Granularity is the
 **method**, not the class: `Hash::sha256()` and the other seven statics are unaffected and safe to
 use, so never widen that guard to ban `Crypto\Hash` wholesale.
 
-**`./scripts/check-platform-pin.sh`** audits the pin via `composer why-not php <floor>` (the floor
-read from the plugin header, so bumping it moves the check), and distinguishes two regimes:
+**`./scripts/check-platform-pin.sh`** audits the pin via `composer why-not --locked php <floor>` (the
+floor read from the plugin header, so bumping it moves the check; `--locked` audits the lock, so it
+also works with no `vendor/` installed), and distinguishes two regimes:
 **pin >= floor** is a *declaration* — it hides nothing and only makes resolution reproducible, so
 **any** package blocking the floor fails the script; **pin < floor** is a *suppression* and gets
 audited against `ALLOWED_OFFENDERS`, which is now **empty** and should stay that way. Widening that
