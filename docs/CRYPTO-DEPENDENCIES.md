@@ -7,9 +7,11 @@
 > fatal latente de E2 sumiu), smoke de host mínimo verde e plugin check **sem ERROR em código
 > enviado**. Feito na branch `chore/retire-crypto-forks`.
 >
-> Os números de suíte citados aqui (355/743/4) são os desta frente. O baseline atual da branch é
-> **363/755/4** — os 8 testes a mais vêm do helper de supressão de deprecations documentado em
-> [`docs/CRYPTO-DEPRECATION-CONTINGENCY.md`](CRYPTO-DEPRECATION-CONTINGENCY.md), que entrou depois.
+> Os números de suíte citados aqui (355/743/4) são **desta frente, na data acima**, e ficam como
+> registro — não são o baseline de hoje. O número atual mora num lugar só, o `CLAUDE.md` (seção *Run
+> tests*); os 8 testes a mais que apareceram logo depois desta frente vêm do helper de supressão de
+> deprecations documentado em
+> [`docs/CRYPTO-DEPRECATION-CONTINGENCY.md`](CRYPTO-DEPRECATION-CONTINGENCY.md).
 > A revisão independente desta frente está em
 > [`docs/CRYPTO-DEPENDENCIES-AUDIT.md`](CRYPTO-DEPENDENCIES-AUDIT.md) (achados todos aplicados).
 >
@@ -361,7 +363,7 @@ corrigir 5 de 12 — ver "Fora de escopo".
 | `repositories` | dois entries VCS (`lucas-rosa95/bitcoin-php`, `lucas-rosa95/buffertools-php`) | **remover o bloco inteiro** |
 | `minimum-stability` / `prefer-stable` | `"dev"` / `true` | **remover ambos** — só existiam por causa do `dev-master` |
 | `config.audit.ignore` | dois IDs `PKSA-*` | **remover** (E4: são resíduo; removê-los devolve sentido ao `composer audit`) |
-| `config.platform.php` | `"7.4"` | **manter** (E7) — a razão fica documentada na seção *Composer dependencies* do `CLAUDE.md` (JSON não tem comentário, e não deve ganhar um `_comment` só para isso) |
+| `config.platform.php` | `"7.4"` | **manter** (E7) — a razão fica documentada na seção *Composer dependencies* do `CLAUDE.md` (JSON não tem comentário, e não deve ganhar um `_comment` só para isso). **Superado em 2026-08-17:** hoje o pin é `"8.1"` (o piso real) e o `murmurhash` sai da árvore via `replace` — esta linha é o registro da decisão da época, **não** uma instrução a seguir. Ver [`LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md). |
 
 Depois: `composer update bitwasp/bitcoin --with-dependencies` dentro do container `release`, para
 regravar `composer.lock`.
@@ -373,7 +375,7 @@ nunca renomeou nada. Comprovado por E5.
 
 | Arquivo | O quê |
 |---|---|
-| `CLAUDE.md` | A seção **"Composer dependencies (important)"** descreve os dois forks e o acesso a repos privados como requisito de `composer install`. Substituir por: dependências oficiais, sem repos VCS, e uma nota curta explicando por que `config.platform.php = 7.4` continua ali (pin de `lastguest/murmurhash`, pacote nunca executado). |
+| `CLAUDE.md` | A seção **"Composer dependencies (important)"** descreve os dois forks e o acesso a repos privados como requisito de `composer install`. Substituir por: dependências oficiais, sem repos VCS, e uma nota curta explicando por que `config.platform.php = 7.4` continua ali (pin de `lastguest/murmurhash`, pacote nunca executado). **Superado em 2026-08-17** junto com a linha do pin acima: a seção hoje descreve o pin em `8.1` + `replace`. |
 | `docs/RELEASE.md` | Verificar se menciona os forks / acesso aos repos como pré-requisito; se sim, atualizar. |
 | `src/trunk/CHANGELOG.md` | Em `## Unreleased`, `### Changed`: troca para os pacotes oficiais mantidos, com menção a que os advisories de canal lateral (CVE-2024-33851) não se aplicam à árvore atual. |
 
@@ -398,7 +400,7 @@ Rodar da raiz do repo. Os itens 1–3 são o núcleo; 4–6 fecham o release.
 
 | # | Comando | Esperado |
 |---|---|---|
-| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | **355 testes, 743 asserções, 4 skipped, 0 falhas** — idêntico ao baseline com o fork. Depois da contingência de deprecations: **363/755/4**. |
+| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | **355 testes, 743 asserções, 4 skipped, 0 falhas** — idêntico ao baseline com o fork; era esse o número na data desta frente. Para o baseline de hoje, ver o `CLAUDE.md`. |
 | 2 | `docker compose run --rm release composer audit --locked` | `No security vulnerability advisories found` — **agora sem lista de ignore**, então o resultado passa a ter significado. |
 | 3 | Vetores contra o vendor novo: derivar os 12 xpubs de `tests/vectors/bitcoin_addresses.json` e comparar os 60 endereços | Zero divergências. Já coberto por `BitcoinAddressVectorsTest` na suíte do item 1 — confirmar que ele roda e passa. |
 | 4 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando. |

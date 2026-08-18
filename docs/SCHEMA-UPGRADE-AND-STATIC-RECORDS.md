@@ -409,7 +409,7 @@ docker compose up -d wordpress wp_db
 
 | # | Comando | Esperado |
 |---|---|---|
-| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | Suíte unitária verde, incluindo os novos testes das frentes 1 e A. Baseline antes de começar: **367 testes, 760 asserções, 4 skipped** (era 363/755/4 até 2026-08-17; o `VendorReplaceGuardTest` de [`LEAN-VENDOR-TREE.md`](LEAN-VENDOR-TREE.md) somou 4 testes e 5 asserções). **Meça o baseline você mesmo antes de começar** em vez de confiar neste número — outra frente pode ter mexido nele. |
+| 1 | `docker compose run --rm release ./vendor/bin/phpunit` | Suíte unitária verde, incluindo os novos testes das frentes 1 e A. Baseline antes de começar: **371 testes, 828 asserções, 4 skipped** (era 363/755/4 até 2026-08-17 e 367/760/4 até 2026-08-18; a auditoria pré-merge das branches de vendor somou `PhpFloorConsistencyTest`, o teste de factory injetada e mais âncoras no `VendorReplaceGuardTest`). **Meça o baseline você mesmo antes de começar** em vez de confiar neste número — outra frente pode ter mexido nele. |
 | 2 | `./scripts/schema-tests.sh` | Trilha de integração verde (frente B). |
 | 3 | `./scripts/smoke-minimal-host.sh` | Todos os checks passando (não deve regredir). |
 | 4 | `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest` | 10 testes, 1 skipped (o teste do caso *com* GMP se auto-pula). Os 4 skipped do item 1 só são observáveis num host **sem** a extensão GMP. |

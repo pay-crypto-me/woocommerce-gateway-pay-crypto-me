@@ -150,10 +150,11 @@ Antes de executar o release, verifique:
 | Docker + Compose disponíveis (o release roda em container efêmero `release`; o stack de dev **não** precisa estar no ar) | `docker compose version` — ou `docker-compose version`; os scripts aceitam as duas formas |
 | `rsync` disponível **no host** (o `release.sh` sincroniza o build dir fora do container) | `command -v rsync` |
 | Branch `main` limpa (sem changes pendentes) | `git status` |
-| `readme.txt` atualizado com changelog da nova versão | Ver seção acima |
+| `readme.txt` atualizado com changelog da nova versão **antes** de rodar com `-v` (o script bumpa números, nunca escreve changelog) | `sed -n '/== Changelog ==/,/= 0/p' src/trunk/readme.txt` — a primeira seção deve ser a versão nova; idem `## X.Y.Z` no `CHANGELOG.md` |
 | Todos os testes passando | `./scripts/release.sh ... --no-zip` primeiro |
 | Smoke de host mínimo passando (**stack de dev precisa estar no ar** — diferente do resto do release) | `docker compose up -d wordpress` e depois `./scripts/smoke-minimal-host.sh` — ver seção abaixo |
 | Auditoria do pin de plataforma passando | `./scripts/check-platform-pin.sh` — **já roda automaticamente** na fase de testes do `release.sh`; ver seção abaixo |
+| Auditoria de drift dos docs passando | `./scripts/check-docs-drift.sh` — **já roda automaticamente** na fase de testes do `release.sh` (fase *Docs drift audit*); confere caminhos citados, refs `arquivo:linha`, a tabela de hooks do `CLAUDE.md` e as contagens afirmadas em prosa |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
 | Credenciais SVN configuradas (se for submeter ao WP.org) | Ver seção "Configurando Credenciais SVN" abaixo |
 
@@ -230,11 +231,32 @@ O que ele reporta depende do **regime**, isto é, de como o pin se compara ao pi
 | **supressão**, só um pacote allowlistado | pin justificado e auditado. Foi o estado até 2026-08-17, com `lastguest/murmurhash` na `ALLOWED_OFFENDERS` — hoje essa lista está **vazia** |
 | **supressão**, qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `CRYPTO-DEPENDENCIES.md` primeiro |
 | **supressão**, nenhum pacote | o pin virou peso morto — suba-o ao piso ou remova-o, regrave o lock e apague a nota do E7 |
+| **sonda não rodou** | **reprova, em qualquer regime.** Docker indisponível, imagem `release` falhando ou `composer.lock` ausente fazem o `why-not` voltar vazio, o que antes era lido como "árvore limpa" e saía 0. Hoje o script cruza exit code + a linha "nothing to report" do próprio Composer e falha imprimindo a saída crua. Não pule este passo com `--no-tests` para "seguir em frente" |
 
 Não precisa do stack de dev no ar: usa o serviço efêmero `release`, e cai para um `composer` do host
 se não houver Docker. Já está ligado na fase **Platform pin audit** do `release.sh`, logo depois do
 PHPUnit, e é pulado junto com os testes por `--no-tests` (então o fluxo `--svn`, que exige
 `--no-tests`, não o reexecuta).
+
+## Auditoria de drift dos docs (roda dentro do `release.sh`)
+
+`./scripts/check-docs-drift.sh` compara os 10 canonical docs (`CLAUDE.md` + `docs/*.md`) com a árvore
+que eles descrevem. Existe porque aqui o doc é lido **antes** do código: um registro velho não é
+neutro, é confiado.
+
+| O que checa | Por quê |
+|---|---|
+| todo caminho citado existe | renomear arquivo não quebra nada — só o doc, silenciosamente. Caminhos de plano aprovado-e-não-iniciado ficam em `PLANNED_PATHS`, para "planejado" continuar distinguível de "apodreceu" |
+| toda ref `arquivo.php:NNN` cai em código | número de linha apodrece a cada edição acima dele. A regra da casa é citar o **símbolo**; número fica só para `vendor/`, que o lock fixa (e por isso é ignorado aqui) |
+| tabela de hooks do `CLAUDE.md` ↔ código | é o contrato contra o qual o add-on premium é construído: hook faltando é seam que ninguém sabe que existe; hook listado e inexistente é promessa que o add-on não pode cumprir |
+| contagens afirmadas em prosa | 7 locales, 9 `validate_*_field`, 3 `generate_*_html`, 4 tabelas, 60 vetores |
+
+Não roda como teste do PHPUnit por um motivo concreto: o mundo da suíte é `src/trunk` (é só isso que
+o container monta e que o build copia), e `CLAUDE.md`/`docs/` moram acima — como teste ele pularia
+justamente onde a suíte roda. Aqui a raiz do repo existe por construção. E se não encontrar docs para
+auditar, **falha** em vez de reportar varredura limpa.
+
+O que ele **não** faz: julgar se um parágrafo continua verdadeiro. Isso é revisão humana.
 
 ---
 
@@ -320,11 +342,17 @@ Este comando executa na ordem:
    - `assets/blocks/paycrypto_me-blocks.js` (gateway On-Chain)
    - `assets/blocks/paycrypto_me_lightning-blocks.js` (gateway Lightning)
 3. **PHPUnit (no container)** — executa a suite de testes contra a versão PHP do container.
-4. **Bump de versão** — atualiza a string de versão em 4 arquivos automaticamente:
+4. **Bump de versão** — atualiza a string de versão automaticamente:
    - Cabeçalho do plugin (`paycrypto-me-for-woocommerce.php`)
    - Constante `VERSION` na classe PHP
    - `Stable tag` em `readme.txt`
    - Campo `"version"` em `composer.json` e `package.json`
+   - As duas menções de versão no `CLAUDE.md` (é o arquivo que todo agente carrega primeiro; um número
+     velho ali é lido como fato)
+
+   O que ele **não** escreve é o changelog: o texto de `== Changelog ==`/`== Upgrade Notice ==` do
+   `readme.txt` e a seção do `CHANGELOG.md` são redigidos à mão **antes** de rodar com `-v` (ver o
+   pré-flight acima). Sem isso a versão sobe com o changelog da anterior como entrada mais recente.
 5. **rsync para build dir** — copia o `src/trunk/` para um diretório temporário **sem** `vendor/` e `node_modules/`.
 6. **Composer de produção (no container efêmero `release`)** — `composer install --no-dev --optimize-autoloader --prefer-dist` no build dir via `docker compose run --rm release`. Resultado: vendor sem dependências de desenvolvimento e com autoloader classmap otimizado.
 7. **Limpeza do vendor** — remove arquivos residuais não necessários em runtime: diretórios `.git/`, `tests/`, `examples/`, `bin/`, arquivos `.md`, `.yml`, fontes pesadas do `endroid/qr-code`. **`composer.json`/`composer.lock`/`package.json` do plugin são mantidos no pacote** (transparência open-source — requisito do WordPress.org).
@@ -522,15 +550,15 @@ Em pipelines onde o container não está disponível (e Node.js + Composer estã
 |---|---|
 | `git push origin main` | Evitar push acidental; deve ser revisado antes |
 | `git push origin vX.Y.Z` | Idem |
-| Atualizar `readme.txt` com changelog | Conteúdo editorial, não automatizável |
+| Atualizar `readme.txt` (e `CHANGELOG.md`) com o changelog da versão | Conteúdo editorial, não automatizável — e precisa estar escrito **antes** de rodar com `-v`, senão a versão sobe com o changelog da anterior como entrada mais recente |
 | Editar os arquivos em `src/assets/` (banner/ícone/screenshots) | Conteúdo editorial; o **upload** ao SVN já é automático via `--svn-commit` (ver seção SVN acima) |
-| Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [TRANSLATION.md](./TRANSLATION.md)) |
+| Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [TRANSLATION.md](./TRANSLATION.md)). Não pode entrar no `release.sh`: o `build-translations.sh` usa `compose exec wordpress`, ou seja **exige o stack de dev no ar**, e o release roda no container efêmero justamente para não exigir isso. Consequência a saber: o `.pot` embute o `Version:` do header, então rodar `npm run translate` antes do bump grava a versão anterior no `Project-Id-Version` (só metadado de tradutor; as referências de linha, que são o que importa, ficam corretas de qualquer forma) |
 
 ---
 
 ## Arquivos Modificados pelo Script (Bump de Versão)
 
-O script atualiza **apenas** estes 4 arquivos ao bumpar a versão. Nenhum outro arquivo é alterado no repositório:
+O script atualiza **apenas** estes arquivos ao bumpar a versão. Nenhum outro arquivo é alterado no repositório:
 
 | Arquivo | Campo atualizado |
 |---|---|
@@ -539,6 +567,10 @@ O script atualiza **apenas** estes 4 arquivos ao bumpar a versão. Nenhum outro 
 | `src/trunk/readme.txt` | `Stable tag: X.Y.Z` |
 | `src/trunk/composer.json` | `"version": "X.Y.Z"` |
 | `src/trunk/package.json` | `"version": "X.Y.Z"` |
+| `CLAUDE.md` | `current version **X.Y.Z**` e `Version: **X.Y.Z**` |
+
+Cada um é verificado depois do `sed`: se o padrão não casar, o release **falha** em vez de seguir com
+uma versão velha (foi o que deixou a constante `VERSION` parada durante todo o ciclo 0.1.0).
 
 ---
 

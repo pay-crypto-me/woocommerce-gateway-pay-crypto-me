@@ -247,6 +247,17 @@ if [[ $DO_TESTS -eq 1 ]]; then
   else
     step "[dry-run] scripts/check-platform-pin.sh"
   fi
+
+  # The docs here are read before the code, by people and agents alike, so a stale record is worse
+  # than no record. This checks the mechanical part (paths, line references, the hooks table, the
+  # counts stated in prose) against the tree. It cannot be a PHPUnit test: the suite's world is
+  # src/trunk, and CLAUDE.md/docs/ live above it. Cheap, no Docker, no network.
+  header "Docs drift audit"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    "$ROOT_DIR/scripts/check-docs-drift.sh"
+  else
+    step "[dry-run] scripts/check-docs-drift.sh"
+  fi
 fi
 
 if [[ $PUBLISH_ONLY -eq 0 ]]; then
@@ -303,6 +314,18 @@ bump_sed "$README_FILE" \
   "s/^(Stable tag:[[:space:]]*).*/\\1$VERSION/" \
   "Stable tag" \
   "^Stable tag:[[:space:]]*$VERSION[[:space:]]*$"
+
+# CLAUDE.md states the current version twice, and it is the file every agent loads first — a stale
+# number there is read as fact. Bumped here so it cannot fall behind the header it describes.
+bump_sed "$ROOT_DIR/CLAUDE.md" \
+  "s/(current version \*\*)[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$VERSION\2/" \
+  "current version in CLAUDE.md" \
+  "current version \*\*$VERSION\*\*"
+
+bump_sed "$ROOT_DIR/CLAUDE.md" \
+  "s/(Version: \*\*)[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$VERSION\2/" \
+  "Version: line in CLAUDE.md" \
+  "Version: \*\*$VERSION\*\*"
 
 # composer.json and package.json: "version": "X.Y.Z"
 for f in "$TRUNK/composer.json" "$TRUNK/package.json"; do

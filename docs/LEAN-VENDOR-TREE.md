@@ -15,6 +15,22 @@
 > | `check-platform-pin.sh` | declaração, allowlist vazia | **declaração**, allowlist vazia, exit 0 |
 > | deprecations (item 10) | 12 | **12** — E6 não foi tocado |
 >
+> **Auditoria de execução (2026-08-18), antes do merge.** Os 10 itens foram reconferidos por fora e
+> confirmam o registro: 11 pacotes não-dev, `vendor/` idêntico ao lock, `composer audit` limpo,
+> `why-not --locked php 8.1` sem ofensor, Plugin Check com 27 `ERROR` **todos** em caminhos que o
+> `release.sh` exclui, e os 3 caminhos do `QrCodeService` contra o `endroid` 4.8.5 emitindo **0**
+> deprecations. Dois pontos que este plano não previu saíram dela:
+>
+> - **`vendor/composer/platform_check.php` mudou de `PHP_VERSION_ID >= 70400` para `>= 80100`** —
+>   consequência direta do pin. Medido em `php:7.4`: `require vendor/autoload.php` passou a lançar
+>   `RuntimeException` não capturada, ou seja, fatal no site inteiro em vez de "plugin não carrega".
+>   O código próprio do plugin não usa sintaxe 8.1-only, então antes do pin aquele host **carregava**.
+>   Resposta: guarda de `PHP_VERSION_ID` no entrypoint (aviso no admin + `return`, igual à guarda de
+>   `vendor/` ausente) e `PhpFloorConsistencyTest` fixando os quatro lugares que declaram o piso.
+> - **O `check-platform-pin.sh` podia passar sem a sonda ter rodado** (descartava exit code e
+>   stderr do `why-not`), o que tornava o item 5 desta Verificação não-falsificável. Corrigido, com
+>   os três desfechos agora distinguidos.
+>
 > Nasceu de uma medição feita ao auditar o `config.platform.php` na branch
 > `chore/retire-crypto-forks` — ver [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md) →
 > E7.1/E7.2.
@@ -442,9 +458,10 @@ Rodar da raiz do repo. Itens 1–4 são o núcleo; 5–8 fecham o release; 9–1
 outros oito **não** alcançam (o caminho de install do release e o número de deprecations que três
 documentos citam).
 
-> **Meça o baseline antes de mudar qualquer coisa** (com o vendor sincronizado): hoje a suíte é
-> **363 testes / 755 asserções / 4 skipped**. É contra esse número que os itens abaixo são lidos —
-> nenhum teste nem asserção existente pode desaparecer.
+> **Meça o baseline antes de mudar qualquer coisa** (com o vendor sincronizado): quando esta frente
+> começou a suíte era **363 testes / 755 asserções / 4 skipped**, e é contra esse número que os itens
+> abaixo foram lidos — nenhum teste nem asserção existente pode desaparecer. Para o baseline de hoje,
+> `CLAUDE.md`; este número é o ponto de partida histórico, não uma expectativa atual.
 
 | # | Comando | Esperado |
 |---|---|---|

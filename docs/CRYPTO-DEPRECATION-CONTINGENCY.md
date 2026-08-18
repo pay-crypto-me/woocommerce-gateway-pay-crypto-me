@@ -2,11 +2,22 @@
 
 > **Status: executado e verificado em 2026-08-16.** A supressão foi implementada em
 > `BitcoinAddressService` (`suppress_vendor_deprecations()` + os 5 wraps) e verificada: suíte
-> **363/755/4 skipped**; prova antes/depois em processo frio (o caminho vendor cru emite as notices
-> em `CachingTypeFactory.php:376/36/88`, o serviço envolvido emite **0 bytes** e a validação segue
-> `true`); `OnchainWithoutGmpTest` 10/17/1 e o contrato `\Error` intactos. Falta apenas o teste
-> manual de aceitação no navegador (seção C). Contingência para um defeito observado após a troca
-> para os pacotes oficiais `bitwasp/*` (ver [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md)).
+> **363/755/4 skipped naquela data** (baseline de hoje: ver `CLAUDE.md`); prova antes/depois em
+> processo frio (o caminho vendor cru emite as notices em `CachingTypeFactory.php:376/36/88`, o
+> serviço envolvido emite **0 bytes** e a validação segue `true`); `OnchainWithoutGmpTest` 10/17/1 e
+> o contrato `\Error` intactos. Falta apenas o teste manual de aceitação no navegador — **seção C,
+> passos 2–4**: o passo 1 ("Antes") não reproduz mais nesta branch, porque a correção já está nela.
+> Contingência para um defeito observado após a troca para os pacotes oficiais `bitwasp/*` (ver
+> [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md)).
+>
+> **Auditoria de execução (2026-08-18).** Ao revisar as duas branches antes do merge, o que a
+> seção C ainda cobria foi medido de novo e por fora: os pontos de entrada bitwasp **fora** do wrap
+> (`NetworkFactory::bitcoin()/bitcoinTestnet()`, `Bitcoin::getEcAdapter()` e o próprio
+> `require vendor/autoload.php`) emitem **0** deprecations, então o conjunto de wraps cobre o
+> caminho inteiro do plugin; `validate_extended_pubkey()` e `generate_address_from_xPub()` emitem
+> **0 bytes** com `E_ALL` + `display_errors`, devolvem o valor certo e restauram o
+> `error_reporting()`; e um `\Error` lançado dentro do wrap propaga. Sobra do C apenas o julgamento
+> visual no navegador — a supressão de *display* em si já está provada em processo frio.
 >
 > **Revalidação independente (2026-08-17):** tudo acima reproduzido contra uma instalação limpa do
 > `composer.lock` — o vendor cru imprime **590 bytes** de `Deprecated` (`CachingTypeFactory`
@@ -69,7 +80,7 @@ de "falha honesta" (nunca engolir um `\Error` de extensão ausente).
 | G3 | Só **carregar** as classes bitwasp não dispara nada; a deprecation é do **caminho de runtime** (serialização do buffertools). Não dá para "pré-carregar" para resolver. | `php -r 'require autoload; use HierarchicalKeyFactory...'` → "loaded ok", sem notice. |
 | G4 | `BitcoinAddressService` é o **único** boundary cujas chamadas bitwasp alcançam a serialização que emite a notice. Os 5 métodos públicos que a alcançam: `generate_address_from_xPub`, `convert_extended_pubkey_prefix`, `validate_segwit_address`, `validate_bitcoin_address`, `validate_extended_pubkey`. | grep de `BitWasp\` em `includes/` (3 arquivos; os outros 2 só usam `NetworkFactory::bitcoin()/bitcoinTestnet()`, que retorna descritor estático e **não** serializa). |
 | G5 | Todos os caminhos que serializam (save, checkout via `BitcoinPaymentProcessor`, order-pay) passam por esses 5 métodos. `is_available()`/`unavailability_reasons()` e o render de order-details/QR **não** serializam (leem meta persistida). | Trace de callers em `includes/`. |
-| G6 | Contrato da casa: a validação captura **`\Exception` apenas, nunca `\Error`** — GMP ausente vira `\Error` que **propaga** até `catch (\Error)` no gateway (`class-wc-gateway-paycrypto-me.php:428/474`), reportado como falha interna/host, jamais como "chave inválida". | Comentário de política em `class-bitcoin-address-service.php:267-273`; catches em `:255/:287/:309`; gateway `:428/:474`. |
+| G6 | Contrato da casa: a validação captura **`\Exception` apenas, nunca `\Error`** — GMP ausente vira `\Error` que **propaga** até o `catch (\Error)` do gateway (`WC_Gateway_PayCryptoMe::validate_xpub_address()`/`validate_network_identifier()`), reportado como falha interna/host, jamais como "chave inválida". | Comentário de política acima de `BitcoinAddressService::validate_bitcoin_address()`; catches em `validate_segwit_address()`, `validate_bitcoin_address()` e `validate_extended_pubkey()`. Citado por símbolo, não por número de linha: o helper de supressão empurrou o arquivo e as linhas antigas passaram a cair em comentário. |
 | G7 | Não existe `error_reporting`/`set_error_handler`/`ini_set` em código do plugin hoje (só em `vendor/`). Existe o idioma `try {} finally {}` de restauração (limpeza de cert temp; `RELEASE_LOCK`). | grep em `includes/`. |
 
 ---
@@ -217,7 +228,7 @@ Em `tests/phpunit/unit/BitcoinAddressValidationTest.php`, via `ReflectionMethod`
 
 Rodar:
 ```bash
-docker compose run --rm release ./vendor/bin/phpunit           # 363/755/4 (baseline 355 + 8 testes do helper)
+docker compose run --rm release ./vendor/bin/phpunit           # baseline atual: ver CLAUDE.md (era 363/755/4 quando esta frente entrou)
 docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli \
   php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest       # host sem gmp
 ```
@@ -241,6 +252,9 @@ docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli \
 Host PHP 8.3, `WP_DEBUG_DISPLAY=true`, **com** gmp:
 1. **Antes:** WooCommerce → Settings → Payments → Bitcoin On-Chain → xPub/zpub válido → Save →
    observar as notices `Deprecated ... CachingTypeFactory` + "headers already sent" + redirect quebrado.
+   *Este passo só reproduz num checkout anterior a `df73406`* (ou com o wrap removido à mão): na branch
+   atual a correção já está aplicada, então comece do passo 2. Quem quiser ver o "antes" tem a prova em
+   processo frio no bloco de Status — o caminho vendor cru imprime 590 bytes de `Deprecated`.
 2. **Depois:** mesmos passos → redirect limpo, sem `Deprecated`, sem headers-already-sent; valor persistido.
 3. **Checkout:** pedido com xPub configurado → order-pay/thank-you renderiza endereço+QR sem `Deprecated`.
 4. **Contrato sem-gmp:** num host sem gmp, salvar xPub segue com o comportamento honesto

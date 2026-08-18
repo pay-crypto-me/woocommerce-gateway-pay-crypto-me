@@ -34,7 +34,7 @@ Ambiente da auditoria: containers do próprio repo (`docker compose run --rm rel
 | Verificação | Resultado medido |
 |---|---|
 | `composer validate` | válido; `composer.lock` em sincronia com `composer.json` |
-| Suíte completa | **334 testes, 709 asserções, 3 skipped — OK** (número da árvore auditada em 2026-08-15; o baseline atual da branch é **363/755/4**) |
+| Suíte completa | **334 testes, 709 asserções, 3 skipped — OK** (número da árvore auditada em 2026-08-15; para o baseline de hoje, ver o `CLAUDE.md` — este documento não o persegue) |
 | `composer audit --locked` | **`No security vulnerability advisories found`, sem lista de ignore** |
 | 60 vetores de endereço | **60/60 idênticos** — rodados **nos dois** vendors (fork e upstream), zero divergência em ambos |
 | E1 (fork não tem correção própria) | confirmado: o único arquivo diferente em `src/` é `Signature.php`, e a diferença é o upstream **adicionando** `getSignatureType(): string` |
@@ -353,6 +353,13 @@ grep -n "docker-compose " docs/CRYPTO-DEPENDENCIES.md
 ---
 
 ## Parte 3 — Risco de integração com a `main`
+
+> **Superado em 2026-08-18 — não siga o procedimento abaixo.** O risco descrito aqui era real quando
+> a auditoria rodou (a branch estava 2 commits atrás da `main`). Desde então a `main` não andou:
+> `git merge-base --is-ancestor main chore/lean-vendor-tree` passa, ou seja, o merge é fast-forward e
+> **não há conflito para resolver**. Fica como registro do que foi verificado; seguir as instruções de
+> rebase/resolução hoje é resolver um conflito que não existe. Confirmado ao auditar a execução das
+> duas branches em 2026-08-18.
 
 **Severidade: alta para a entrega** (não é defeito da mudança; é o estado das branches).
 

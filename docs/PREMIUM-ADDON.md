@@ -58,7 +58,7 @@ do Lightning não tem nenhum caller em produção).
   }
   ```
   `WC_PayCryptoMe::VERSION` é a fonte de verdade da versão do base
-  (`src/trunk/paycrypto-me-for-woocommerce.php:38`). Os seams de enablement (§2) fazem parte da
+  (`WC_PayCryptoMe::VERSION`, em `src/trunk/paycrypto-me-for-woocommerce.php`). Os seams de enablement (§2) fazem parte da
   própria **0.1.0**, então o guard só exige o base presente em ≥ 0.1.0.
 - **Reuso do `HttpClientContract` do base:** todo HTTP (providers, nós, webhook re-verify) passa
   pelo `WpHttpClient` do base (`includes/http/class-wp-http-client.php`) — uniformiza logging e
@@ -122,8 +122,8 @@ paycrypto-me-premium/
 ## 2. Enablement do plugin base — ⛔ ENCERRADO, não editar o base
 
 > **Status: FEITO e fechado.** Seams #1 e #2 estão **implementados, testados e shipados na 0.1.0**
-> (verificado em 2026-08-08: `class-lnd-rest-invoice-service.php:31` para o `value`;
-> `pay-crypto-me-db-statements-service.php:240` e `:276` para `update_transaction_confirmations()`
+> (verificado em 2026-08-08, revalidado em 2026-08-18: `LndRestInvoiceService::create_invoice()` para o `value`;
+> `PayCryptoMeDBStatementsService::update_transaction_confirmations()` e o `do_action` no fim dele
 > \+ `do_action`; cobertos por `tests/phpunit/unit/OnchainConfirmationsUpdateTest.php`). Seam #3 foi
 > **dispensado** — o add-on enumera pedidos on-chain pendentes via `wc_get_orders()`, sem helper no
 > base.
@@ -208,7 +208,7 @@ Comportamento:
 - Handler: valida HMAC do header BTCPay com o secret `btcpay_webhook_secret`
   (`$gateway->get_option('btcpay_webhook_secret')`); extrai `invoiceId`; mapeia p/ pedido via
   `PayCryptoMeLightningDBStatementsService::get_by_invoice_id($invoice_id)`
-  (`class-paycrypto-me-lightning-db-statements-service.php:65`).
+  (`PayCryptoMeLightningDBStatementsService::get_by_invoice_id()`).
 - **Re-verificação server-side obrigatória** (nunca confiar só no payload): instanciar
   `new BtcpayInvoiceService(new WpHttpClient(), $gateway)` e chamar `get_invoice_status($invoice_id)`
   → `LightningInvoiceStatusResponse{paid,status}`. Se `paid`, chamar
@@ -217,7 +217,7 @@ Comportamento:
 **lnd (polling — lnd não tem webhook simples):**
 - `class-lnd-status-poller.php` roda em cron (schedule custom, ex. cada 60-120s). Para cada
   invoice lnd em status não-final: `LndRestInvoiceService::get_invoice_status($invoice_id)`
-  (`class-lnd-rest-invoice-service.php:50`) → se `paid` (`state === 'SETTLED'`),
+  (`LndRestInvoiceService::get_invoice_status()`) → se `paid` (`state === 'SETTLED'`),
   `$db->update_status($order_id, 'SETTLED')`.
 - Reusa o `HttpClientContract` do base (`WpHttpClient`) e o `request_with_cert()` do serviço lnd
   (trata TLS/macaroon). Capturar `PayCryptoMePaymentException` (erro transitório do nó não pode
@@ -240,11 +240,11 @@ Comportamento:
   Binance → mempool.space com retry/failover. Cache `set_transient` (ex. 60s) da taxa; em
   `AllProvidersUnavailableException`, fallback para o último valor em cache (ou adia).
 - `class-lnd-amount-filter.php`: `add_filter('paycryptome_lightning_lnd_invoice_args', fn, 10, 3)`
-  (recebe `$args, $order, $gateway` — `abstract-class-lightning-processor.php:30`). Seta
-  `$args['amount_sats']` (persistido na coluna via `insert_invoice`, `abstract-class-lightning-processor.php:63`)
+  (recebe `$args, $order, $gateway` — `AbstractLightningProcessor::process()`). Seta
+  `$args['amount_sats']` (persistido na coluna via o `insert_invoice()`/`replace_invoice()` no fim de `AbstractLightningProcessor::process()`)
   **e** `$args['value']` (força o valor no invoice lnd — depende do enablement §2-#1).
 - **BTCPay:** já manda `amount`+`currency` fiat e converte internamente
-  (`class-btcpay-invoice-service.php:22-23`) — **não precisa de enforcement fiat→sats**. Para
+  (as chaves `amount`/`currency` do body em `BtcpayInvoiceService::create_invoice()`) — **não precisa de enforcement fiat→sats**. Para
   BTCPay o add-on pode, opcionalmente, só *exibir* o equivalente em sats (reusa a mesma chain).
 
 ---
@@ -258,7 +258,7 @@ Comportamento:
   BlockCypher com retry/failover — obtendo `{confirmations, amount_received_sats, tx_hash}`.
 - Chama o novo `update_transaction_confirmations()` (enablement §2-#2). O `confirmations_required`
   por pedido vem da meta `_paycrypto_me_payment_number_confirmations`
-  (`class-wc-gateway-paycrypto-me.php:234`).
+  (o ramo `!$identifier_is_valid` de `WC_Gateway_PayCryptoMe::process_admin_options()`).
 - `class-onchain-status-listener.php`: `add_action('paycryptome_bitcoin_status_changed', fn)` —
   quando `confirmations >= required` **e** `amount_received` está dentro da tolerância abaixo →
   `$order->payment_complete()`. Mesmo padrão idempotente do Lightning.
@@ -279,7 +279,9 @@ Comportamento:
 > **Limitação documentada (F5):** o rastreio automático on-chain cobre **apenas endereços
 > derivados** (xpub/ypub/zpub), que geram linha em `paycrypto_me_bitcoin_transactions_data`.
 > Pagamento a **endereço estático** não gera linha (o processador retorna antes de `insert_address()`,
-> [class-bitcoin-payment-processor.php:49-54](../src/trunk/includes/processors/class-bitcoin-payment-processor.php#L49-L54)),
+> no ramo de endereço estático de `BitcoinPaymentProcessor::process()`, antes de chegar em
+> `resolve_derived_address()` —
+> [linhas 49-54 hoje](../src/trunk/includes/processors/class-bitcoin-payment-processor.php#L49-L54)),
 > então `get_by_order_id()` retorna `null` e o poller **ignora naturalmente** esses pedidos —
 > endereço estático permanece **confirmação manual**, por design. Sem código extra no add-on nem
 > mudança de schema no base.
@@ -304,11 +306,11 @@ exibição era 100% fechada.
   `add_filter('woocommerce_settings_api_form_fields_paycrypto_me_lightning', fn)`. Remove
   `custom_attributes['disabled']` de `btcpay_webhook_secret`; injeta a URL real
   `rest_url('paycrypto-me/v1/webhook')` na descrição do campo `webhook_info`
-  (`class-wc-gateway-paycrypto-me-lightning.php:159-174`); adiciona campo de intervalo de polling
+  (campos BTCPay em `WC_Gateway_PayCryptoMe_Lightning::init_form_fields_items()`); adiciona campo de intervalo de polling
   lnd e **ordem/enable dos providers de câmbio** (§3).
 - **B/C On-chain** — `class-onchain-settings-injector.php`:
   `add_filter('woocommerce_settings_api_form_fields_paycrypto_me', fn)`. Habilita
-  `payment_number_confirmations` e o timeout de expiração (`class-wc-gateway-paycrypto-me.php:154-165`);
+  `payment_number_confirmations` e o timeout de expiração (campos em `WC_Gateway_PayCryptoMe::init_form_fields_items()`);
   adiciona **ordem/enable dos block explorers + chaves de API opcionais** (§3).
 
 **Infra de cron** (`class-cron-scheduler.php`): registrar `wp_schedule_event` na **ativação** do
@@ -615,16 +617,16 @@ cliente zero — mas comece com confirmação manual como fallback e monitore os
 **Base — consumidos sem edição:**
 - `includes/services/class-paycrypto-me-lightning-db-statements-service.php` — `get_by_invoice_id():65`,
   `update_status():121`, action `paycryptome_lightning_status_changed:142`
-- `includes/services/class-btcpay-invoice-service.php:49` / `class-lnd-rest-invoice-service.php:50` —
+- `BtcpayInvoiceService::get_invoice_status()` / `LndRestInvoiceService::get_invoice_status()` —
   `get_invoice_status()`
-- `includes/processors/abstract-class-lightning-processor.php:30` — filtros de invoice args
+- `AbstractLightningProcessor::process()` — filtros de invoice args
 - `includes/contracts/HttpClientContract.php` + `includes/http/class-wp-http-client.php`
 - `includes/services/pay-crypto-me-db-statements-service.php` — `get_by_order_id()` on-chain
-- `paycrypto-me-for-woocommerce.php:38` — `WC_PayCryptoMe::VERSION` (guard)
+- `paycrypto-me-for-woocommerce.php` → `WC_PayCryptoMe::VERSION` (guard de dependência)
 
 **Base — enablement (§2): JÁ FEITO, não editar de novo:**
-- `includes/services/class-lnd-rest-invoice-service.php:31` — `value` no body
-- `includes/services/pay-crypto-me-db-statements-service.php:240` / `:276` —
+- `LndRestInvoiceService::create_invoice()`, ramo `isset($args['value'])` — `value` no body
+- `PayCryptoMeDBStatementsService::update_transaction_confirmations()` (e o `do_action` no fim dele) —
   `update_transaction_confirmations()` + `do_action('paycryptome_bitcoin_status_changed')`
 - `tests/phpunit/unit/OnchainConfirmationsUpdateTest.php` — cobertura dos dois
 

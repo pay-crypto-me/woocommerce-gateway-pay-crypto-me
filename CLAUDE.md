@@ -8,11 +8,11 @@
 - [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
 - [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **done.** The record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`.
 - [docs/CRYPTO-DEPENDENCIES-AUDIT.md](docs/CRYPTO-DEPENDENCIES-AUDIT.md) — **done.** Independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
-- [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md) — **done.** `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`.
-- [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; browser acceptance test (its section C) still pending.** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
+- [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md) — **done.** `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected, plus the two findings of the 2026-08-18 pre-merge audit: the generated `platform_check.php` moving to `>= 80100`, and the pin audit that could pass without its probe running). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`.
+- [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in).** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1**. Production-hardening and the WordPress.org review round are both complete and verified (367 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
@@ -149,6 +149,16 @@ owner's mistake:
    first copy came from the pre-save instance, whose `$this->settings` snapshot was already stale).
    The `enabled` check is made when rendering, not when hooking, for the same reason.
 
+The plugin's own load path follows the same rule. The bundled `vendor/` is resolved for the PHP
+floor in `Requires PHP:`, so Composer's generated `platform_check.php` throws from
+`vendor/autoload.php` on anything older — a site-wide fatal that never names the plugin. The
+entrypoint checks `PHP_VERSION_ID` **before** that require and returns with an admin notice instead,
+exactly like the neighbouring guard for a missing `vendor/`. WordPress already blocks activation and
+updates below the header floor, so what this catches is a site whose PHP was downgraded afterwards.
+That floor is written in four places — plugin header, `readme.txt`, `config.platform.php` and this
+guard — and `PhpFloorConsistencyTest` fails if any of them drifts, because they only mean anything
+together (see "Composer dependencies" below for what the pin drifting costs).
+
 The same principle applies to silent degradation: `QrCodeService` takes an optional `?callable
 $logger` (forwarded by `PaymentDisplayDataBuilder::build()` from the gateway) so a QR that cannot be
 drawn is reported instead of producing a blank order page, `HttpClientContract::ERROR_KEY` carries
@@ -244,7 +254,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 367 tests, 760 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 371 tests, 828 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Smoke test for environment-dependent fatals
 
@@ -254,6 +264,23 @@ docker compose up -d wordpress   # if not already up
 ```
 
 Runs against the real `wordpress` dev container (unlike PHPUnit, which needs no real WP) with specific PHP functions disabled via `-d disable_functions=...` to simulate a host missing `gmp`/`gd`/`iconv`/`fileinfo` — the class of bug that got past every other check because our dev image has every extension installed. Mandatory before cutting a release (see [docs/RELEASE.md](docs/RELEASE.md)).
+
+### Docs drift audit
+
+```bash
+./scripts/check-docs-drift.sh
+```
+
+Compares the canonical docs (`CLAUDE.md` + `docs/*.md`) with the tree: every cited path exists, every
+`file.php:NNN` still lands on code, the *Public hooks* table below matches what the code actually
+fires, and the counts stated in prose (7 locales, 9 `validate_*_field`, 3 `generate_*_html`, 4 tables,
+60 vectors) are real. Runs automatically in `release.sh`'s *Docs drift audit* phase; no Docker needed.
+
+Deliberately not a PHPUnit test: the suite's world is `src/trunk`, and these files live above it, so a
+test would skip exactly where the suite normally runs. **Cite symbols, not line numbers** — a
+`Class::method()` reference survives an edit above it, `file.php:412` does not (line numbers are
+reserved for `vendor/`, which `composer.lock` pins). And when a number appears in prose in more than
+one doc, only the `CLAUDE.md` one is "current"; the rest must say which measurement and when.
 
 ### Platform pin audit
 

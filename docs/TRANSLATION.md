@@ -48,6 +48,14 @@ src/trunk/languages/
 Não existe `en_US.po`/`.mo`: inglês é o idioma-fonte das strings no código (`__('...',
 'paycrypto-me-for-woocommerce')`), não precisa de arquivo de tradução próprio.
 
+O catálogo também guarda **referências de linha** (`#: arquivo.php:NNN`) e o `Project-Id-Version`
+lido do header do plugin. Ou seja: mudança de código que só desloca linhas já deixa o `.pot`/`.po`
+desatualizados sem nenhuma string ter mudado — rode `npm run translate` depois de mexer em arquivo que
+contenha string traduzível (foi o caso da guarda de piso de PHP no entrypoint, em 2026-08-18, que
+empurrou 4 referências). O diff esperado nesse caso é só referência de linha + data de geração; se
+aparecer `msgid` entrando ou saindo, uma string mudou e a cobertura dos 7 locales precisa ser
+reconferida.
+
 ## 🎯 O que entra (e o que NÃO entra) no catálogo
 
 Nem toda string do plugin é traduzível — a decisão é por **quem lê**, não por onde a string está no
