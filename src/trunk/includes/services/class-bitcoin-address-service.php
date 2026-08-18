@@ -355,8 +355,11 @@ class BitcoinAddressService
             self::suppress_vendor_deprecations(function () use ($xPub, $network): void {
                 $replaceHex = $this->convert_extended_pubkey_prefix($xPub, $network);
 
-                $hdFactory = new HierarchicalKeyFactory();
-                $hdFactory->fromExtended($replaceHex, $network);
+                // The lazy accessor, not a fresh factory: this method used to build its own and
+                // silently ignore the injected one, exactly like validate_bitcoin_address() did with
+                // AddressCreator. Construction still happens inside the try, so a host without GMP
+                // still raises the \Error the contract above depends on.
+                $this->get_hd_factory()->fromExtended($replaceHex, $network);
             });
 
             return true;

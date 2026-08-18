@@ -107,6 +107,23 @@ class BitcoinAddressValidationTest extends TestCase
         $this->assertFalse($svc->validate_bitcoin_address('whatever', NetworkFactory::bitcoin()));
     }
 
+    /**
+     * Regression: this path built `new HierarchicalKeyFactory()` internally and dropped the injected
+     * one on the floor — the same defect already fixed in validate_bitcoin_address(). A mock that is
+     * never consulted made the method look tested while it was talking to the real library.
+     */
+    public function test_validate_extended_pubkey_uses_the_injected_hd_factory()
+    {
+        $hdFactory = $this->createMock(\BitWasp\Bitcoin\Key\Factory\HierarchicalKeyFactory::class);
+        $hdFactory->expects($this->once())
+            ->method('fromExtended')
+            ->willThrowException(new \RuntimeException('injected factory reached'));
+
+        $svc = new BitcoinAddressService($hdFactory);
+
+        $this->assertFalse($svc->validate_extended_pubkey(self::MAINNET_XPUB, NetworkFactory::bitcoin()));
+    }
+
     public function test_validate_extended_pubkey_rejects_unsupported_prefix()
     {
         $this->assertFalse($this->svc->validate_extended_pubkey('foo1NotARealPrefixKey', NetworkFactory::bitcoin()));
