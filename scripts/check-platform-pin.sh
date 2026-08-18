@@ -24,9 +24,10 @@ set -euo pipefail
 #                   enters silently. Every offender must be on ALLOWED_OFFENDERS with a documented
 #                   reason and proof the plugin never executes its code.
 #
-#   `composer why-not php <floor>` ignores the pin and lists EVERY package whose php requirement
-#   excludes that floor, so it is the right probe in both regimes. The floor is read from the plugin
-#   header ("Requires PHP:"), which means bumping the floor moves this check with it.
+#   `composer why-not --locked php <floor>` ignores the pin and lists EVERY package in the lock whose
+#   php requirement excludes that floor, so it is the right probe in both regimes. The floor is read
+#   from the plugin header ("Requires PHP:"), which means bumping the floor moves this check with it.
+#   The probe's own success is verified before its result is believed — see the block that runs it.
 #
 #   In the suppression regime the script also reports the reverse, which is the case people forget:
 #   when the known offender stops blocking the floor, the pin is dead weight and should be REMOVED,
@@ -130,10 +131,54 @@ run_composer() {
     fi
 }
 
-# `why-not` reports one line per offending package: "<vendor>/<name> <version> requires php (...)".
-# Empty output means nothing in the tree blocks the floor.
-OFFENDER_LINES="$(run_composer why-not php "$PHP_FLOOR" --no-interaction 2>/dev/null \
-    | sed 's/\r$//' | grep -E '^[a-z0-9._-]+/[a-z0-9._-]+ ' || true)"
+# `why-not` reports one line per offending package on STDOUT — "<vendor>/<name> <version> requires
+# php (...)" — and exits non-zero when it finds any. Measured shapes:
+#
+#   clean tree     stdout empty, exit 0, two informational lines on STDERR
+#   with offender  offender table on stdout, exit 1
+#   BROKEN probe   stdout empty, exit non-zero (no composer.json, no Docker, unreadable lock)
+#
+# "Clean" and "broken" differ only in the exit status, so the earlier `2>/dev/null | grep ... ||
+# true` — which discarded both the status and stderr — reported "nothing blocks the floor" for a
+# probe that never ran, in a script wired into release.sh as a gate. Keep both and cross-check.
+#
+# `--locked` audits composer.lock (what a store installs) instead of whatever happens to be in
+# vendor/ on this machine, and works on a fresh clone with no vendor/ at all. It does include
+# require-dev packages (e.g. doctrine/instantiator): deliberately conservative, not a bug — a
+# dev-only package that cannot run the floor is still worth a look before a release.
+set +e
+PROBE_OUTPUT="$(run_composer why-not --locked php "$PHP_FLOOR" --no-interaction 2>&1)"
+PROBE_STATUS=$?
+set -e
+
+# Anchored on "requires php" because stderr is now merged in: Compose progress lines must never be
+# mistaken for an offending package.
+OFFENDER_LINES="$(printf '%s\n' "$PROBE_OUTPUT" | sed 's/\r$//' \
+    | grep -E '^[a-z0-9._-]+/[a-z0-9._-]+[[:space:]]+[^[:space:]]+[[:space:]]+requires php ' || true)"
+
+# The line Composer prints when it looked and found nothing. Its absence, with no offender lines
+# either, is what tells "the tree is clean" apart from "the probe never ran".
+if [[ -n "$OFFENDER_LINES" ]]; then
+    : # the probe ran and found offenders — audited by regime below
+elif [[ $PROBE_STATUS -eq 0 ]] \
+    && printf '%s\n' "$PROBE_OUTPUT" | grep -qE 'There is no (installed|locked) package depending on'; then
+    : # the probe ran and the tree is clean
+else
+    error "The platform-pin probe did not run — refusing to report a result it never measured."
+    error ""
+    error "Ran: composer why-not --locked php ${PHP_FLOOR}   (exit ${PROBE_STATUS})"
+    error "Neither an offending-package line nor Composer's \"nothing to report\" line came back, so"
+    error "this is a broken probe, not a clean tree. Raw output:"
+    error ""
+    while IFS= read -r line; do
+        echo "    ${line}" >&2
+    done <<< "${PROBE_OUTPUT:-<empty>}"
+    error ""
+    error "Usual causes: Docker unavailable (and no host 'composer'), the release image failing to"
+    error "build, or src/trunk/composer.lock missing. Fix the probe and re-run — do not skip this"
+    error "step: it is the only thing standing between the platform pin and an unaudited change."
+    exit 1
+fi
 
 if [[ -z "$OFFENDER_LINES" ]]; then
     if [[ "$REGIME" == "declaration" ]]; then
