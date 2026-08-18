@@ -12,13 +12,13 @@
 - [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in).** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
 - [docs/PREMIUM-ADDON.md](docs/PREMIUM-ADDON.md) — approved implementation plan for the separate premium add-on plugin (not started yet). See "Premium add-on" section below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.1** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
 
 ---
 
 ## What this project is
 
-WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.1.1**. Author: PayCrypto.Me (contact@paycrypto.me).
+WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.1.2**. Author: PayCrypto.Me (contact@paycrypto.me).
 
 **Two registered gateways, both fully functional:**
 - `paycrypto_me` — Bitcoin On-Chain (HD derivation from xPub/ypub/zpub, mainnet + testnet).
