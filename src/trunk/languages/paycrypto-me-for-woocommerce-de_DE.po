@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-15T22:31:56+00:00\n"
+"POT-Creation-Date: 2026-08-18T15:02:35+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:50+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -547,19 +547,19 @@ msgid "Payment via Lightning node failed. Please try again."
 msgstr ""
 "Zahlung über Lightning-Knoten fehlgeschlagen. Bitte versuche es erneut."
 
-#: paycrypto-me-for-woocommerce.php:158
+#: paycrypto-me-for-woocommerce.php:177
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: paycrypto-me-for-woocommerce.php:163
+#: paycrypto-me-for-woocommerce.php:182
 msgid "Get Premium"
 msgstr "Premium holen"
 
-#: paycrypto-me-for-woocommerce.php:179
+#: paycrypto-me-for-woocommerce.php:198
 msgid "Support"
 msgstr "Support"
 
-#: paycrypto-me-for-woocommerce.php:184
+#: paycrypto-me-for-woocommerce.php:203
 msgid "GitHub"
 msgstr "GitHub"
 

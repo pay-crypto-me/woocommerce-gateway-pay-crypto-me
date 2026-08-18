@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
+"Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.1\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-woocommerce/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-15T23:11:44+00:00\n"
+"POT-Creation-Date: 2026-08-18T15:02:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: paycrypto-me-for-woocommerce\n"
@@ -432,19 +432,19 @@ msgstr ""
 msgid "Payment via Lightning node failed. Please try again."
 msgstr ""
 
-#: paycrypto-me-for-woocommerce.php:158
+#: paycrypto-me-for-woocommerce.php:177
 msgid "Settings"
 msgstr ""
 
-#: paycrypto-me-for-woocommerce.php:163
+#: paycrypto-me-for-woocommerce.php:182
 msgid "Get Premium"
 msgstr ""
 
-#: paycrypto-me-for-woocommerce.php:179
+#: paycrypto-me-for-woocommerce.php:198
 msgid "Support"
 msgstr ""
 
-#: paycrypto-me-for-woocommerce.php:184
+#: paycrypto-me-for-woocommerce.php:203
 msgid "GitHub"
 msgstr ""
 
