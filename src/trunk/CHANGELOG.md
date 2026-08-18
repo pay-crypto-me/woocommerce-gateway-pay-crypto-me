@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Planned
+
+ - Add support for additional blockchain networks (planned).
+ - Add automatic payment confirmation (webhook/polling), reserved for a future premium add-on.
+ - Add fiat → sats conversion, reserved for a future premium add-on.
+
+## 0.1.2
+
 ### Changed
 
  - Updated the bundled dependencies to the versions built for the PHP 8.1 this plugin already
@@ -26,12 +34,10 @@ All notable changes to this project are documented in this file.
  - Saving the On-Chain gateway settings no longer prints PHP deprecation notices from the Bitcoin
    library, and no longer breaks the post-save redirect ("headers already sent"), on hosts that
    display PHP errors (e.g. with WP_DEBUG on). Address derivation at checkout is quiet the same way.
-
-### Planned
-
- - Add support for additional blockchain networks (planned).
- - Add automatic payment confirmation (webhook/polling), reserved for a future premium add-on.
- - Add fiat → sats conversion, reserved for a future premium add-on.
+ - On a site running a PHP older than the 8.1 this plugin requires, the plugin now stops loading and
+   says so in the admin, instead of taking the whole site down with a fatal error from the bundled
+   dependencies. WordPress already blocks activating or updating it below 8.1, so this only affects a
+   site whose PHP version was lowered after the plugin was already active.
 
 ## 0.1.1
 
@@ -86,6 +92,13 @@ All notable changes to this project are documented in this file.
 - Extension points reserved for the upcoming premium add-on, with no effect on the free plugin: an optional `value` (sats) arg honored by lnd invoice creation; `PayCryptoMeDBStatementsService::update_transaction_confirmations()` plus a `paycryptome_bitcoin_status_changed` action for on-chain confirmation tracking; order-details display filters (`paycryptome_order_display_args`, `paycryptome_order_display_data`); dedicated on-chain filters (`paycryptome_bitcoin_payment_uri`, `paycryptome_bitcoin_payment_data`); and the payment gateway is now passed to the `paycryptome_payment_amount`/`paycryptome_payment_data` filters.
 
 ## Upgrade Notice
+
+= 0.1.2 =
+
+Fixes saving the On-Chain settings on hosts that display PHP errors, where library deprecation
+notices broke the post-save redirect. Bundled dependencies were updated to the versions built for the
+PHP 8.1 this plugin already requires — maintenance, not a security fix — and a site below PHP 8.1 now
+gets an explanation instead of a fatal error.
 
 = 0.1.1 =
 

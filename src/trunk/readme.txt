@@ -113,6 +113,12 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 
 == Changelog ==
 
+= 0.1.2 =
+* Fixed: saving the Bitcoin On-Chain settings works again on hosts that display PHP errors (typically a staging site with WP_DEBUG on), where notices from the Bitcoin library printed on the screen and broke the redirect after saving with "headers already sent". The payment page is quiet the same way.
+* Changed: the bundled libraries were updated to the versions built for PHP 8.1, which this plugin has always required. They were being installed as if the site ran PHP 7.4, so the download carried an encryption compatibility layer a full version behind and one package that never ran at all. Both are gone and the plugin ships smaller. This is routine maintenance, not a security fix — no advisory applied to the previous versions — and payments, invoices and QR codes work exactly as before.
+* Changed: the Bitcoin libraries now come from their official source instead of a personal copy. The same addresses are derived, verified against all 60 address test vectors.
+* Fixed: on a site running a PHP older than 8.1, the plugin now stops loading and explains why in the admin instead of taking the whole site down. WordPress already prevents activating or updating it below 8.1, so this only affects a site whose PHP was downgraded after the plugin was already active.
+
 = 0.1.1 =
 * On-chain payments now work on hosts without the PHP GMP extension, as long as a single fixed bech32 address (bc1…/tb1…) is configured. On those hosts a perfectly valid xPub used to be rejected as "not valid for the selected network" — a host limitation reported as your mistake.
 * A gateway that is enabled but cannot take payments no longer vanishes from checkout without explanation: its settings screen now lists exactly what is missing (a PHP extension, the network/xPub, or the BTCPay/lnd credentials for the selected node type).
@@ -137,6 +143,9 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 * Developer extension points reserved for the upcoming premium add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
 
 == Upgrade Notice ==
+
+= 0.1.2 =
+Fixes saving the On-Chain settings on hosts that display PHP errors. Bundled libraries updated to the versions built for the PHP 8.1 this plugin already requires (maintenance, not a security fix), and a site below PHP 8.1 now gets an explanation instead of a fatal error.
 
 = 0.1.1 =
 Admin errors, warnings and logs are now always in English; customer-facing text stays translated. A gateway that cannot take payments explains why instead of vanishing from checkout, and on-chain works without the GMP extension when a fixed bech32 address is configured.
