@@ -25,6 +25,25 @@ namespace PayCryptoMe\WooCommerce;
 
 defined('ABSPATH') || exit;
 
+// The bundled vendor/ is resolved for the PHP version declared in "Requires PHP" above
+// (config.platform.php in composer.json states the same floor), so Composer's generated
+// platform_check.php throws a RuntimeException the moment autoload.php is required on anything
+// older — an uncaught fatal that takes the whole site down without naming the plugin behind it.
+// WordPress refuses to activate or update a plugin below its "Requires PHP", so what is left is a
+// site whose PHP was downgraded after activation; it deserves the same treatment as a missing
+// vendor/ below: say what is wrong and stop loading. PhpFloorConsistencyTest fails if this value,
+// the two headers and the Composer pin ever drift apart.
+if (PHP_VERSION_ID < 80100) {
+    add_action('admin_notices', function () {
+        echo '<div class="error"><p>PayCrypto.Me for WooCommerce requires PHP 8.1 or newer. This site runs PHP '
+            . esc_html(PHP_VERSION)
+            . ', so the plugin stopped loading instead of taking the site down with a fatal error. '
+            . 'Ask your host to update PHP.</p></div>';
+    });
+
+    return;
+}
+
 if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
     // Installing from a GitHub source zip is a real path here: vendor/ is gitignored and the
     // Plugin URI above points at GitHub. Without the autoloader, none of this plugin's own
