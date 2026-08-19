@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Release helper for PayCrypto.Me plugin
 # Usage: ./scripts/release.sh -v VERSION -s SLUG [--no-build] [--no-tests] [--no-zip] [--git]
-#                             [--svn | --svn-commit] [--no-docker] [--dry-run]
+#                             [--svn-prepare | --svn-publish] [--no-docker] [--dry-run]
 
 # === COLOR OUTPUT ===
 RED='\033[0;31m'
@@ -51,8 +51,8 @@ Options:
   --no-tests      Skip phpunit tests
   --no-zip        Skip creating the zip
   --git           Commit version bumps and create git tag
-  --svn           Prepare the SVN working copy from the approved zip (no commit)
-  --svn-commit    Same as --svn, then commit trunk/assets and create the SVN tag
+  --svn-prepare   Prepare the SVN working copy from the approved zip (no commit)
+  --svn-publish   Same as --svn-prepare, then commit trunk/assets and create the SVN tag
   --no-docker     Run build/test commands on host instead of Docker container
   --dry-run       Print steps without executing them
   -h|--help       Show this help
@@ -71,8 +71,8 @@ DO_BUILD=1
 DO_TESTS=1
 DO_ZIP=1
 DO_GIT=0
-DO_SVN=0
-DO_SVN_COMMIT=0
+DO_SVN_PREPARE=0
+DO_SVN_PUBLISH=0
 USE_DOCKER=1
 DRY_RUN=0
 
@@ -84,8 +84,8 @@ while [[ $# -gt 0 ]]; do
     --no-tests)  DO_TESTS=0; shift;;
     --no-zip)    DO_ZIP=0; shift;;
     --git)       DO_GIT=1; shift;;
-    --svn)        DO_SVN=1; shift;;
-    --svn-commit) DO_SVN=1; DO_SVN_COMMIT=1; shift;;
+    --svn-prepare) DO_SVN_PREPARE=1; shift;;
+    --svn-publish) DO_SVN_PREPARE=1; DO_SVN_PUBLISH=1; shift;;
     --no-docker) USE_DOCKER=0; shift;;
     --dry-run)   DRY_RUN=1; shift;;
     -h|--help)   show_help; exit 0;;
@@ -106,22 +106,22 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 # Publishing by re-running the build would re-resolve the private Composer forks
-# and diverge from the approved bytes. --svn publishes the zip that already
+# and diverge from the approved bytes. --svn-prepare publishes the zip that already
 # exists, period.
-if [[ $DO_SVN -eq 1 && ( $DO_BUILD -eq 1 || $DO_TESTS -eq 1 || $DO_ZIP -eq 1 ) ]]; then
-  error "--svn/--svn-commit publishes the already-built zip and must not rebuild it."
+if [[ $DO_SVN_PREPARE -eq 1 && ( $DO_BUILD -eq 1 || $DO_TESTS -eq 1 || $DO_ZIP -eq 1 ) ]]; then
+  error "--svn-prepare/--svn-publish publishes the already-built zip and must not rebuild it."
   error "Re-run with: --no-build --no-tests --no-zip"
   exit 1
 fi
 
 # A publish run never bumps versions, so --git would have nothing to commit or
 # tag. Refusing is clearer than silently doing nothing. Tag during the build run.
-if [[ $DO_SVN -eq 1 && $DO_GIT -eq 1 ]]; then
-  error "--git has no effect with --svn/--svn-commit: a publish run does not bump versions."
+if [[ $DO_SVN_PREPARE -eq 1 && $DO_GIT -eq 1 ]]; then
+  error "--git has no effect with --svn-prepare/--svn-publish: a publish run does not bump versions."
   error "Create the git tag during the build run, before publishing."
   exit 1
 fi
-PUBLISH_ONLY=$DO_SVN
+PUBLISH_ONLY=$DO_SVN_PREPARE
 
 # === DRY RUN WRAPPER ===
 # Wraps commands so they are printed but not executed in --dry-run mode.
@@ -488,7 +488,7 @@ svn_publish() {
   if svn info "$SVN_DIR" >/dev/null 2>&1; then
     # Sem esta assertiva, um ensaio (SVN_URL=file://...) rodado depois de um run
     # real reusaria um WC apontado para o plugins.svn.wordpress.org de verdade —
-    # e com --svn-commit publicaria lá achando que estava ensaiando.
+    # e com --svn-publish publicaria lá achando que estava ensaiando.
     wc_url="$(svn info --show-item url --no-newline "$SVN_DIR")"
     if [[ "$wc_url" != "$SVN_URL" ]]; then
       error "O working copy em $SVN_DIR aponta para:"
@@ -608,10 +608,10 @@ svn_publish() {
     log "$(wc -l <<<"$st") caminho(s) alterado(s)"
   fi
 
-  if [[ $DO_SVN_COMMIT -eq 0 ]]; then
+  if [[ $DO_SVN_PUBLISH -eq 0 ]]; then
     log "Nada commitado (gate de revisão)."
     log "Inspecionar:  (cd $SVN_DIR && svn status)"
-    log "Publicar:     $0 -v $VERSION -s $SLUG --no-build --no-tests --no-zip --svn-commit"
+    log "Publicar:     $0 -v $VERSION -s $SLUG --no-build --no-tests --no-zip --svn-publish"
     return 0
   fi
 
@@ -645,8 +645,8 @@ svn_publish() {
   log "Publicado $VERSION: trunk@$rev + tags/$VERSION"
 }
 
-if [[ $DO_SVN -eq 1 ]]; then
-  header "SVN publish -> WordPress.org"
+if [[ $DO_SVN_PREPARE -eq 1 ]]; then
+  header "SVN prepare/publish -> WordPress.org"
 
   SVN_URL="${SVN_URL:-https://plugins.svn.wordpress.org/${SLUG}}"  # env-overridable p/ ensaio
   SVN_DIR="$ROOT_DIR/releases/svn"            # persistente, gitignored, FORA do BUILD_DIR

@@ -235,7 +235,7 @@ O que ele reporta depende do **regime**, isto é, de como o pin se compara ao pi
 
 Não precisa do stack de dev no ar: usa o serviço efêmero `release`, e cai para um `composer` do host
 se não houver Docker. Já está ligado na fase **Platform pin audit** do `release.sh`, logo depois do
-PHPUnit, e é pulado junto com os testes por `--no-tests` (então o fluxo `--svn`, que exige
+PHPUnit, e é pulado junto com os testes por `--no-tests` (então o fluxo `--svn-prepare`, que exige
 `--no-tests`, não o reexecuta).
 
 ## Auditoria de drift dos docs (roda dentro do `release.sh`)
@@ -302,8 +302,8 @@ paycrypto-me-for-woocommerce/
 | `--no-tests` | PHPUnit ativo por padrão | Em hotfixes urgentes (não recomendado em releases normais) |
 | `--no-zip` | Zip criado por padrão | Para testar apenas o bump de versão e build |
 | `--git` | Git desligado por padrão | Para commitar o bump e criar a tag `vX.Y.Z` automaticamente |
-| `--svn` | SVN desligado por padrão | Prepara o working copy SVN a partir do zip aprovado e mostra o gate de revisão — **não commita**. Exige `--no-build --no-tests --no-zip` |
-| `--svn-commit` | SVN desligado por padrão | Igual a `--svn`, mas também commita `trunk/`+`assets/` e cria a tag da versão |
+| `--svn-prepare` | SVN desligado por padrão | Prepara o working copy SVN a partir do zip aprovado e mostra o gate de revisão — **não commita**. Exige `--no-build --no-tests --no-zip` |
+| `--svn-publish` | SVN desligado por padrão | Igual a `--svn-prepare`, mas também commita `trunk/`+`assets/` e cria a tag da versão |
 | `--no-docker` | Docker ativo por padrão | Para rodar em CI/CD sem container (requer Node.js e Composer locais) |
 | `--dry-run` | Execução real | Para visualizar todos os passos sem aplicar nenhuma mudança |
 
@@ -419,10 +419,10 @@ git push origin v1.2.0
 
 - **Working copy persistente em `releases/svn/`** (fora do diretório de build efêmero; já coberto pelo `.gitignore`). Não é apagado automaticamente ao final — fica disponível para inspeção entre execuções. Staging intermediário em `releases/.svn-stage/`.
 - **A fonte da verdade é o zip aprovado** em `releases/{slug}-{version}.zip`, nunca um rebuild. O WP.org **reconstrói** o download a partir da tag SVN — o requisito é fidelidade de **conteúdo dos arquivos**, não do `.zip` em si. Ainda assim publicamos a partir do zip já validado: re-rodar `composer install` no momento da publicação reintroduz o risco de o `vendor/` divergir do que foi testado. As dependências são todas oficiais (Packagist), mas o artefato que passou pela verificação é o zip aprovado — é ele que vai ao ar.
-- **`--svn`/`--svn-commit` exigem `--no-build --no-tests --no-zip`.** O script recusa rodar (erro duro) se qualquer flag de build estiver ativa — garante que nunca se publique algo diferente do zip já aprovado.
-- **Commit é opt-in.** `--svn` sozinho prepara o working copy e imprime um resumo do que mudaria (gate de revisão) — **nada é commitado**. `--svn-commit` faz o ciclo completo: commit de `trunk/` + `assets/`, depois cria a tag por cópia server-side.
-- **Tags do WP.org são imutáveis por convenção.** Rodar `--svn-commit` de novo na mesma versão falha com erro claro — nunca sobrescreve nem aninha a tag existente (`svn cp` para um destino já existente aninharia em vez de falhar, por isso o script checa antes). Para republicar, bump a versão e rode de novo.
-- **`assets/` (banner, ícone, screenshots) agora é automático** — todo `--svn-commit` espelha `src/assets/` para o `assets/` do SVN junto com `trunk/`. Deixou de ser um passo manual separado.
+- **`--svn-prepare`/`--svn-publish` exigem `--no-build --no-tests --no-zip`.** O script recusa rodar (erro duro) se qualquer flag de build estiver ativa — garante que nunca se publique algo diferente do zip já aprovado.
+- **Commit é opt-in.** `--svn-prepare` sozinho prepara o working copy e imprime um resumo do que mudaria (gate de revisão) — **nada é commitado**. `--svn-publish` faz o ciclo completo: commit de `trunk/` + `assets/`, depois cria a tag por cópia server-side.
+- **Tags do WP.org são imutáveis por convenção.** Rodar `--svn-publish` de novo na mesma versão falha com erro claro — nunca sobrescreve nem aninha a tag existente (`svn cp` para um destino já existente aninharia em vez de falhar, por isso o script checa antes). Para republicar, bump a versão e rode de novo.
+- **`assets/` (banner, ícone, screenshots) agora é automático** — todo `--svn-publish` espelha `src/assets/` para o `assets/` do SVN junto com `trunk/`. Deixou de ser um passo manual separado.
 - **`git clean -xdf` apaga tanto `releases/svn/` quanto o zip aprovado** em `releases/` (ambos ignorados pelo git). Se isso acontecer, gere o zip de novo antes de publicar.
 
 ##### Configurando Credenciais SVN
@@ -455,12 +455,12 @@ svn mkdir -m init \
 
 # prepara e mostra o gate de revisão — nada é commitado
 SVN_URL=file:///tmp/fake-wporg ./scripts/release.sh \
-  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn
+  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn-prepare
 (cd releases/svn && svn status)
 
 # publica de verdade, mas no repositório fake
 SVN_URL=file:///tmp/fake-wporg ./scripts/release.sh \
-  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn-commit
+  -v X.Y.Z -s paycrypto-me-for-woocommerce --no-build --no-tests --no-zip --svn-publish
 
 rm -rf releases/svn releases/.svn-stage   # descarta o WC do ensaio antes do push real
 ```
@@ -476,7 +476,7 @@ exatamente o conteúdo do zip aprovado, sem rebuild.
 ./scripts/release.sh \
   -v 1.2.0 \
   -s paycrypto-me-for-woocommerce \
-  --no-build --no-tests --no-zip --svn
+  --no-build --no-tests --no-zip --svn-prepare
 
 # 2. revisar manualmente
 (cd releases/svn && svn status | head -40)
@@ -485,7 +485,7 @@ exatamente o conteúdo do zip aprovado, sem rebuild.
 ./scripts/release.sh \
   -v 1.2.0 \
   -s paycrypto-me-for-woocommerce \
-  --no-build --no-tests --no-zip --svn-commit
+  --no-build --no-tests --no-zip --svn-publish
 ```
 
 O passo 3 executa duas revisões no SVN: commit de `trunk/` + `assets/`, depois `svn copy` server-side para `tags/1.2.0` (custa 0 bytes, não depende do working copy). Se o commit passar e a cópia da tag falhar, **rode o passo 3 de novo** — o script detecta que não há nada a commitar e refaz só a cópia da tag, sem duplicar o commit.
@@ -551,7 +551,7 @@ Em pipelines onde o container não está disponível (e Node.js + Composer estã
 | `git push origin main` | Evitar push acidental; deve ser revisado antes |
 | `git push origin vX.Y.Z` | Idem |
 | Atualizar `readme.txt` (e `CHANGELOG.md`) com o changelog da versão | Conteúdo editorial, não automatizável — e precisa estar escrito **antes** de rodar com `-v`, senão a versão sobe com o changelog da anterior como entrada mais recente |
-| Editar os arquivos em `src/assets/` (banner/ícone/screenshots) | Conteúdo editorial; o **upload** ao SVN já é automático via `--svn-commit` (ver seção SVN acima) |
+| Editar os arquivos em `src/assets/` (banner/ícone/screenshots) | Conteúdo editorial; o **upload** ao SVN já é automático via `--svn-publish` (ver seção SVN acima) |
 | Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [TRANSLATION.md](./TRANSLATION.md)). Não pode entrar no `release.sh`: o `build-translations.sh` usa `compose exec wordpress`, ou seja **exige o stack de dev no ar**, e o release roda no container efêmero justamente para não exigir isso. Consequência a saber: o `.pot` embute o `Version:` do header, então rodar `npm run translate` antes do bump grava a versão anterior no `Project-Id-Version` (só metadado de tradutor; as referências de linha, que são o que importa, ficam corretas de qualquer forma) |
 
 ---
@@ -660,7 +660,7 @@ transmissão de arquivos já tinha terminado. É uma falha **do lado do servidor
 trunk remoto: revisão e conteúdo batiam com o zip). Como o script usa `set -e`, ele abortou antes
 de criar a tag.
 
-**Correção: rodar o mesmo `--svn-commit` de novo.** O script vê que não há nada a commitar, lê a
+**Correção: rodar o mesmo `--svn-publish` de novo.** O script vê que não há nada a commitar, lê a
 revisão atual do trunk remoto e cria só a tag por cima dela — nenhuma ação manual além de repetir
 o comando. Não é um bug do script; pode voltar a acontecer em releases futuros.
 
@@ -702,10 +702,10 @@ SVN (só na primeira vez que mexer no script, ou antes do primeiro push real)
 
 SVN (todo release)
 [ ] Preparar sem commitar: ./scripts/release.sh -v X.Y.Z -s paycrypto-me-for-woocommerce
-    --no-build --no-tests --no-zip --svn
+    --no-build --no-tests --no-zip --svn-prepare
 [ ] Gate de revisão inspecionado: (cd releases/svn && svn status)
 [ ] Publicar: ./scripts/release.sh -v X.Y.Z -s paycrypto-me-for-woocommerce
-    --no-build --no-tests --no-zip --svn-commit
+    --no-build --no-tests --no-zip --svn-publish
 [ ] svn ls https://plugins.svn.wordpress.org/paycrypto-me-for-woocommerce/tags/
     mostra X.Y.Z/
 [ ] Nova versão visível na página do plugin no WP.org (indexação completa até 72h)
