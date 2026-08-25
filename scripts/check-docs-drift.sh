@@ -37,7 +37,11 @@ PLANNED_PATHS=(
 )
 # WordPress core, not ours: the docs cite wp-includes/functions.php and
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) by their tail.
-EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php")
+# docs/PREMIUM-ADDON.md moved to the paycrypto-me-premium repo on 2026-08-25 — genuinely external
+# now, not planned. CLAUDE.md links it by full GitHub URL (matches the substring), and
+# CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
+# should be "fixed" by resurrecting the file.
+EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php" "docs/PREMIUM-ADDON.md")
 
 FINDINGS=0
 finding() { error "$*"; FINDINGS=$((FINDINGS + 1)); }

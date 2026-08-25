@@ -1,7 +1,13 @@
-FROM wordpress:latest
+FROM wordpress:7.1-php8.3-apache
 
-COPY ./.vscode /var/www/.vscode
-
+# Every layer down to `chown` is byte-identical to the premium add-on repo's
+# (paycrypto-me-premium) Dockerfile on purpose: Docker's build cache is content-addressed per
+# layer on the local daemon, shared across any Dockerfile/build context — not scoped to this
+# repo or this compose project. Two repos can therefore reuse each other's cached layers for this
+# shared "WordPress dev image" shell without depending on one another at build time (whichever
+# repo builds first warms the cache for both) — decoupled dev/deploy, shared cache. That only
+# holds if this prefix stays identical in both Dockerfiles; repo-specific bits (the .vscode copy
+# below) come last so they can never invalidate it.
 RUN apt update && apt install -y gettext curl unzip nodejs npm
 
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
@@ -27,6 +33,9 @@ RUN groupadd -g 1000 app \
     && useradd -m -u 1000 -g app -s /bin/bash app
 
 RUN chown -R app:app /var/www/html
+
+# Repo-specific from here down — always last, so it never breaks the shared-cache prefix above.
+COPY ./.vscode /var/www/.vscode
 
 # Troca para o novo usuário
 USER app
