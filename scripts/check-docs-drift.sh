@@ -52,6 +52,7 @@ ARCHIVED_PATHS=(
     "docs/archive/DONE-CRYPTO-DEPENDENCIES.md"
     "docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md"
     "docs/archive/DONE-LEAN-VENDOR-TREE.md"
+    "docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md"
 )
 
 FINDINGS=0

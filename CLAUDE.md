@@ -17,15 +17,13 @@ someone implements them — nothing in a `[PLAN — NOT STARTED]` doc is in the 
 These records did their job (they got their change built, verified and merged) and are now closed.
 They live under `docs/archive/`, which is **gitignored** — kept locally as a convenience, not
 committed going forward. A fresh clone of this repo from this point on will **not** have them; if a
-link below 404s, that is expected, not drift. `scripts/check-docs-drift.sh` knows about the three
+link below 404s, that is expected, not drift. `scripts/check-docs-drift.sh` knows about the four
 paths below and does not flag them as missing. Do not resurrect a file here just to satisfy a link —
 if you need the history, `git log` on the commit that last had it under `docs/` still has the content.
 - **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](docs/archive/DONE-CRYPTO-DEPENDENCIES.md) — the record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`, if present in your checkout.
 - **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md](docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md) — independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
 - **[DONE]** [docs/archive/DONE-LEAN-VENDOR-TREE.md](docs/archive/DONE-LEAN-VENDOR-TREE.md) — `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected, plus the two findings of the 2026-08-18 pre-merge audit: the generated `platform_check.php` moving to `>= 80100`, and the pin audit that could pass without its probe running). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`, if present in your checkout.
-
-**Executed, one manual step still pending**
-- **[PARTIAL]** [docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md) — implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in). Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
+- **[DONE]** [docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md) — the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that printed during the On-Chain settings save and broke its post-save redirect, contained via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Shipped in 0.1.2 (`src/trunk/CHANGELOG.md` → `### Fixed`); the browser acceptance test (section C) has passed. Read it before touching deprecation/error-reporting handling around the crypto lib.
 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [docs/PLAN-I18N-CONVENTIONS.md](docs/PLAN-I18N-CONVENTIONS.md) — how a translatable string should be authored (placeholders, brand-token constants, when to template near-duplicates, `translators:` comment format) and the retrofit plan that brings the existing catalog into compliance — motivated by the Premium→Pro rename's ~30-string, 7-locale cost. Read alongside [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md), which governs what belongs in the catalog at all.
@@ -193,7 +191,8 @@ its post-save redirect ("headers already sent"). It restores `error_reporting()`
 **never catches** — a missing-extension `\Error` still propagates under rule 1, and the eventual
 PHP 9 fatal (a thrown `Error`, not a diagnostic) is not hidden. It is not a general tool: never
 widen it to silence our own deprecations. See
-[docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md).
+[docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md)
+(archived, may be absent — see "Context and guides" above).
 
 ### Order-details rendering (shared between gateways)
 
