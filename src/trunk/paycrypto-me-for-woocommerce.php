@@ -85,7 +85,17 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             add_action('admin_notices', [DbInstaller::class, 'render_activation_errors']);
             add_action('admin_notices', [__CLASS__, 'render_gateway_unavailability_notices']);
 
-            DbInstaller::maybe_upgrade();
+            // Hooked, not called here: this constructor runs on plugins_loaded, i.e. on EVERY
+            // request including a shopper's. An ALTER on paycrypto_me_bitcoin_transactions_data
+            // (which grows with the store's orders) would then land in a customer's page load, and
+            // dbDelta's own require of wp-admin/includes/upgrade.php has no business running there.
+            // admin_init covers the merchant's next admin page; upgrader_process_complete covers
+            // the update itself, including WP-CLI and auto-updates, so the schema is normally
+            // current before anyone browses. The invariant that replaces the front-end trigger:
+            // no payment path may depend on a column from a schema version newer than the recorded
+            // one — consult DbInstaller::is_current() and degrade.
+            add_action('admin_init', [DbInstaller::class, 'maybe_upgrade']);
+            add_action('upgrader_process_complete', [DbInstaller::class, 'maybe_upgrade_after_update']);
         }
 
         /**

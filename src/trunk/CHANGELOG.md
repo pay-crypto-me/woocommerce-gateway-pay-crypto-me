@@ -12,6 +12,14 @@ All notable changes to this project are documented in this file.
    left no row at all, so they were missing from any accounting or reconciliation done against that
    table. Reprocessing an existing order (a checkout retry, or the "Pay for order" page) reuses the
    record already on file, so the customer always sees the address they were first given.
+ - Database upgrades no longer run during a shopper's page load. They are checked when an
+   administrator opens the dashboard and immediately after the plugin itself is updated, so a table
+   change never lands in the middle of someone's visit to the store.
+ - Rolling the plugin back to an older version no longer rewrites the recorded database version
+   backwards, which used to make the real upgrade a no-op once the newer version was reinstalled.
+ - Two administrators loading the dashboard at the same moment on a site with a pending database
+   upgrade no longer run that upgrade twice in parallel; the second request waits for the first and
+   stays silent instead of reporting a failure.
 
 ### Planned
 

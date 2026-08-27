@@ -56,13 +56,16 @@ if (!function_exists('esc_attr')) {
 if (!function_exists('get_bloginfo')) {
     function get_bloginfo($show = '') { return 'Test Blog'; }
 }
+// Opt-in state: $GLOBALS['__options'] starts empty, so a test that never populates it gets the
+// default back — null for the one-argument callers, which is exactly what the previous null stub
+// returned. Only a test that seeds an option sees anything else, which is what DbInstallerTest
+// needs to drive the recorded schema version.
 if (!function_exists('get_option')) {
-    function get_option($key) { return null; }
+    function get_option($key, $default = null) {
+        return $GLOBALS['__options'][$key] ?? $default;
+    }
 }
-// Only the option/transient helpers that carry no read-back semantics for the code under test:
 // delete_option() and the transients are pure writes here, recorded so tests can assert them.
-// get_option() stays a null stub on purpose — making it stateful would change what every
-// existing test sees.
 if (!function_exists('delete_option')) {
     function delete_option($key) {
         $GLOBALS['__delete_option_calls'][] = $key;

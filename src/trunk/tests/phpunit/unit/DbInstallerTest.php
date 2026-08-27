@@ -21,9 +21,35 @@ class DbInstallerTest extends TestCase
             public $prefix = 'wp_';
             public $last_error = '';
 
+            // install() serializes itself on a MySQL advisory lock; '1' is "acquired".
+            public $get_lock_result = '1';
+            public array $lock_calls = [];
+
             public function get_charset_collate()
             {
                 return 'DEFAULT CHARACTER SET utf8mb4';
+            }
+
+            public function prepare($query, ...$args)
+            {
+                return $args ? vsprintf($query, $args) : $query;
+            }
+
+            public function get_var($query)
+            {
+                if (stripos($query, 'RELEASE_LOCK') !== false) {
+                    $this->lock_calls[] = 'release';
+
+                    return '1';
+                }
+
+                if (stripos($query, 'GET_LOCK') !== false) {
+                    $this->lock_calls[] = 'get';
+
+                    return $this->get_lock_result;
+                }
+
+                return null;
             }
         };
 
@@ -49,6 +75,7 @@ class DbInstallerTest extends TestCase
         $GLOBALS['__delete_option_calls'] = [];
         $GLOBALS['__dbdelta_captured'] = [];
         $GLOBALS['__transients'] = [];
+        $GLOBALS['__options'] = [];
     }
 
     private function recorded_version_writes(): array
@@ -102,6 +129,78 @@ class DbInstallerTest extends TestCase
         // The admin notice reads this option and no longer deletes it after rendering, so the
         // only thing that may clear it is a fresh install attempt.
         $this->assertContains('paycrypto_me_db_activation_errors', $GLOBALS['__delete_option_calls']);
+    }
+
+    public function test_maybe_upgrade_does_nothing_when_the_recorded_version_is_newer()
+    {
+        // The site ran a newer plugin at some point and was rolled back. A strict !== treated that
+        // as "needs upgrading" and rewrote the option backwards, which then made the real upgrade
+        // a no-op when the newer plugin returned.
+        $GLOBALS['__options']['paycrypto_me_db_version'] = '9';
+
+        DbInstaller::maybe_upgrade();
+
+        $this->assertSame([], $GLOBALS['__dbdelta_captured'], 'No activator may run against a newer recorded schema');
+        $this->assertSame([], $this->recorded_version_writes(), 'The recorded version must never be downgraded');
+    }
+
+    public function test_maybe_upgrade_runs_when_the_recorded_version_is_older()
+    {
+        $GLOBALS['__options']['paycrypto_me_db_version'] = '0';
+
+        DbInstaller::maybe_upgrade();
+
+        $this->assertNotEmpty($GLOBALS['__dbdelta_captured']);
+        $this->assertCount(1, $this->recorded_version_writes());
+        $this->assertSame(DbInstaller::DB_VERSION, $this->recorded_version_writes()[0][1]);
+    }
+
+    public function test_is_current_reflects_the_recorded_version()
+    {
+        $GLOBALS['__options']['paycrypto_me_db_version'] = '0';
+        $this->assertFalse(DbInstaller::is_current());
+
+        $GLOBALS['__options']['paycrypto_me_db_version'] = DbInstaller::DB_VERSION;
+        $this->assertTrue(DbInstaller::is_current());
+
+        $GLOBALS['__options']['paycrypto_me_db_version'] = '9';
+        $this->assertTrue(DbInstaller::is_current(), 'A newer recorded schema still satisfies this code');
+
+        unset($GLOBALS['__options']['paycrypto_me_db_version']);
+        $this->assertFalse(DbInstaller::is_current(), 'An install that never recorded a version is not current');
+    }
+
+    public function test_install_gives_up_quietly_when_the_lock_is_held()
+    {
+        global $wpdb;
+        $wpdb->get_lock_result = '0';
+
+        $result = DbInstaller::install();
+
+        $this->assertFalse($result);
+        $this->assertSame([], $GLOBALS['__dbdelta_captured'], 'The other request is already running dbDelta');
+        $this->assertSame([], $this->recorded_version_writes());
+
+        // Losing the race is not a failure: recording it would raise the "tables failed to
+        // install" admin notice for a situation that resolves itself on the next request.
+        $error_writes = array_filter(
+            $GLOBALS['__update_option_calls'],
+            fn(array $call): bool => $call[0] === 'paycrypto_me_db_activation_errors'
+        );
+        $this->assertSame([], $error_writes);
+        $this->assertFalse(get_transient('paycrypto_me_db_upgrade_retry'));
+    }
+
+    public function test_install_releases_the_lock_even_when_a_table_fails()
+    {
+        global $wpdb;
+        $wpdb->last_error = 'Table storage engine failed';
+
+        DbInstaller::install();
+
+        // RELEASE_LOCK runs from a finally: a failed install must not leave the lock held for the
+        // rest of the connection's life, blocking every retry.
+        $this->assertSame(['get', 'release'], $wpdb->lock_calls);
     }
 
     public function test_records_every_failing_table_in_the_error_option()

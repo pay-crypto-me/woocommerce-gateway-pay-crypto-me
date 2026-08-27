@@ -32,6 +32,12 @@ class DbInstaller
     public const ERRORS_OPTION  = 'paycrypto_me_db_activation_errors';
     public const RETRY_TRANSIENT = 'paycrypto_me_db_upgrade_retry';
 
+    // MySQL advisory lock serializing install(): two admin requests arriving on an out-of-date
+    // site would otherwise run dbDelta's ALTERs against the same tables concurrently. Same
+    // mechanism as PayCryptoMeDBStatementsService::reserve_derivation_index_for_wallet().
+    public const INSTALL_LOCK = 'paycrypto_me_db_install';
+    private const INSTALL_LOCK_TIMEOUT = 10;
+
     /**
      * Creates/upgrades every custom table and records the schema version ONLY if all of them
      * succeeded.
@@ -44,6 +50,29 @@ class DbInstaller
      * @return bool Whether the schema is now at DB_VERSION.
      */
     public static function install(): bool
+    {
+        global $wpdb;
+
+        $got_lock = $wpdb->get_var(
+            $wpdb->prepare('SELECT GET_LOCK(%s, %d)', self::INSTALL_LOCK, self::INSTALL_LOCK_TIMEOUT)
+        );
+
+        // Not a failure: another request holds the lock and is installing the same schema. Return
+        // false without recording anything — writing to ERRORS_OPTION here would raise the admin
+        // notice for a situation that resolves itself, and the recorded version deliberately stays
+        // behind so the next admin request re-checks.
+        if ((int) $got_lock !== 1) {
+            return false;
+        }
+
+        try {
+            return self::run_install();
+        } finally {
+            $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', self::INSTALL_LOCK));
+        }
+    }
+
+    private static function run_install(): bool
     {
         delete_option(self::ERRORS_OPTION);
 
@@ -74,7 +103,12 @@ class DbInstaller
      */
     public static function maybe_upgrade(): void
     {
-        if (get_option(self::VERSION_OPTION) === self::DB_VERSION) {
+        // version_compare, not a strict comparison: a RECORDED version newer than the code's is
+        // also "different", and the site that has it is running an older plugin than the one that
+        // wrote it (a manual downgrade, a rolled-back update). Re-running the activators there
+        // would rewrite the option backwards, so the real upgrade would then be skipped when the
+        // newer plugin came back. Forward-only, like the schema itself.
+        if (self::is_current()) {
             return;
         }
 
@@ -83,6 +117,30 @@ class DbInstaller
         }
 
         self::install();
+    }
+
+    /**
+     * Whether the recorded schema is at least what this code expects.
+     *
+     * Public because maybe_upgrade() no longer runs on every front-end request (it is hooked on
+     * admin_init/upgrader_process_complete), so between a plugin update and the next admin page
+     * load a site can legitimately be running new code over an old schema. Any payment path that
+     * needs a column or table introduced by a newer DB_VERSION must consult this and degrade
+     * rather than assume.
+     */
+    public static function is_current(): bool
+    {
+        return version_compare((string) get_option(self::VERSION_OPTION, '0'), self::DB_VERSION, '>=');
+    }
+
+    /**
+     * upgrader_process_complete hands its callbacks ($upgrader, $hook_extra); maybe_upgrade() takes
+     * none. Bound directly, the day someone gives maybe_upgrade() a parameter WordPress would start
+     * filling it with an unrelated object. This wrapper is where those arguments stop.
+     */
+    public static function maybe_upgrade_after_update(): void
+    {
+        self::maybe_upgrade();
     }
 
     public static function render_activation_errors(): void
