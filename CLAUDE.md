@@ -23,14 +23,14 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 - **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](docs/archive/DONE-CRYPTO-DEPENDENCIES.md) — the record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`, if present in your checkout.
 - **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md](docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md) — independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
 - **[DONE]** [docs/archive/DONE-LEAN-VENDOR-TREE.md](docs/archive/DONE-LEAN-VENDOR-TREE.md) — `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected, plus the two findings of the 2026-08-18 pre-merge audit: the generated `platform_check.php` moving to `>= 80100`, and the pin audit that could pass without its probe running). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`, if present in your checkout.
+- **[DONE]** [docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — records fixed-address on-chain payments (sentinel `WALLET_ID_STATIC_ADDRESS`, no schema change) and hardens the schema-upgrade mechanism, plus the real-MySQL test trail that now backs both. Executed 2026-08-27; everything it specified is in the code and described below under "Schema lifecycle and what `dbDelta()` will not do for you" — read that section rather than the record. Its **frente C** (versioned imperative migration steps) was deliberately deferred and its contract lives in that same section. Read the record only for the measurements behind those decisions.
 - **[DONE]** [docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md) — the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that printed during the On-Chain settings save and broke its post-save redirect, contained via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Shipped in 0.1.2 (`src/trunk/CHANGELOG.md` → `### Fixed`); the browser acceptance test (section C) has passed. Read it before touching deprecation/error-reporting handling around the crypto lib.
 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [docs/PLAN-I18N-CONVENTIONS.md](docs/PLAN-I18N-CONVENTIONS.md) — how a translatable string should be authored (placeholders, brand-token constants, when to template near-duplicates, `translators:` comment format) and the retrofit plan that brings the existing catalog into compliance — motivated by the Premium→Pro rename's ~30-string, 7-locale cost. Read alongside [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md), which governs what belongs in the catalog at all.
-- **[PLAN — NOT STARTED]** [docs/PLAN-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/PLAN-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (381 unit tests + 5 MySQL-backed schema tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
 
 ---
 
@@ -205,17 +205,83 @@ That template renders in two very different contexts: the customer's order page 
 All prefixed with `{$wpdb->prefix}`, created via `dbDelta()` in `PayCryptoMeBitcoinGatewayActivate`/`PayCryptoMeLightningGatewayActivate` — **no `IF NOT EXISTS`** (it breaks dbDelta's table-name extraction, turning every future schema change into a silent no-op) and **no `FOREIGN KEY`** (dbDelta doesn't manage FKs; composite PKs enforce integrity instead):
 - `paycrypto_me_bitcoin_wallet_xpubkeys` — (id, xpub `VARCHAR(191)`, network)
 - `paycrypto_me_bitcoin_derivation_indexes` — (derivation_index, wallet_xpubkeys_id) — composite PK
-- `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id)
+- `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id). Both derivation columns hold `PayCryptoMeDBStatementsService::WALLET_ID_STATIC_ADDRESS` (`0`) for a payment to a **fixed address**, where there is no extended key and no index. `0` can never collide — `wallet_xpubkeys.id` is `AUTO_INCREMENT` from 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the fixed-address payments. A sentinel rather than nullable columns because of F1 below. This is also why `get_by_order_id()` joins with `LEFT JOIN`: an `INNER JOIN` drops those rows entirely, which is how they went unrecorded before.
 - `paycrypto_me_lightning_invoices` — (order_id, node_type, invoice_id, payment_request, status, expires_at, amount_sats)
 
-Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — the single `register_activation_hook` target and also called from `plugins_loaded` via `DbInstaller::maybe_upgrade()`. It runs both `*GatewayActivate::activate()` calls when the code's `DbInstaller::DB_VERSION` differs from the recorded `paycrypto_me_db_version` (the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check (dbDelta never checks its own error state); each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
+Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — the single `register_activation_hook` target, plus `DbInstaller::maybe_upgrade()` on `admin_init` and `DbInstaller::maybe_upgrade_after_update()` on `upgrader_process_complete`. It runs both `*GatewayActivate::activate()` calls when the code's `DbInstaller::DB_VERSION` is newer than the recorded `paycrypto_me_db_version` (the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check (dbDelta never checks its own error state); each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
+
+### Schema lifecycle and what `dbDelta()` will not do for you
+
+The plugin is live on WordPress.org, so every schema change has to work on a **fresh install and on
+a site upgrading from a published version**. Those two are not the same code path, and the second
+one fails silently. Read this before touching `DbInstaller`, either `*GatewayActivate` class,
+`DB_VERSION`, or any `CREATE TABLE` string.
+
+**What `dbDelta()` actually does** — measured against real MySQL 8 in the dev container, not
+inferred from the docs:
+
+| # | Fact |
+|---|---|
+| F1 | **It does not apply a nullability change.** `NOT NULL` → `NULL` produces no `ALTER`, no error, and an **empty `$wpdb->last_error`**. The declaration is simply ignored. |
+| F2 | It *does* apply a **new column** and a **type change**. |
+| F3 | It parses **line by line**: two column definitions on one line means the second is dropped, silently. |
+| F4 | It **never removes** a column or an index. |
+
+F1 is the reason the fixed-address record uses a sentinel instead of nullable columns: the "make
+them nullable and bump `DB_VERSION`" design passes every unit test, works on a fresh install, and
+does nothing at all on every site that already had the plugin.
+
+**Invariants:**
+
+- **Forward-only and additive.** No down-migrations, no dropping a column that holds payment data —
+  the 4 tables are the store's financial history, which is also why `uninstall.php` keeps them. The
+  real "go back" case is a merchant installing an older plugin, and what protects against that is
+  the additive invariant plus `maybe_upgrade()`'s `version_compare(..., '>=')`, which refuses to
+  rewrite a **newer** recorded version backwards.
+- **No payment path may depend on a column or table introduced by a schema version newer than the
+  recorded one.** `maybe_upgrade()` no longer runs on `plugins_loaded` (that put an `ALTER` on a
+  growing table inside a shopper's page load), so between a plugin update and the next admin page a
+  site can legitimately run new code over an old schema. Code that needs a new column must consult
+  **`DbInstaller::is_current()`** and degrade — never assume.
+- **`install()` is serialized** on the `paycrypto_me_db_install` advisory lock (same
+  `GET_LOCK`/`RELEASE_LOCK`-in-a-`finally` pattern as
+  `PayCryptoMeDBStatementsService::reserve_derivation_index_for_wallet()`). Losing the race returns
+  `false` **without** recording an error: another request is doing the same work, and the admin
+  notice must not fire for something that resolves itself.
+- **Every `DB_VERSION` bump ships a new `src/trunk/tests/schema/v<N>.sql`**, generated by
+  `tests/bin/dump-schema.php` *while that version is what's published*. The convergence test globs
+  `tests/schema/v*.sql`, so each historical version stays covered automatically — and a version
+  with no snapshot is a version nothing verifies.
+
+**How a schema change gets verified.** The unit suite structurally cannot help here: it shims `wpdb`
+and `ActivateDbDeltaTest` defines its own fake `dbDelta()`. That is deliberate (it keeps the suite
+at ~5s with no WordPress) and it must stay that way. The check lives in the separate, opt-in
+`./scripts/schema-tests.sh` instead — real WordPress, real MySQL, real `dbDelta`, isolated by
+swapping `$wpdb->prefix` per test. Its headline test replays each frozen snapshot, runs the upgrade
+over it, and asserts the result is **indistinguishable from a fresh install** (compared by an
+order-insensitive fingerprint from `SHOW COLUMNS` + `SHOW INDEX`, never raw `SHOW CREATE TABLE` —
+`dbDelta` appends a new column at the end while a fresh install puts it in its declared position).
+There is no CI in this repo, so the only enforcement point is the release checklist in
+[docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md).
+
+**Versioned imperative migration steps are deliberately not implemented yet.** With no real
+migration to write, their shape would be guesswork; now that the test trail exists, adding them
+later is cheap. The contract for whoever writes the first one:
+
+- `dbDelta()` stays the declarative baseline and runs first.
+- What `dbDelta` cannot do (F1, F4, backfill, rename) becomes an imperative step, ordered by target
+  version, **idempotent** (check `information_schema` before acting) and with a **post-condition
+  check** that reports into the same `paycrypto_me_db_activation_errors`.
+- `install()` = `dbDelta` → pending steps → record the version **only if everything verified**.
+- Additive and forward-only. Never drop a column holding payment data.
+- Every step ships its `tests/schema/v<N>.sql` and is covered by the convergence test.
 
 ### Key services
 
 | Class | File | Does |
 |-------|------|------|
 | `BitcoinAddressService` | `services/class-bitcoin-address-service.php` | Generate/validate Bitcoin addresses (p2pkh, p2sh-p2wpkh, p2wpkh) from xpub/ypub/zpub using `bitwasp/bitcoin`; `requires_gmp_math()`/`validate_segwit_address()` keep the bech32 path usable on hosts without the GMP extension |
-| `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock; `release_derivation_index()` refunds a reserved index if derivation/persistence fails afterward, so a systemic failure (missing GMP, invalid xpub) can't burn through the wallet's BIP-44 gap limit |
+| `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock; `release_derivation_index()` refunds a reserved index if derivation/persistence fails afterward, so a systemic failure (missing GMP, invalid xpub) can't burn through the wallet's BIP-44 gap limit; `insert_static_address()` records a fixed-address payment through the same `insert_address()` INSERT and `exists_for_order()` guard, using the `WALLET_ID_STATIC_ADDRESS` sentinel |
 | `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices` (insert/update status/lookup by order or by invoice id); `replace_invoice()` overwrites an expired row instead of the silent no-op `insert_invoice()` gives when a row already exists — used when `AbstractLightningProcessor::process()` finds and reuses/replaces an existing invoice for the order (checkout retries, `order-pay`) |
 | `AbstractLightningInvoiceService` | `services/abstract-class-lightning-invoice-service.php` | Base for the two Lightning invoice services: shared constructor (`HttpClientContract`, `WC_Payment_Gateway`) + `parse_response()`, parameterized by `error_log_label()`/`payment_failed_message()` |
 | `BtcpayInvoiceService` | `services/class-btcpay-invoice-service.php` | Creates/resolves/checks BTCPay Server invoices via REST |
@@ -226,7 +292,7 @@ Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — 
 | `QrCodeService` | `services/class-qr-code-service.php` | Generate QR code as data URI (uses `endroid/qr-code`) |
 | `AssetManager` | `utils/class-asset-manager.php` | Register WooCommerce Gutenberg block scripts/styles |
 | `EnvironmentRequirements` | `utils/class-environment-requirements.php` | Which PHP extensions a capability needs (`gmp` on-chain; `gd`/`iconv`/`fileinfo` for QR) and which the host is missing, plus `describe()` for the user-facing message. Single source for the settings-save guard, `unavailability_reasons()` and `QrCodeService` — a missing extension must never be reported as bad user input |
-| `DbInstaller` | `services/class-db-installer.php` | Activation/upgrade of the 4 custom tables + the failed-install admin notice; owns `DB_VERSION` |
+| `DbInstaller` | `services/class-db-installer.php` | Activation/upgrade of the 4 custom tables + the failed-install admin notice; owns `DB_VERSION`. `install()` is serialized on the `paycrypto_me_db_install` advisory lock; `maybe_upgrade()` is forward-only (`version_compare`) and hooked on `admin_init`/`upgrader_process_complete`, never on the front-end path; `is_current()` is what other code asks before depending on a newer schema |
 | `OrderGatewayMatcher` | `utils/class-order-gateway-matcher.php` | Pure helper: does `$order->get_payment_method()` match a given gateway id (accepting the `{id}_express` block variant)? Shared by `PaymentOrderValidator` and both gateways' `build_order_display_args()` guards so the two accepted values never drift apart |
 | `AvailablePaymentGatewaysFilter` | `class-available-payment-gateways-filter.php` | Hooks `woocommerce_available_payment_gateways` to hide the alternate PayCryptoMe gateway on "Pay for order" once the order already has payment meta from one of the two — prevents switching payment rails mid-flow (registered once in `WC_PayCryptoMe::__construct()`) |
 
@@ -273,7 +339,20 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`. Current suite: 371 tests, 828 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 381 tests, 859 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+
+### Schema tests against real MySQL (run from the repo root)
+
+```bash
+docker compose up -d wordpress wp_db   # if not already up
+./scripts/schema-tests.sh
+```
+
+Runs `tests/integration/` inside the `wordpress` container (`phpunit-integration.xml.dist`), against
+real `$wpdb`/`dbDelta`. The only place the plugin's schema behaviour is actually observed — see
+"Schema lifecycle and what `dbDelta()` will not do for you" above for why the unit suite cannot do
+it. Mandatory before cutting a release. When adding a test here, make it fail on purpose once: a
+convergence test that has never failed is indistinguishable from one that cannot.
 
 ### Smoke test for environment-dependent fatals
 

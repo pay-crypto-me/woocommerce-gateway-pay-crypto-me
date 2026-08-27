@@ -30,10 +30,6 @@ TRUNK="$REPO_ROOT/src/trunk"
 # Paths cited by an approved-but-not-started plan: they will exist once it runs. Listed here instead
 # of loosening the check, so "planned" stays distinguishable from "rotted".
 PLANNED_PATHS=(
-    "scripts/schema-tests.sh"
-    "src/trunk/phpunit-integration.xml.dist"
-    "src/trunk/tests/integration/bootstrap.php"
-    "tests/bin/dump-schema.php"
     "scripts/check-i18n-conventions.sh"
 )
 # WordPress core, not ours: the docs cite wp-includes/functions.php and
@@ -53,6 +49,7 @@ ARCHIVED_PATHS=(
     "docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md"
     "docs/archive/DONE-LEAN-VENDOR-TREE.md"
     "docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md"
+    "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md"
 )
 
 FINDINGS=0
