@@ -152,8 +152,11 @@ class OnchainWithoutGmpTest extends TestCase
         $order->method('get_order_number')->willReturn(7);
 
         $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
-        // The static-address branch returns before any derivation index is reserved.
+        // The static-address branch records the payment (wallet_xpubkeys_id = 0) but never
+        // reserves a derivation index — there is no extended key to derive from.
         $db->expects($this->never())->method('reserve_derivation_index_for_wallet');
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_static_address')->willReturn(true);
 
         $processor = new \PayCryptoMe\WooCommerce\BitcoinPaymentProcessor(
             $gateway,

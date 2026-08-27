@@ -17,6 +17,18 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeDBStatementsService
 {
+	/**
+	 * wallet_xpubkeys_id used for a payment to a fixed address: there is no extended public key and
+	 * no derivation index involved. Zero can never collide with a real row — wallet_xpubkeys.id is
+	 * AUTO_INCREMENT and starts at 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the
+	 * fixed-address payments.
+	 *
+	 * A sentinel instead of NULL because dbDelta() does not apply NOT NULL -> NULL (verified against
+	 * MySQL 8), so making those columns nullable would silently leave already-published installs
+	 * unchanged while working on fresh ones.
+	 */
+	public const WALLET_ID_STATIC_ADDRESS = 0;
+
 	private string $table_name;
 	private string $indexes_table;
 	private string $wallet_xpubkeys_table;
@@ -53,12 +65,15 @@ class PayCryptoMeDBStatementsService
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		// Table names are derived from $wpdb->prefix and are escaped above; this query is prepared for the dynamic value.
+		// LEFT JOIN, not INNER: a payment to a fixed address has no wallet key and no derivation
+		// index (wallet_xpubkeys_id = WALLET_ID_STATIC_ADDRESS), and an INNER JOIN would silently
+		// drop its row. Derived payments always have matching rows, so their result is unchanged.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT t.*, i.derivation_index AS derivation_index, w.xpub AS xpub, w.network AS network
 				FROM {$table} t
-				INNER JOIN {$indexes} i ON t.derivation_index_id = i.derivation_index AND t.wallet_xpubkeys_id = i.wallet_xpubkeys_id
-				INNER JOIN {$wallets} w ON i.wallet_xpubkeys_id = w.id
+				LEFT JOIN {$indexes} i ON t.derivation_index_id = i.derivation_index AND t.wallet_xpubkeys_id = i.wallet_xpubkeys_id
+				LEFT JOIN {$wallets} w ON i.wallet_xpubkeys_id = w.id
 				WHERE t.order_id = %d
 				LIMIT 1",
 				$order_id
@@ -224,6 +239,22 @@ class PayCryptoMeDBStatementsService
 		);
 
 		return $inserted !== false;
+	}
+
+	/**
+	 * Records a payment to a fixed address — no derivation index, no wallet key.
+	 *
+	 * Delegates to insert_address() so both flows share one INSERT and the same
+	 * exists_for_order() guard.
+	 */
+	public function insert_static_address(int $order_id, string $payment_address): bool
+	{
+		return $this->insert_address(
+			$order_id,
+			self::WALLET_ID_STATIC_ADDRESS,
+			$payment_address,
+			self::WALLET_ID_STATIC_ADDRESS
+		);
 	}
 
 	/**

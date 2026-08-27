@@ -55,9 +55,12 @@ class FakeWPDB
         return null;
     }
 
+    public array $insert_calls = [];
+
     public function insert($table, $data, $formats = null)
     {
         $this->last_query = 'INSERT INTO ' . $table;
+        $this->insert_calls[] = ['table' => $table, 'data' => $data];
         // return 1 on success
         return 1;
     }
@@ -138,6 +141,29 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
         $result = $svc->insert_address(1000, 0, 'tb1address', 1);
 
         $this->assertTrue($result);
+    }
+
+    public function test_insert_static_address_uses_the_sentinel_wallet_id()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeDBStatementsService();
+
+        $this->assertTrue($svc->insert_static_address(2000, 'bc1qstatic'));
+
+        $this->assertCount(1, $wpdb->insert_calls);
+        $this->assertSame('wp_paycrypto_me_bitcoin_transactions_data', $wpdb->insert_calls[0]['table']);
+        $this->assertSame(
+            [
+                'order_id' => 2000,
+                'payment_address' => 'bc1qstatic',
+                'derivation_index_id' => 0,
+                'wallet_xpubkeys_id' => 0,
+            ],
+            $wpdb->insert_calls[0]['data']
+        );
+        // Zero can never collide with a real wallet row (wallet_xpubkeys.id is AUTO_INCREMENT,
+        // starting at 1), so `WHERE wallet_xpubkeys_id = 0` selects exactly these payments.
+        $this->assertSame(0, PayCryptoMeDBStatementsService::WALLET_ID_STATIC_ADDRESS);
     }
 
     public function test_reset_derivation_indexes_truncates()

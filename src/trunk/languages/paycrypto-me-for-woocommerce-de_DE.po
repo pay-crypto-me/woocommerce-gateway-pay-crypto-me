@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:50+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -459,8 +459,8 @@ msgid ""
 "Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "Der automatische Ablauf der Bestellung nach dem Zeitlimit kommt mit dem "
-"künftigen Pro-Add-on von PayCrypto.Me. In der kostenlosen Version "
-"bleiben On-Chain-Adressen bis zur Zahlung gültig."
+"künftigen Pro-Add-on von PayCrypto.Me. In der kostenlosen Version bleiben On-"
+"Chain-Adressen bis zur Zahlung gültig."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
@@ -517,8 +517,15 @@ msgstr ""
 "Die Generierung deiner Lightning-Rechnung dauert länger als erwartet. "
 "Versuche es in einem Moment erneut."
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr ""
+"Ihre Zahlung konnte nicht registriert werden. Bitte versuchen Sie es erneut "
+"oder wenden Sie sich an den Shop."
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Zahlung gesendet an %1$s, Bestellreferenz #%2$s"

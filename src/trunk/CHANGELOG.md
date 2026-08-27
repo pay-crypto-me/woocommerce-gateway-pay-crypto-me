@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+ - Bitcoin On-Chain orders paid to a fixed address are now recorded in the plugin's payments table,
+   the same way orders paid to an address derived from an xPub already were. Until now those orders
+   left no row at all, so they were missing from any accounting or reconciliation done against that
+   table. Reprocessing an existing order (a checkout retry, or the "Pay for order" page) reuses the
+   record already on file, so the customer always sees the address they were first given.
+
 ### Planned
 
  - Add support for additional blockchain networks (planned).

@@ -50,8 +50,10 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
         // static Bitcoin address (bech32/legacy). If a static address is provided
         // treat it as the payment address for this order (no derivation).
         if ($this->bitcoin_address_service->validate_bitcoin_address($xPub, $bitcoin_network)) {
-            $payment_data['payment_address'] = $xPub;
-            $payment_data['payment_uri']     = $this->build_payment_uri($order, $xPub, $payment_data['crypto_amount']);
+            $payment_address = $this->resolve_static_address($order, $xPub);
+
+            $payment_data['payment_address'] = $payment_address;
+            $payment_data['payment_uri']     = $this->build_payment_uri($order, $payment_address, $payment_data['crypto_amount']);
 
             return $this->finalize($payment_data, $order);
         }
@@ -100,6 +102,35 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
         return $network === 'mainnet'
             ? \BitWasp\Bitcoin\Network\NetworkFactory::bitcoin()
             : \BitWasp\Bitcoin\Network\NetworkFactory::bitcoinTestnet();
+    }
+
+    /**
+     * Returns the address this order is paid to, persisting the payment record on first use.
+     *
+     * Mirrors resolve_derived_address()'s reuse branch and AbstractLightningProcessor::process():
+     * WooCommerce reuses the same order across checkout retries and the order-pay endpoint, and the
+     * order's own meta is written with add_meta_data(..., true) — so the address the customer first
+     * saw must win, even if the merchant changes the configured one afterwards.
+     *
+     * @throws PayCryptoMePaymentException when the record cannot be persisted — the order meta would
+     *                                     otherwise claim a payment the DB has no row for.
+     */
+    private function resolve_static_address(\WC_Order $order, string $address): string
+    {
+        $existing = $this->db->get_by_order_id((int) $order->get_id());
+
+        if ($existing && !empty($existing['payment_address'])) {
+            return $existing['payment_address'];
+        }
+
+        if (!$this->db->insert_static_address((int) $order->get_id(), $address)) {
+            throw new PayCryptoMePaymentException(
+                \sprintf('Failed to persist fixed-address payment for order #%s', esc_html((string) $order->get_id())),
+                esc_html__('We could not register your payment. Please try again or contact the store.', 'paycrypto-me-for-woocommerce')
+            );
+        }
+
+        return $address;
     }
 
     /**

@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -328,9 +328,9 @@ msgid ""
 "and are not editable yet."
 msgstr ""
 "Автоматическое подтверждение платежей через веб-хуки (push от BTCPay / опрос "
-"lnd) появится в будущем дополнении Pro от PayCrypto.Me. В бесплатной "
-"версии платежи Lightning подтверждаются вручную — настройки ниже показаны "
-"для предпросмотра и пока недоступны для редактирования."
+"lnd) появится в будущем дополнении Pro от PayCrypto.Me. В бесплатной версии "
+"платежи Lightning подтверждаются вручную — настройки ниже показаны для "
+"предпросмотра и пока недоступны для редактирования."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:172
 msgid "BTCPay Webhook Secret"
@@ -453,8 +453,8 @@ msgid ""
 "Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "Автоматическое истечение срока заказа по тайм-ауту появится в будущем "
-"дополнении Pro от PayCrypto.Me. В бесплатной версии адреса on-chain "
-"остаются действительными до оплаты."
+"дополнении Pro от PayCrypto.Me. В бесплатной версии адреса on-chain остаются "
+"действительными до оплаты."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
@@ -511,8 +511,15 @@ msgstr ""
 "Создание вашей счета Lightning занимает больше времени, чем ожидалось. "
 "Пожалуйста, повторите попытку через минуту."
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr ""
+"Не удалось зарегистрировать ваш платёж. Попробуйте ещё раз или свяжитесь с "
+"магазином."
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Платеж отправлен на %1$s, Ссылка на заказ #%2$s"

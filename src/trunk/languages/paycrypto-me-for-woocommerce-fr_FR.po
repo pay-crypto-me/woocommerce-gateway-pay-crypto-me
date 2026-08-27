@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -332,10 +332,10 @@ msgid ""
 "and are not editable yet."
 msgstr ""
 "La confirmation automatique des paiements via webhooks (push BTCPay / "
-"interrogation lnd) arrivera dans la future extension Pro de "
-"PayCrypto.Me. Dans la version gratuite, les paiements Lightning sont "
-"confirmés manuellement — les réglages ci-dessous sont un aperçu et ne sont "
-"pas encore modifiables."
+"interrogation lnd) arrivera dans la future extension Pro de PayCrypto.Me. "
+"Dans la version gratuite, les paiements Lightning sont confirmés "
+"manuellement — les réglages ci-dessous sont un aperçu et ne sont pas encore "
+"modifiables."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:172
 msgid "BTCPay Webhook Secret"
@@ -456,8 +456,8 @@ msgid ""
 "Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "L'expiration automatique de la commande après le délai arrivera dans la "
-"future extension Pro de PayCrypto.Me. Dans la version gratuite, les "
-"adresses on-chain restent valides jusqu'au paiement."
+"future extension Pro de PayCrypto.Me. Dans la version gratuite, les adresses "
+"on-chain restent valides jusqu'au paiement."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
@@ -469,8 +469,8 @@ msgid ""
 "Pro add-on. In the free version, payments are verified manually."
 msgstr ""
 "Le suivi automatique des confirmations on-chain arrivera dans la future "
-"extension Pro de PayCrypto.Me. Dans la version gratuite, les paiements "
-"sont vérifiés manuellement."
+"extension Pro de PayCrypto.Me. Dans la version gratuite, les paiements sont "
+"vérifiés manuellement."
 
 #: includes/class-wc-gateway-paycrypto-me.php:308
 msgid "Danger Area"
@@ -514,8 +514,15 @@ msgstr ""
 "La génération de votre facture Lightning prend plus de temps que prévu. "
 "Veuillez réessayer dans un instant."
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr ""
+"Nous n'avons pas pu enregistrer votre paiement. Veuillez réessayer ou "
+"contacter la boutique."
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Paiement envoyé à %1$s, Référence de Commande #%2$s"

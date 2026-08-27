@@ -154,9 +154,11 @@ class BitcoinPaymentProcessorTest extends TestCase
         $order->method('get_order_number')->willReturn('11');
 
         $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_static_address')->willReturn(true);
 
         $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
-        // Static address path: validated as an address (not an xpub), no derivation/persistence.
+        // Static address path: validated as an address (not an xpub), no derivation.
         $btcSvc->method('validate_bitcoin_address')->willReturn(true);
         $btcSvc->expects($this->never())->method('generate_address_from_xPub');
         $btcSvc->method('build_bitcoin_payment_uri')->willReturn('bitcoin:1StaticAddr');
@@ -172,6 +174,104 @@ class BitcoinPaymentProcessorTest extends TestCase
         $data_calls = hook_spy_calls('paycryptome_bitcoin_payment_data');
         $this->assertCount(1, $data_calls);
         $this->assertSame($gateway, $data_calls[0]['args'][2]);
+    }
+
+    /**
+     * Builds the gateway/order pair every fixed-address test below needs: the On-Chain gateway
+     * configured with a static address instead of an xPub.
+     */
+    private function static_address_gateway_and_order(int $order_id, string $configured_address): array
+    {
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => $configured_address,
+            'selected_network'   => 'mainnet',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn($order_id);
+        $order->method('get_billing_first_name')->willReturn('Dave');
+        $order->method('get_order_number')->willReturn((string) $order_id);
+
+        return [$gateway, $order];
+    }
+
+    private function static_address_service(): \PHPUnit\Framework\MockObject\MockObject
+    {
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_bitcoin_address')->willReturn(true);
+        $btcSvc->expects($this->never())->method('generate_address_from_xPub');
+        $btcSvc->method('build_bitcoin_payment_uri')->willReturn('bitcoin:1StaticAddr');
+
+        return $btcSvc;
+    }
+
+    public function test_static_address_payment_is_persisted()
+    {
+        // A fixed-address order used to leave no row in paycrypto_me_bitcoin_transactions_data at
+        // all, while the derived flow recorded one — an accounting/reconciliation hole.
+        [$gateway, $order] = $this->static_address_gateway_and_order(21, '1StaticAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->expects($this->once())
+            ->method('insert_static_address')
+            ->with(21, '1StaticAddr')
+            ->willReturn(true);
+
+        $out = (new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db))
+            ->process($order, ['crypto_amount' => 0.5]);
+
+        $this->assertSame('1StaticAddr', $out['payment_address']);
+        $this->assertArrayHasKey('payment_uri', $out);
+    }
+
+    public function test_static_address_payment_reuses_the_existing_record()
+    {
+        // WooCommerce reuses the same order across checkout retries and order-pay: the address the
+        // customer first saw wins, even after the merchant changes the configured one.
+        [$gateway, $order] = $this->static_address_gateway_and_order(22, '1NewlyConfiguredAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->with(22)->willReturn(['payment_address' => '1AddressTheCustomerSaw']);
+        $db->expects($this->never())->method('insert_static_address');
+
+        $out = (new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db))
+            ->process($order, ['crypto_amount' => 0.5]);
+
+        $this->assertSame('1AddressTheCustomerSaw', $out['payment_address']);
+    }
+
+    public function test_static_address_payment_raises_when_it_cannot_persist()
+    {
+        // Returning the address anyway would write order meta claiming a payment the DB has no
+        // row for — the exact divergence the Lightning side already refuses.
+        [$gateway, $order] = $this->static_address_gateway_and_order(23, '1StaticAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_static_address')->willReturn(false);
+
+        $processor = new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db);
+
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMePaymentException::class);
+        $processor->process($order, ['crypto_amount' => 0.5]);
+    }
+
+    public function test_static_address_payment_has_no_derivation_index()
+    {
+        // There is no index to report on this branch; consumers must not receive a fabricated 0.
+        [$gateway, $order] = $this->static_address_gateway_and_order(24, '1StaticAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_static_address')->willReturn(true);
+
+        $out = (new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db))
+            ->process($order, ['crypto_amount' => 0.5]);
+
+        $this->assertArrayNotHasKey('derivation_index', $out);
     }
 
     public function test_releases_derivation_index_when_persistence_fails()
