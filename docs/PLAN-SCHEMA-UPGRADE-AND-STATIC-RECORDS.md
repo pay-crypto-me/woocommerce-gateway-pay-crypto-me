@@ -1,4 +1,4 @@
-# Registro de pagamentos on-chain estáticos + endurecimento do mecanismo de upgrade de schema
+# [PLAN — NOT STARTED] Registro de pagamentos on-chain estáticos + endurecimento do mecanismo de upgrade de schema
 
 > **Status: plano aprovado, não iniciado.** Aprovado em 2026-08-14. Nenhuma das frentes abaixo
 > foi implementada ainda.
@@ -325,7 +325,7 @@ Em `src/trunk/tests/integration/`:
 
 ### B.5 Tornar obrigatório
 
-Sem CI (F6), o único ponto de imposição é o checklist de release. Em `docs/RELEASE.md`:
+Sem CI (F6), o único ponto de imposição é o checklist de release. Em `docs/GUIDE-RELEASE.md`:
 - Adicionar linha na tabela da seção **Pré-requisitos**, no mesmo formato da linha do smoke test.
 - Nova seção curta explicando o que a trilha cobre e por que ela existe, ao lado da seção
   "Smoke de Host Mínimo (passo obrigatório antes de gerar release)".
@@ -352,13 +352,13 @@ Sem CI (F6), o único ponto de imposição é o checklist de release. Em `docs/R
 | Arquivo | O que |
 |---|---|
 | `CLAUDE.md` | Seção nova sobre o mecanismo de schema: o que `dbDelta` cobre e o que **não** cobre (F1–F4, com o método de verificação), a invariante forward-only/aditiva, a regra do `is_current()` (A.2), a regra do snapshot por versão (B.3) e o contrato da frente C. Atualizar a descrição de `paycrypto_me_bitcoin_transactions_data` mencionando a sentinela `WALLET_ID_STATIC_ADDRESS`. Atualizar contagem de testes. |
-| `docs/RELEASE.md` | Pré-requisito + seção da trilha de schema (B.5). |
+| `docs/GUIDE-RELEASE.md` | Pré-requisito + seção da trilha de schema (B.5). |
 | `src/trunk/CHANGELOG.md` | Em `## Unreleased`: item de `### Fixed` para o registro de endereço fixo; itens de `### Fixed` para A.1/A.2/A.3. A frente B é infra de teste — não vai para o changelog do usuário. |
 
 ## Traduções
 
 A frente 1 introduz **uma** string user-facing (a mensagem de falha ao persistir). Os 7 locales
-estão a 100% e precisam continuar. Fluxo canônico (ver `docs/TRANSLATION.md`, rodar da **raiz do
+estão a 100% e precisam continuar. Fluxo canônico (ver `docs/GUIDE-TRANSLATION.md`, rodar da **raiz do
 repo**, com o container `wordpress` no ar):
 
 ```bash

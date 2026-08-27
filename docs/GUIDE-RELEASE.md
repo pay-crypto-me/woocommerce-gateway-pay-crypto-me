@@ -1,4 +1,4 @@
-# 🚀 PayCrypto.Me — Guia de Release
+# 🚀 [GUIDE] PayCrypto.Me — Guia de Release
 
 Este guia descreve o processo completo para gerar um build de produção e submeter o plugin **PayCrypto.Me for WooCommerce** ao diretório oficial do WordPress.org.
 
@@ -210,8 +210,10 @@ esse pin vale **`8.1`** — o piso real do plugin, o mesmo valor do `Requires PH
 `bitwasp/bitcoin v1.1.0` exige `murmurhash` na versão **exata** `v2.0.0`, que declara `php: ^7`, e o
 `replace` tira esse pacote da árvore para que o pin não precise mentir sobre a plataforma. Antes ele
 valia `7.4`, o que resolvia a árvore **inteira** na era 7.4 — histórico e medições em
-[docs/CRYPTO-DEPENDENCIES.md](CRYPTO-DEPENDENCIES.md) → E7/E7.2 e
-[docs/LEAN-VENDOR-TREE.md](LEAN-VENDOR-TREE.md).
+[docs/archive/DONE-CRYPTO-DEPENDENCIES.md](archive/DONE-CRYPTO-DEPENDENCIES.md) → E7/E7.2 e
+[docs/archive/DONE-LEAN-VENDOR-TREE.md](archive/DONE-LEAN-VENDOR-TREE.md) (frentes já executadas; ambos os
+documentos foram arquivados em `docs/archive/`, que é gitignored — podem estar ausentes no seu
+checkout, ver a nota em `CLAUDE.md` → "Context and guides").
 
 O script roda `composer why-not php <piso>`, que **ignora o pin** e lista *todos* os pacotes cujo
 requisito de PHP exclui aquele piso. O piso vem do header do plugin (`Requires PHP:`), então subir o
@@ -229,7 +231,7 @@ O que ele reporta depende do **regime**, isto é, de como o pin se compara ao pi
 | **declaração**, nenhum pacote | esperado hoje — o pin declara o piso e a árvore o respeita, exit 0 |
 | **declaração**, qualquer pacote | **reprova.** O pin não está escondendo nada: o pacote simplesmente não satisfaz o piso que o header do plugin promete. Não baixe o pin para passar — isso devolve a supressão global que o script existe para evitar |
 | **supressão**, só um pacote allowlistado | pin justificado e auditado. Foi o estado até 2026-08-17, com `lastguest/murmurhash` na `ALLOWED_OFFENDERS` — hoje essa lista está **vazia** |
-| **supressão**, qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `CRYPTO-DEPENDENCIES.md` primeiro |
+| **supressão**, qualquer outro pacote | **reprova.** É uma incompatibilidade real sendo silenciada em código que vai para as lojas. Não alargue a allowlist para passar: ou a dependência é alcançável do plugin (aí é bug, não workaround), ou a prova de que não é precisa ir para o `docs/archive/DONE-CRYPTO-DEPENDENCIES.md` primeiro (se ausente no seu checkout — é gitignored — recrie-o a partir do histórico do git ou registre a prova num novo documento em `docs/`) |
 | **supressão**, nenhum pacote | o pin virou peso morto — suba-o ao piso ou remova-o, regrave o lock e apague a nota do E7 |
 | **sonda não rodou** | **reprova, em qualquer regime.** Docker indisponível, imagem `release` falhando ou `composer.lock` ausente fazem o `why-not` voltar vazio, o que antes era lido como "árvore limpa" e saía 0. Hoje o script cruza exit code + a linha "nothing to report" do próprio Composer e falha imprimindo a saída crua. Não pule este passo com `--no-tests` para "seguir em frente" |
 
@@ -274,7 +276,7 @@ paycrypto-me-for-woocommerce/
 │   └── composer.json
 ├── releases/                   ← zips gerados ficam aqui
 └── docs/
-    └── RELEASE.md              ← este arquivo
+    └── GUIDE-RELEASE.md              ← este arquivo
 ```
 
 ---
@@ -552,7 +554,7 @@ Em pipelines onde o container não está disponível (e Node.js + Composer estã
 | `git push origin vX.Y.Z` | Idem |
 | Atualizar `readme.txt` (e `CHANGELOG.md`) com o changelog da versão | Conteúdo editorial, não automatizável — e precisa estar escrito **antes** de rodar com `-v`, senão a versão sobe com o changelog da anterior como entrada mais recente |
 | Editar os arquivos em `src/assets/` (banner/ícone/screenshots) | Conteúdo editorial; o **upload** ao SVN já é automático via `--svn-publish` (ver seção SVN acima) |
-| Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [TRANSLATION.md](./TRANSLATION.md)). Não pode entrar no `release.sh`: o `build-translations.sh` usa `compose exec wordpress`, ou seja **exige o stack de dev no ar**, e o release roda no container efêmero justamente para não exigir isso. Consequência a saber: o `.pot` embute o `Version:` do header, então rodar `npm run translate` antes do bump grava a versão anterior no `Project-Id-Version` (só metadado de tradutor; as referências de linha, que são o que importa, ficam corretas de qualquer forma) |
+| Gerar e submeter traduções atualizadas | Usar `npm run translate` separadamente (ver [GUIDE-TRANSLATION.md](./GUIDE-TRANSLATION.md)). Não pode entrar no `release.sh`: o `build-translations.sh` usa `compose exec wordpress`, ou seja **exige o stack de dev no ar**, e o release roda no container efêmero justamente para não exigir isso. Consequência a saber: o `.pot` embute o `Version:` do header, então rodar `npm run translate` antes do bump grava a versão anterior no `Project-Id-Version` (só metadado de tradutor; as referências de linha, que são o que importa, ficam corretas de qualquer forma) |
 
 ---
 
@@ -716,6 +718,6 @@ SVN (todo release)
 ## Referências
 
 - [WordPress Plugin Developer Handbook — Releasing Your Plugin](https://developer.wordpress.org/plugins/wordpress-org/how-to-use-subversion/)
-- [Guia de Traduções do Plugin](./TRANSLATION.md)
+- [Guia de Traduções do Plugin](./GUIDE-TRANSLATION.md)
 - Script de release: [`scripts/release.sh`](../scripts/release.sh)
 - Configuração webpack: [`src/trunk/webpack.config.js`](../src/trunk/webpack.config.js)

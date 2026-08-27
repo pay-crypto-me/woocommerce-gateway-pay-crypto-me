@@ -40,9 +40,19 @@ PLANNED_PATHS=(
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) by their tail.
 # docs/PREMIUM-ADDON.md moved to the paycrypto-me-pro repo on 2026-08-25 — genuinely external
 # now, not planned. CLAUDE.md links it by full GitHub URL (matches the substring), and
-# CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
+# DONE-CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
 # should be "fixed" by resurrecting the file.
 EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php" "docs/PREMIUM-ADDON.md")
+# Executed-and-verified plans/records, moved to docs/archive/ (see CLAUDE.md's "Context and
+# guides" — "Executed and verified" group) and added to .gitignore so they stop being committed
+# going forward. They still exist in THIS working tree, but a fresh clone from this point on will
+# not have them — every doc citing one already says so inline. Do not "fix" a finding here by
+# resurrecting a file into docs/*.md; git history still has it if it's genuinely needed.
+ARCHIVED_PATHS=(
+    "docs/archive/DONE-CRYPTO-DEPENDENCIES.md"
+    "docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md"
+    "docs/archive/DONE-LEAN-VENDOR-TREE.md"
+)
 
 FINDINGS=0
 finding() { error "$*"; FINDINGS=$((FINDINGS + 1)); }
@@ -71,8 +81,14 @@ info "Auditing ${#DOCS[@]} documents"
 for doc in "${DOCS[@]}"; do
     while IFS= read -r cited; do
         [[ -z "$cited" ]] && continue
-        is_listed "$cited" "${PLANNED_PATHS[@]}" && continue
-        is_listed "$cited" "${EXTERNAL_PATHS[@]}" && continue
+        # `${arr[@]}` on an EMPTY array aborts under `set -u` on bash < 4.4 (stock macOS bash is
+        # 3.2) — fixed in 4.4, but this repo can't assume a contributor's Mac has that. The
+        # `${#arr[@]} -gt 0` guard is load-bearing once any of these lists empties out (e.g. a
+        # currently-PLANNED_PATHS plan finishes executing), not defensive noise. Same pattern as
+        # ALLOWED_OFFENDERS in check-platform-pin.sh.
+        [[ ${#PLANNED_PATHS[@]} -gt 0 ]] && is_listed "$cited" "${PLANNED_PATHS[@]}" && continue
+        [[ ${#EXTERNAL_PATHS[@]} -gt 0 ]] && is_listed "$cited" "${EXTERNAL_PATHS[@]}" && continue
+        [[ ${#ARCHIVED_PATHS[@]} -gt 0 ]] && is_listed "$cited" "${ARCHIVED_PATHS[@]}" && continue
 
         if [[ -e "$REPO_ROOT/$cited" || -e "$TRUNK/$cited" || -e "$REPO_ROOT/docs/$cited" ]]; then
             continue

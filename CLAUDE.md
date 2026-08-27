@@ -2,16 +2,35 @@
 
 ## Context and guides
 
-- [docs/RELEASE.md](docs/RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
-- [docs/TRANSLATION.md](docs/TRANSLATION.md) — translation commands and status (7 locales, 100%).
-- [docs/I18N-CONVENTIONS.md](docs/I18N-CONVENTIONS.md) — **approved plan, not started.** How a translatable string should be authored (placeholders, brand-token constants, when to template near-duplicates, `translators:` comment format) and the retrofit plan that brings the existing catalog into compliance — motivated by the Premium→Pro rename's ~30-string, 7-locale cost. Read alongside [docs/TRANSLATION.md](docs/TRANSLATION.md), which governs what belongs in the catalog at all.
-- [docs/ADD-NEW-GATEWAY.md](docs/ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
-- [docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — **approved plan, not started.** Records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
-- [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) — **done.** The record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`.
-- [docs/CRYPTO-DEPENDENCIES-AUDIT.md](docs/CRYPTO-DEPENDENCIES-AUDIT.md) — **done.** Independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
-- [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md) — **done.** `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected, plus the two findings of the 2026-08-18 pre-merge audit: the generated `platform_check.php` moving to `>= 80100`, and the pin audit that could pass without its probe running). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`.
-- [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in).** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
-- [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (not started yet; renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
+Grouped by status, and every doc carries the same tag as its own H1 title — so a plan that has
+already been executed is never mistaken for one still pending, or vice versa. **[GUIDE]** docs have
+no "done" state (living operational reference, always current); **[PLAN]** docs are inert until
+someone implements them — nothing in a `[PLAN — NOT STARTED]` doc is in the code yet.
+
+**Operational guides**
+- **[GUIDE]** [docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
+- **[GUIDE]** [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md) — translation commands and status (7 locales, 100%).
+- **[GUIDE]** [docs/GUIDE-ADD-NEW-GATEWAY.md](docs/GUIDE-ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
+
+**Executed and verified — archived, may be absent from your checkout**
+
+These records did their job (they got their change built, verified and merged) and are now closed.
+They live under `docs/archive/`, which is **gitignored** — kept locally as a convenience, not
+committed going forward. A fresh clone of this repo from this point on will **not** have them; if a
+link below 404s, that is expected, not drift. `scripts/check-docs-drift.sh` knows about the three
+paths below and does not flag them as missing. Do not resurrect a file here just to satisfy a link —
+if you need the history, `git log` on the commit that last had it under `docs/` still has the content.
+- **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](docs/archive/DONE-CRYPTO-DEPENDENCIES.md) — the record of why the two `lucas-rosa95/*` forks existed and how they were retired in favor of the official `bitwasp/*` packages (measured). Read it before touching the crypto dependencies in `src/trunk/composer.json`, if present in your checkout.
+- **[DONE]** [docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md](docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md) — independent review of that dependency swap: what was re-measured and passed, the 5 record/documentation corrections it found (all applied), and the list of things that look wrong but are deliberate. Read it with the doc above, not instead of it.
+- **[DONE]** [docs/archive/DONE-LEAN-VENDOR-TREE.md](docs/archive/DONE-LEAN-VENDOR-TREE.md) — `config.platform.php = 7.4` resolved the *whole* tree as if on PHP 7.4, not just the one package it existed for, so the plugin shipped `paragonie/sodium_compat` a major behind and `paragonie/random_compat` — a PHP 5 polyfill that never executed. The pin now states the real floor (8.1), `murmurhash` is dropped via `replace`, and the record holds what was measured before and after (including two predictions the execution corrected, plus the two findings of the 2026-08-18 pre-merge audit: the generated `platform_check.php` moving to `>= 80100`, and the pin audit that could pass without its probe running). Read it before touching `config.platform`, `replace`, `composer.lock` or `scripts/check-platform-pin.sh`, if present in your checkout.
+
+**Executed, one manual step still pending**
+- **[PARTIAL]** [docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md) — implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in). Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
+
+**Approved plans — not started yet**
+- **[PLAN — NOT STARTED]** [docs/PLAN-I18N-CONVENTIONS.md](docs/PLAN-I18N-CONVENTIONS.md) — how a translatable string should be authored (placeholders, brand-token constants, when to template near-duplicates, `translators:` comment format) and the retrofit plan that brings the existing catalog into compliance — motivated by the Premium→Pro rename's ~30-string, 7-locale cost. Read alongside [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md), which governs what belongs in the catalog at all.
+- **[PLAN — NOT STARTED]** [docs/PLAN-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](docs/PLAN-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md) — records fixed-address on-chain payments in the payments table, and hardens the schema-upgrade mechanism (what `dbDelta()` does and does not do — measured, not assumed — plus a MySQL-backed test trail). Read it before touching anything under `DbInstaller`, the `*GatewayActivate` classes or `DB_VERSION`.
+- **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
 **Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
 
@@ -174,7 +193,7 @@ its post-save redirect ("headers already sent"). It restores `error_reporting()`
 **never catches** — a missing-extension `\Error` still propagates under rule 1, and the eventual
 PHP 9 fatal (a thrown `Error`, not a diagnostic) is not hidden. It is not a general tool: never
 widen it to silence our own deprecations. See
-[docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md).
+[docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md](docs/PARTIAL-CRYPTO-DEPRECATION-CONTINGENCY.md).
 
 ### Order-details rendering (shared between gateways)
 
@@ -264,7 +283,7 @@ docker compose up -d wordpress   # if not already up
 ./scripts/smoke-minimal-host.sh
 ```
 
-Runs against the real `wordpress` dev container (unlike PHPUnit, which needs no real WP) with specific PHP functions disabled via `-d disable_functions=...` to simulate a host missing `gmp`/`gd`/`iconv`/`fileinfo` — the class of bug that got past every other check because our dev image has every extension installed. Mandatory before cutting a release (see [docs/RELEASE.md](docs/RELEASE.md)).
+Runs against the real `wordpress` dev container (unlike PHPUnit, which needs no real WP) with specific PHP functions disabled via `-d disable_functions=...` to simulate a host missing `gmp`/`gd`/`iconv`/`fileinfo` — the class of bug that got past every other check because our dev image has every extension installed. Mandatory before cutting a release (see [docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md)).
 
 ### Docs drift audit
 
@@ -343,7 +362,7 @@ The pin used to be `7.4`, and that was **not** a narrow exemption for one packag
 whole tree as if on 7.4, so the plugin shipped `paragonie/sodium_compat` a major behind (v1 instead
 of v2) and `paragonie/random_compat`, a PHP 5 polyfill measured at **0 files loaded**. Both are gone;
 the crypto chain (`bitwasp/*`, `paragonie/ecc`) is byte-identical across the change. Full record and
-measurements: [docs/LEAN-VENDOR-TREE.md](docs/LEAN-VENDOR-TREE.md).
+measurements: [docs/archive/DONE-LEAN-VENDOR-TREE.md](docs/archive/DONE-LEAN-VENDOR-TREE.md) (archived, may be absent — see "Context and guides" above).
 
 What `replace` costs, explicitly: `murmurhash` goes from *installed and never executed* to *not
 installed*, so `BitWasp\Bitcoin\Crypto\Hash::murmur3()` — reachable only from
@@ -361,7 +380,7 @@ also works with no `vendor/` installed), and distinguishes two regimes:
 **any** package blocking the floor fails the script; **pin < floor** is a *suppression* and gets
 audited against `ALLOWED_OFFENDERS`, which is now **empty** and should stay that way. Widening that
 allowlist, or lowering the pin to make the script pass, is never the fix. It runs automatically in
-`release.sh`'s *Platform pin audit* phase. Background: [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md) → E7/E7.1/E7.2.
+`release.sh`'s *Platform pin audit* phase. Background: [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](docs/archive/DONE-CRYPTO-DEPENDENCIES.md) → E7/E7.1/E7.2 (archived, may be absent — see "Context and guides" above).
 
 Upstream fix, still unsent and still one line: `lastguest/murmurhash: v2.0.0` → `^2.0` in
 `bitwasp/bitcoin` — `2.1.1` already declares `php: ^7||^8.0`. It is the strictly better outcome
@@ -370,7 +389,8 @@ because it removes the need for `replace` (and therefore for the guard test) whi
 declaration it now is.
 
 > **The two `lucas-rosa95/*` forks were retired** — see
-> [docs/CRYPTO-DEPENDENCIES.md](docs/CRYPTO-DEPENDENCIES.md). The `bitcoin` fork carried no source
+> [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](docs/archive/DONE-CRYPTO-DEPENDENCIES.md) (archived, may be
+> absent). The `bitcoin` fork carried no source
 > fix of its own, was one method *behind* upstream (its absence a fatal on class load), and upstream
 > `v1.1.0` passes the full suite and all 60 address vectors unchanged. The side-channel advisories
 > that used to sit in `config.audit.ignore` were for `mdanter/ecc`, no longer in the tree, so
@@ -388,9 +408,9 @@ declaration it now is.
 > "Pro" now — translations for the 7 locales were regenerated and recompiled alongside the rename,
 > so none of it is fuzzy or stale. Only genuinely frozen history is exempt: past `CHANGELOG.md`
 > entries for already-released versions (0.1.0–0.1.2) still say "premium add-on" because that is
-> what those releases actually shipped saying, and `docs/CRYPTO-DEPENDENCIES-AUDIT.md`'s mentions of
-> `PREMIUM-ADDON.md` record an actual filename at an actual point in git history — neither should be
-> rewritten to match current naming.
+> what those releases actually shipped saying, and `docs/archive/DONE-CRYPTO-DEPENDENCIES-AUDIT.md`'s
+> mentions of `PREMIUM-ADDON.md` record an actual filename at an actual point in git history —
+> neither should be rewritten to match current naming.
 
 Two capabilities are **intentionally absent from this free plugin and reserved for a separate Pro add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version. The approved implementation plan for that separate add-on lives in its own repo, at [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — the plan doc itself kept its original filename/history (the repo was renamed from `paycrypto-me-premium` alongside the product rename), see its own naming note.
 
@@ -421,6 +441,6 @@ Two low-value, low-risk cleanups are deliberately deferred (pure extract-method,
 ## Code style notes
 
 - PHP namespace `PayCryptoMe\WooCommerce` everywhere
-- Customer-facing strings and admin **settings** strings (field titles, descriptions, labels, buttons) go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`. Admin **errors, warnings, logs**, diagnostic-button feedback and order notes are deliberately **literal English** — no `__()`, no `/* translators: */`. A label interpolated into such a message stays translated (it is a settings string). Full rule and rationale in [docs/TRANSLATION.md](docs/TRANSLATION.md) → "O que entra (e o que NÃO entra) no catálogo"; check it before wrapping a new string. String-authoring rules for anything already in scope (placeholders, brand constants, when to template near-duplicates) are in [docs/I18N-CONVENTIONS.md](docs/I18N-CONVENTIONS.md)
+- Customer-facing strings and admin **settings** strings (field titles, descriptions, labels, buttons) go through `__()` / `esc_html__()` with text domain `paycrypto-me-for-woocommerce`. Admin **errors, warnings, logs**, diagnostic-button feedback and order notes are deliberately **literal English** — no `__()`, no `/* translators: */`. A label interpolated into such a message stays translated (it is a settings string). Full rule and rationale in [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md) → "O que entra (e o que NÃO entra) no catálogo"; check it before wrapping a new string. String-authoring rules for anything already in scope (placeholders, brand constants, when to template near-duplicates) are in [docs/PLAN-I18N-CONVENTIONS.md](docs/PLAN-I18N-CONVENTIONS.md)
 - Sanitize all inputs at system boundaries; trust internal data
 - No comments explaining WHAT code does; only WHY when non-obvious

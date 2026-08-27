@@ -1,4 +1,4 @@
-# Conter as deprecations do `bitwasp/buffertools` que quebram o save das settings On-Chain
+# [PARTIAL — MANUAL BROWSER TEST PENDING] Conter as deprecations do `bitwasp/buffertools` que quebram o save das settings On-Chain
 
 > **Status: executado e verificado em 2026-08-16.** A supressão foi implementada em
 > `BitcoinAddressService` (`suppress_vendor_deprecations()` + os 5 wraps) e verificada: suíte
@@ -8,7 +8,8 @@
 > o contrato `\Error` intactos. Falta apenas o teste manual de aceitação no navegador — **seção C,
 > passos 2–4**: o passo 1 ("Antes") não reproduz mais nesta branch, porque a correção já está nela.
 > Contingência para um defeito observado após a troca para os pacotes oficiais `bitwasp/*` (ver
-> [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md)).
+> [`docs/archive/DONE-CRYPTO-DEPENDENCIES.md`](archive/DONE-CRYPTO-DEPENDENCIES.md) — arquivado/gitignored,
+> pode estar ausente no seu checkout).
 >
 > **Auditoria de execução (2026-08-18).** Ao revisar as duas branches antes do merge, o que a
 > seção C ainda cobria foi medido de novo e por fora: os pontos de entrada bitwasp **fora** do wrap
@@ -60,7 +61,7 @@ pós-save do WooCommerce. Ele valida o identificador chamando
 ação de save, o redirect seguinte falha com "headers already sent". Nosso código não dá `echo` — a
 saída é 100% da lib.
 
-**Correção de severidade.** O `docs/CRYPTO-DEPENDENCIES.md` (E6/Decisão/Fora-de-escopo) classificou
+**Correção de severidade.** O `docs/archive/DONE-CRYPTO-DEPENDENCIES.md` (E6/Decisão/Fora-de-escopo, arquivado — pode estar ausente no seu checkout) classificou
 essas notices como "ruído inofensivo, visível só com `WP_DEBUG`" e decidiu **aceitá-las**. Isso
 subestimou o impacto: elas **quebram o fluxo de save no admin** em qualquer host com
 `display_errors` ligado (dev/staging típico). Daí esta contingência.
@@ -99,7 +100,7 @@ Por que é seguro e honesto:
 - Mascara **só** o bit `E_DEPRECATED`; `E_WARNING`/`E_NOTICE`/`E_ERROR`/`E_USER_*` intactos — não
   esconde diagnóstico nosso não relacionado.
 - **Não** mascara o futuro fatal do PHP 9 (que vira `Error` lançado, não diagnóstico) — consistente
-  com "Horizonte PHP 9" do `CRYPTO-DEPENDENCIES.md`.
+  com "Horizonte PHP 9" do `docs/archive/DONE-CRYPTO-DEPENDENCIES.md` (arquivado, pode estar ausente).
 
 **Alternativas descartadas:**
 - **Patch de vendor / `composer-patches`** — **permitido** pela restrição (a patch é reaplicada no
@@ -107,7 +108,8 @@ Por que é seguro e honesto:
   `CachingTypeFactory` (`parent` in callables), enquanto as 7 deprecations de return-type em
   `bitcoin/src/Script/Opcodes.php`/`Parser.php` continuariam vazando na geração de endereço
   (checkout); e adiciona peça móvel frágil a versão num fluxo de release já validado — ver
-  `CRYPTO-DEPENDENCIES.md` → "Fora de escopo". A supressão escopada de `E_DEPRECATED` cobre **todas**
+  `docs/archive/DONE-CRYPTO-DEPENDENCIES.md` → "Fora de escopo" (arquivado, pode estar ausente). A
+  supressão escopada de `E_DEPRECATED` cobre **todas**
   de uma vez, no nosso código.
 - **`ob_start()` no save** — só cobriria o save, não o checkout; e engoliria qualquer saída.
 - **`set_error_handler` custom** — desde o PHP 8.0 o handler custom é chamado **independente** do
@@ -193,7 +195,7 @@ wrap. Como todos os caminhos de serialização passam pelos 5 métodos (G5), env
 
 | Arquivo | O quê |
 |---|---|
-| `docs/CRYPTO-DEPENDENCIES.md` | Nota curta: as deprecations do `CachingTypeFactory`, além de ruído `WP_DEBUG`, **quebravam o redirect do save**; mitigadas por supressão de runtime escopada a `E_DEPRECATED` no boundary do `BitcoinAddressService` (não é patch de vendor — "Fora de escopo" segue valendo; o fatal do PHP 9 continua não mascarado). |
+| `docs/archive/DONE-CRYPTO-DEPENDENCIES.md` (arquivado, pode estar ausente no seu checkout) | Nota curta: as deprecations do `CachingTypeFactory`, além de ruído `WP_DEBUG`, **quebravam o redirect do save**; mitigadas por supressão de runtime escopada a `E_DEPRECATED` no boundary do `BitcoinAddressService` (não é patch de vendor — "Fora de escopo" segue valendo; o fatal do PHP 9 continua não mascarado). |
 | `CLAUDE.md` | Na seção "Reporting failures honestly", registrar o boundary de supressão (por que existe; mascara só `E_DEPRECATED`; **nunca** engole `\Error`). Atualizar a contagem de testes (355 → 355 + nº de testes novos do helper). |
 | `src/trunk/CHANGELOG.md` | `## Unreleased` → `### Fixed`: "Saving the On-Chain gateway settings no longer prints PHP deprecation notices from the Bitcoin library or breaks the post-save redirect (\"headers already sent\") on hosts with error display enabled." |
 
@@ -277,6 +279,8 @@ Host PHP 8.3, `WP_DEBUG_DISPLAY=true`, **com** gmp:
   "Alternativas descartadas").
 - Não mascarar globalmente — só na região bitwasp dos 5 métodos.
 - PHP 9: quando `parent`-in-callables virar fatal, ressurge como `\Error` (não mascarado) e propaga
-  pelo contrato — ver "Horizonte PHP 9" em [`docs/CRYPTO-DEPENDENCIES.md`](CRYPTO-DEPENDENCIES.md).
+  pelo contrato — ver "Horizonte PHP 9" em
+  [`docs/archive/DONE-CRYPTO-DEPENDENCIES.md`](archive/DONE-CRYPTO-DEPENDENCIES.md) (arquivado, pode estar
+  ausente).
 - **Base:** branch `chore/retire-crypto-forks` (onde os pacotes oficiais `bitwasp/*` entraram), ou
   `main` depois do merge.

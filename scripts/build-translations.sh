@@ -130,7 +130,7 @@ fix_po_headers() {
 
 # Remove as entradas obsoletas (`#~`) que o msgmerge acumula quando um msgid deixa de existir.
 # Elas nunca entram no .mo, mas incham o .po e aparecem como "obsoletas" no PoEdit/Loco — inclusive
-# strings tiradas do catálogo de propósito (erros/warnings/logs do painel; ver docs/TRANSLATION.md),
+# strings tiradas do catálogo de propósito (erros/warnings/logs do painel; ver docs/GUIDE-TRANSLATION.md),
 # que não devem voltar a ser oferecidas ao tradutor. Escreve em arquivo temporário e só então
 # substitui: msgattrib lendo e gravando o mesmo caminho trunca o arquivo.
 strip_obsolete_entries() {

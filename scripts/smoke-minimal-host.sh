@@ -20,7 +20,7 @@ set -euo pipefail
 #
 # Usage: ./scripts/smoke-minimal-host.sh
 # Run from the repo root, with the `wordpress` dev service up (docker compose up -d).
-# Exits non-zero if any check fatals — see docs/RELEASE.md, this is a mandatory
+# Exits non-zero if any check fatals — see docs/GUIDE-RELEASE.md, this is a mandatory
 # pre-release step.
 
 RED='\033[0;31m'

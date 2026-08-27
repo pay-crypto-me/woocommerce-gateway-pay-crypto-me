@@ -10,8 +10,9 @@ set -euo pipefail
 #   `lastguest/murmurhash` at the EXACT version v2.0.0, and 2.0.0 declares `php: ^7`. That pin was
 #   global — it resolved the WHOLE tree as if on 7.4 — so the plugin shipped a crypto polyfill a
 #   major behind plus a PHP 5 polyfill that never ran. murmurhash is now dropped via `replace`
-#   instead, and the pin states the floor rather than hiding it. See docs/LEAN-VENDOR-TREE.md, and
-#   docs/CRYPTO-DEPENDENCIES.md -> E7/E7.1/E7.2 for the history.
+#   instead, and the pin states the floor rather than hiding it. See docs/archive/DONE-LEAN-VENDOR-TREE.md,
+#   and docs/archive/DONE-CRYPTO-DEPENDENCIES.md -> E7/E7.1/E7.2 for the history. Both are archived and
+#   gitignored (see CLAUDE.md's "Context and guides") — may be absent from your checkout.
 #
 # THE TWO REGIMES THIS SCRIPT DISTINGUISHES
 #   Whether a pin is a declaration or a suppression depends entirely on how it compares to the floor:
@@ -52,8 +53,10 @@ error() { echo -e "${RED}[FAIL]${NC} $*" >&2; }
 # Packages allowed to require a PHP version older than the plugin's floor. Only meaningful in the
 # suppression regime (pin < floor). Empty is the healthy state, and it is the state today: the one
 # package that ever belonged here, `lastguest/murmurhash`, left the tree via `replace`. Every entry
-# needs a reason in docs/CRYPTO-DEPENDENCIES.md and a check that the plugin never executes its code —
-# this list is not a place to park a real incompatibility.
+# needs a reason recorded in CLAUDE.md's "Composer dependencies" section (the live canonical doc —
+# docs/archive/DONE-CRYPTO-DEPENDENCIES.md, which originally tracked this, is a closed/gitignored
+# historical record now, not the place for a new entry) and a check that the plugin never executes
+# its code — this list is not a place to park a real incompatibility.
 ALLOWED_OFFENDERS=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -190,7 +193,7 @@ if [[ -z "$OFFENDER_LINES" ]]; then
     warn "Nothing in the tree requires a PHP older than ${PHP_FLOOR} any more."
     warn "The pin (config.platform.php = ${PLATFORM_PIN}) has become dead weight: raise it to"
     warn "${PHP_FLOOR} or remove it from src/trunk/composer.json, re-run 'composer update --lock',"
-    warn "and drop the workaround note from docs/CRYPTO-DEPENDENCIES.md and CLAUDE.md."
+    warn "and drop the workaround note from docs/archive/DONE-CRYPTO-DEPENDENCIES.md (if present) and CLAUDE.md."
     exit 0
 fi
 
@@ -210,7 +213,8 @@ if [[ "$REGIME" == "declaration" ]]; then
     error ""
     error "Do NOT lower the pin to make this pass: that turns an audited declaration back into the"
     error "blanket suppression this script exists to prevent. Either drop/replace the dependency, or"
-    error "prove it is unreachable and record the reasoning in docs/CRYPTO-DEPENDENCIES.md first."
+    error "prove it is unreachable and record the reasoning in CLAUDE.md's \"Composer dependencies\""
+    error "section (the live canonical doc — docs/archive/DONE-CRYPTO-DEPENDENCIES.md is closed history)."
     exit 1
 fi
 
@@ -254,7 +258,8 @@ if [[ ${#UNEXPECTED[@]} -gt 0 ]]; then
     error ""
     error "Do NOT widen ALLOWED_OFFENDERS to make this pass. Either the dependency is reachable"
     error "from plugin code — in which case it is a bug, not a workaround — or it is provably"
-    error "unreachable and the reasoning belongs in docs/CRYPTO-DEPENDENCIES.md first."
+    error "unreachable and the reasoning belongs in CLAUDE.md's \"Composer dependencies\" section"
+    error "first (the live canonical doc — docs/archive/DONE-CRYPTO-DEPENDENCIES.md is closed history)."
     exit 1
 fi
 

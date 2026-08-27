@@ -1,4 +1,4 @@
-# 🌍 PayCrypto.Me Translation Guide
+# 🌍 [GUIDE] PayCrypto.Me Translation Guide
 
 Este guia explica como gerenciar as traduções do plugin PayCrypto.Me for WooCommerce.
 
