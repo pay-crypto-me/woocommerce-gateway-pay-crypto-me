@@ -11,6 +11,7 @@ someone implements them — nothing in a `[PLAN — NOT STARTED]` doc is in the 
 - **[GUIDE]** [docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
 - **[GUIDE]** [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - **[GUIDE]** [docs/GUIDE-ADD-NEW-GATEWAY.md](docs/GUIDE-ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
+- **[GUIDE]** [docs/GUIDE-DB-SCHEMA-UPGRADE.md](docs/GUIDE-DB-SCHEMA-UPGRADE.md) — checklist for bumping `DbInstaller::DB_VERSION`: editing the `CREATE TABLE` SQL, freezing a new `tests/schema/v<N>.sql`, running `schema-tests.sh`. Written 2026-08-27 alongside the mechanism itself, before any real bump exercised it — flagged in the doc as open to correction from the first real use.
 
 **Executed and verified — archived, may be absent from your checkout**
 

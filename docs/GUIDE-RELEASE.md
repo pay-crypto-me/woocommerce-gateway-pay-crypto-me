@@ -235,12 +235,17 @@ tabelas de `$wpdb->prefix`, então cada teste tem seu próprio namespace dentro 
 limpa no `tearDown`. As tabelas do site de dev nunca são tocadas.
 
 **Regra permanente:** todo bump de `DbInstaller::DB_VERSION` acompanha um
-`src/trunk/tests/schema/v<N>.sql` novo, gerado enquanto aquela versão ainda é a que está no ar:
+`src/trunk/tests/schema/v<N>.sql` novo — gerado **depois** de implementar a mudança de schema no
+código (o snapshot congela o estado novo, não o antigo; a única exceção foi o `v1.sql` original,
+gerado retroativamente porque v1 já era o que estava publicado quando esta trilha foi criada):
 
 ```bash
 docker compose exec -T -w /var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce \
   wordpress php tests/bin/dump-schema.php
 ```
+
+Passo a passo completo de um bump de `DB_VERSION` (o que editar, quando gerar o snapshot, o que
+verificar antes de commitar): [docs/GUIDE-DB-SCHEMA-UPGRADE.md](./GUIDE-DB-SCHEMA-UPGRADE.md).
 
 O teste de convergência varre `tests/schema/v*.sql`, então cada versão histórica passa a ser coberta
 automaticamente — e uma versão sem snapshot é uma versão que nada verifica.
