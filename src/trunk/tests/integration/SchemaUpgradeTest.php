@@ -1,0 +1,133 @@
+<?php
+
+use PayCryptoMe\WooCommerce\DbInstaller;
+
+/**
+ * What the unit suite structurally cannot check (F7): whether dbDelta() actually did what the
+ * CREATE TABLE said.
+ *
+ * The headline test here is the convergence one. It is the test that would have caught the
+ * nullability design before it shipped: dbDelta() does not apply NOT NULL -> NULL, silently and
+ * with an empty $wpdb->last_error, so an upgraded site would have kept the old columns forever
+ * while a fresh install got the new ones.
+ */
+class SchemaUpgradeTest extends SchemaTestCase
+{
+    public function test_upgrade_from_each_frozen_version_converges_to_a_fresh_install()
+    {
+        $snapshots = $this->frozen_snapshots();
+
+        $this->assertNotEmpty(
+            $snapshots,
+            'tests/schema/ is empty. Every DB_VERSION must have a frozen snapshot — see tests/bin/dump-schema.php.'
+        );
+
+        $fresh = $this->schema_fingerprints($this->fresh_install());
+
+        foreach ($snapshots as $snapshot) {
+            $upgraded_prefix = $this->reserve_prefix();
+
+            $this->install_frozen_schema($snapshot, $upgraded_prefix);
+
+            $installed = $this->with_prefix($upgraded_prefix, fn(): bool => DbInstaller::install());
+
+            $this->assertTrue($installed, basename($snapshot) . ': the upgrade reported failure');
+
+            foreach (self::TABLES as $table) {
+                $this->assertSame(
+                    $fresh[$table],
+                    $this->schema_fingerprint($upgraded_prefix . $table),
+                    basename($snapshot) . ": {$table} after upgrading does not match a fresh install. "
+                        . 'dbDelta silently ignores some declarations (nullability changes, a second '
+                        . 'column declared on the same line, any removal) — this is what that looks like.'
+                );
+            }
+        }
+    }
+
+    public function test_install_is_idempotent()
+    {
+        $prefix = $this->fresh_install();
+
+        $before = $this->schema_fingerprints($prefix);
+
+        $again = $this->with_prefix($prefix, fn(): bool => DbInstaller::install());
+
+        $this->assertTrue($again);
+        $this->assertSame([], get_option(DbInstaller::ERRORS_OPTION, []), 'A second install must record no errors');
+        $this->assertSame($before, $this->schema_fingerprints($prefix), 'A second install must not change the schema');
+    }
+
+    public function test_version_is_not_recorded_when_a_table_fails()
+    {
+        global $wpdb;
+
+        $prefix = $this->reserve_prefix();
+        $table  = $prefix . 'paycrypto_me_bitcoin_wallet_xpubkeys';
+
+        // A real failure, not a mocked one: the table exists without its UNIQUE KEY and already
+        // holds two rows that violate it, so dbDelta's ALTER ... ADD UNIQUE KEY fails with
+        // "Duplicate entry". This is the shape of failure that used to be recorded as success.
+        $wpdb->query(
+            "CREATE TABLE `{$table}` (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                xpub VARCHAR(191) NOT NULL,
+                network VARCHAR(50) NOT NULL,
+                PRIMARY KEY (id)
+            ) " . $wpdb->get_charset_collate()
+        );
+        $this->assertEmpty($wpdb->last_error, "Test setup failed: {$wpdb->last_error}");
+
+        $wpdb->query("INSERT INTO `{$table}` (xpub, network) VALUES ('zpubduplicate', 'mainnet'), ('zpubduplicate', 'mainnet')");
+        $this->assertEmpty($wpdb->last_error, "Test setup failed: {$wpdb->last_error}");
+
+        $installed = $this->with_prefix($prefix, fn(): bool => DbInstaller::install());
+
+        $this->assertFalse($installed);
+        $this->assertFalse(
+            get_option(DbInstaller::VERSION_OPTION, false),
+            'A site whose tables are broken must not claim to be on the current schema — it would never retry'
+        );
+        $this->assertNotEmpty(get_option(DbInstaller::ERRORS_OPTION, []), 'The failure must reach the admin notice');
+        $this->assertSame(1, get_transient(DbInstaller::RETRY_TRANSIENT), 'The retry must be throttled');
+    }
+
+    public function test_version_is_never_downgraded()
+    {
+        $prefix = $this->reserve_prefix();
+
+        update_option(DbInstaller::VERSION_OPTION, '9');
+
+        $this->with_prefix($prefix, static function (): void {
+            DbInstaller::maybe_upgrade();
+        });
+
+        $this->assertSame('9', get_option(DbInstaller::VERSION_OPTION));
+
+        global $wpdb;
+        $this->assertSame(
+            [],
+            (array) $wpdb->get_col("SHOW TABLES LIKE '{$prefix}%'"),
+            'Nothing may be installed when the recorded schema is newer than this code'
+        );
+    }
+
+    public function test_fresh_install_records_the_current_version()
+    {
+        $prefix = $this->fresh_install();
+
+        $this->assertSame(DbInstaller::DB_VERSION, get_option(DbInstaller::VERSION_OPTION));
+        $this->assertTrue(DbInstaller::is_current());
+        $this->assertSame([], get_option(DbInstaller::ERRORS_OPTION, []));
+        $this->assertFalse(get_transient(DbInstaller::RETRY_TRANSIENT));
+
+        global $wpdb;
+
+        foreach (self::TABLES as $table) {
+            $this->assertSame(
+                $prefix . $table,
+                $wpdb->get_var("SHOW TABLES LIKE '{$prefix}{$table}'")
+            );
+        }
+    }
+}
