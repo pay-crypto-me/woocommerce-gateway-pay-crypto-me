@@ -34,6 +34,7 @@ PLANNED_PATHS=(
     "src/trunk/phpunit-integration.xml.dist"
     "src/trunk/tests/integration/bootstrap.php"
     "tests/bin/dump-schema.php"
+    "scripts/check-i18n-conventions.sh"
 )
 # WordPress core, not ours: the docs cite wp-includes/functions.php and
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) by their tail.
