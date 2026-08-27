@@ -64,7 +64,7 @@ código. Regra vigente:
 | Categoria | Traduzir? | Exemplos |
 |---|---|---|
 | Qualquer string vista pelo **cliente** | ✅ **sempre** | template de order-details ("Awaiting Payment", "Pay Using Wallet"), mensagens de falha de pagamento, título/descrição do gateway no checkout, memo do BIP21 |
-| **Settings** do painel: títulos, descrições, rótulos de campo, textos de botão, badges | ✅ sim | "BTCPay Server URL", "Invoice Expiry", "Danger Area", "🔌 Test connection", "Premium · Coming soon" |
+| **Settings** do painel: títulos, descrições, rótulos de campo, textos de botão, badges | ✅ sim | "BTCPay Server URL", "Invoice Expiry", "Danger Area", "🔌 Test connection", "Pro · Coming soon" |
 | **Erros, warnings e logs** do painel admin | ❌ **não** — inglês literal | `WC_Admin_Settings::add_error(…)`, `wp_die('Security check failed')`, avisos `admin_notices`, `register_paycrypto_me_log(…)` |
 | Retorno dos **botões de diagnóstico** (sucesso *e* falha) | ❌ não | "Connection OK (HTTP %d).", "Could not reach the server: %s", "Reset request received." |
 | **Notas de pedido** (`add_order_note`, nota de mudança de status) | ❌ não | "PayCrypto.Me payment initiated…", "Awaiting cryptocurrency payment" |

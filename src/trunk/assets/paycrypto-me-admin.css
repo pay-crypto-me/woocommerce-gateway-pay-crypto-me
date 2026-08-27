@@ -113,8 +113,8 @@
     margin-right: 12px;
 }
 
-/* Premium (coming soon) settings preview */
-.paycrypto-premium-badge {
+/* Pro (coming soon) settings preview */
+.paycrypto-pro-badge {
     display: inline-block;
     background: #f7931a;
     color: #fff;
@@ -128,13 +128,13 @@
     white-space: nowrap;
 }
 
-.paycrypto-premium-badge::before {
+.paycrypto-pro-badge::before {
     content: "\1F512";
     margin-right: 5px;
 }
 
-input.paycrypto-premium-field,
-textarea.paycrypto-premium-field {
+input.paycrypto-pro-field,
+textarea.paycrypto-pro-field {
     background-color: #f6f7f7 !important;
     color: #8c8f94 !important;
     border-style: dashed !important;
@@ -143,8 +143,8 @@ textarea.paycrypto-premium-field {
     opacity: 1 !important;
 }
 
-input.paycrypto-premium-field::placeholder,
-textarea.paycrypto-premium-field::placeholder {
+input.paycrypto-pro-field::placeholder,
+textarea.paycrypto-pro-field::placeholder {
     color: #a7aaad;
     font-style: italic;
 }

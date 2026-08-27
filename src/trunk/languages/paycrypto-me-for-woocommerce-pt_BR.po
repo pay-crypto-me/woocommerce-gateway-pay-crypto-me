@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-18T15:02:35+00:00\n"
+"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:50+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -221,8 +221,8 @@ msgid "Copy"
 msgstr "Copiar"
 
 #: includes/abstract-class-wc-gateway-paycrypto-me.php:565
-msgid "Premium · Coming soon"
-msgstr "Premium · Em breve"
+msgid "Pro · Coming soon"
+msgstr "Pro · Em breve"
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:28
 #: includes/class-wc-gateway-paycrypto-me.php:35
@@ -323,12 +323,12 @@ msgstr "Configuração do Webhook"
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:169
 msgid ""
 "Automatic payment confirmation via webhooks (BTCPay push / lnd polling) "
-"ships in the upcoming PayCrypto.Me Premium add-on. In the free version, "
+"ships in the upcoming PayCrypto.Me Pro add-on. In the free version, "
 "Lightning payments are confirmed manually — the settings below are a preview "
 "and are not editable yet."
 msgstr ""
 "A confirmação automática de pagamento via webhooks (push do BTCPay / polling "
-"do lnd) chega no futuro add-on Premium do PayCrypto.Me. Na versão gratuita, "
+"do lnd) chega no futuro add-on Pro do PayCrypto.Me. Na versão gratuita, "
 "os pagamentos via Lightning são confirmados manualmente — as configurações "
 "abaixo são apenas uma prévia e ainda não são editáveis."
 
@@ -337,12 +337,12 @@ msgid "BTCPay Webhook Secret"
 msgstr "Segredo do Webhook do BTCPay"
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:174
-msgid "Reserved for the Premium add-on. Not used by the free version."
-msgstr "Reservado para o add-on Premium. Não utilizado na versão gratuita."
+msgid "Reserved for the Pro add-on. Not used by the free version."
+msgstr "Reservado para o add-on Pro. Não utilizado na versão gratuita."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:175
-msgid "Available in the Premium add-on"
-msgstr "Disponível no add-on Premium"
+msgid "Available in the Pro add-on"
+msgstr "Disponível no add-on Pro"
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:183
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:382
@@ -447,11 +447,10 @@ msgstr "Tempo Limite de Pagamento (horas)"
 #: includes/class-wc-gateway-paycrypto-me.php:293
 msgid ""
 "Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me "
-"Premium add-on. In the free version, on-chain addresses stay valid until "
-"paid."
+"Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "A expiração automática do pedido após o tempo limite chega no futuro add-on "
-"Premium do PayCrypto.Me. Na versão gratuita, os endereços on-chain "
+"Pro do PayCrypto.Me. Na versão gratuita, os endereços on-chain "
 "permanecem válidos até o pagamento."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
@@ -461,10 +460,10 @@ msgstr "Número de confirmações do pagamento"
 #: includes/class-wc-gateway-paycrypto-me.php:301
 msgid ""
 "Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me "
-"Premium add-on. In the free version, payments are verified manually."
+"Pro add-on. In the free version, payments are verified manually."
 msgstr ""
 "O acompanhamento automático de confirmações on-chain chega no futuro add-on "
-"Premium do PayCrypto.Me. Na versão gratuita, os pagamentos são verificados "
+"Pro do PayCrypto.Me. Na versão gratuita, os pagamentos são verificados "
 "manualmente."
 
 #: includes/class-wc-gateway-paycrypto-me.php:308
@@ -541,8 +540,8 @@ msgid "Settings"
 msgstr "Configurações"
 
 #: paycrypto-me-for-woocommerce.php:182
-msgid "Get Premium"
-msgstr "Obter Premium"
+msgid "Get Pro"
+msgstr "Obter Pro"
 
 #: paycrypto-me-for-woocommerce.php:198
 msgid "Support"

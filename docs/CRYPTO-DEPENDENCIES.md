@@ -73,7 +73,7 @@ methods (Mdanter\Ecc\Crypto\Signature\SignatureInterface::getSignatureType)
 ```
 
 Hoje não explode porque o plugin nunca assina nada e essa classe nunca é carregada. Qualquer
-caminho que a toque — inclusive um add-on de terceiro ou o add-on premium — derruba o site. No
+caminho que a toque — inclusive um add-on de terceiro ou o add-on Pro — derruba o site. No
 upstream a classe é instanciável.
 
 ### E3 — O motivo original do fork já foi resolvido upstream

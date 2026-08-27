@@ -39,10 +39,10 @@ Connect the plugin straight to your own BTCPay Server instance or lnd node (REST
 
 = What this plugin intentionally does not do =
 
-To keep the free plugin simple and auditable, two things are left out on purpose and reserved for an upcoming official premium add-on that plugs into this same base via hooks — no fork, no code duplication:
+To keep the free plugin simple and auditable, two things are left out on purpose and reserved for an upcoming official Pro add-on that plugs into this same base via hooks — no fork, no code duplication:
 
-- **Automatic payment confirmation.** Today, order status is moved forward manually once you've verified the payment yourself (e.g. in your node or block explorer). Automatic confirmation via BTCPay webhooks / lnd polling is planned for the premium add-on.
-- **Fiat → sats conversion.** Lightning invoices are currently created as zero-amount (the wallet reads the amount from the invoice itself once the add-on populates it); automatic conversion of the order's fiat total into an exact BTC/sats amount is also planned for the premium add-on.
+- **Automatic payment confirmation.** Today, order status is moved forward manually once you've verified the payment yourself (e.g. in your node or block explorer). Automatic confirmation via BTCPay webhooks / lnd polling is planned for the Pro add-on.
+- **Fiat → sats conversion.** Lightning invoices are currently created as zero-amount (the wallet reads the amount from the invoice itself once the add-on populates it); automatic conversion of the order's fiat total into an exact BTC/sats amount is also planned for the Pro add-on.
 
 Bitcoin is currently the only supported cryptocurrency (on-chain and Lightning) — this keeps the codebase small and well-tested rather than spreading support thin across many chains.
 
@@ -95,7 +95,7 @@ Switch the On-Chain gateway's network to testnet and place a test order, or use 
 Through the native WooCommerce logger, source `paycrypto_me`. Access them via WooCommerce → Status → Logs.
 
 = Does the order status update automatically once the customer pays? =
-Not in the free plugin — see "What this plugin intentionally does not do" in the description. Automatic confirmation is planned for a future premium add-on.
+Not in the free plugin — see "What this plugin intentionally does not do" in the description. Automatic confirmation is planned for a future Pro add-on.
 
 == Privacy ==
 
@@ -140,7 +140,7 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 * Payment QR code with copy-to-clipboard and "open in wallet" link on the Thank You page, My Account and admin order screens.
 * Debug logging via the WooCommerce logger.
 * Initial translations for pt_BR, es_ES, fr_FR, de_DE, it_IT, ru_RU and zh_CN.
-* Developer extension points reserved for the upcoming premium add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
+* Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
 
 == Upgrade Notice ==
 

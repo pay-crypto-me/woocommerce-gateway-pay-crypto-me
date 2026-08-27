@@ -37,7 +37,7 @@ PLANNED_PATHS=(
 )
 # WordPress core, not ours: the docs cite wp-includes/functions.php and
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) by their tail.
-# docs/PREMIUM-ADDON.md moved to the paycrypto-me-premium repo on 2026-08-25 — genuinely external
+# docs/PREMIUM-ADDON.md moved to the paycrypto-me-pro repo on 2026-08-25 — genuinely external
 # now, not planned. CLAUDE.md links it by full GitHub URL (matches the substring), and
 # CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
 # should be "fixed" by resurrecting the file.
@@ -121,7 +121,7 @@ for doc in "${DOCS[@]}"; do
 done
 
 # --- 3. the hooks table matches the code ---------------------------------------------------------
-# It is the contract the premium add-on is built against: a hook missing from it is a seam nobody
+# It is the contract the Pro add-on is built against: a hook missing from it is a seam nobody
 # knows exists, one listed but absent is a promise the add-on cannot keep.
 HOOKS_IN_CODE="$(grep -rhoE "'paycryptome_[a-z_]+'" "$TRUNK/includes" "$TRUNK/templates" | tr -d "'" | sort -u)"
 HOOKS_IN_DOC="$(grep -oE 'paycryptome_[a-z_]+' "$REPO_ROOT/CLAUDE.md" | sort -u)"

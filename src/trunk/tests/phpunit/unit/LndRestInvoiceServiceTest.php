@@ -55,7 +55,7 @@ class LndRestInvoiceServiceTest extends TestCase
 
     public function test_create_invoice_includes_value_in_sats_when_set(): void
     {
-        // Premium fiat→sats seam: when the invoice-args filter provides `value`, the lnd
+        // Pro fiat→sats seam: when the invoice-args filter provides `value`, the lnd
         // invoice must request that amount (sats) so the payment is enforced, not zero-amount.
         $http = FakeHttpClient::respondingToPost(http_ok(['payment_request' => 'lnbc1', 'r_hash' => 'aGVsbG8']));
 

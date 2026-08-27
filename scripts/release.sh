@@ -270,7 +270,7 @@ header "Version bumps → $VERSION"
 # its pattern required `public const string VERSION` (a typed constant) while the code declares
 # `public const VERSION` — sed matched nothing, returned 0, and the script logged success. That
 # constant is the cache-busting version of the block assets (AssetManager) and the value the
-# premium add-on's dependency guard compares against, so shipping it stale is not cosmetic.
+# Pro add-on's dependency guard compares against, so shipping it stale is not cosmetic.
 bump_sed() {
   local file="$1" pattern="$2" label="$3" verify="$4"
 

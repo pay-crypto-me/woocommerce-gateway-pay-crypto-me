@@ -12,7 +12,7 @@
 - [docs/CRYPTO-DEPRECATION-CONTINGENCY.md](docs/CRYPTO-DEPRECATION-CONTINGENCY.md) — **implemented and verified in the suite; only the browser acceptance test is left (its section C, steps 2–4 — step 1 no longer reproduces, the fix is in).** Contains the `bitwasp/buffertools` `E_DEPRECATED` notices ("Use of parent in callables") that print during the On-Chain settings save and break its post-save redirect, via a scoped `error_reporting` mask at the `BitcoinAddressService` boundary (no vendor edits, never swallows an `\Error`). Read it before touching deprecation/error-reporting handling around the crypto lib.
 - [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (not started yet; renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Premium features (webhook/fiat→sats) are reserved for the separate add-on above — see "Premium add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (371 tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
 
 ---
 
@@ -24,7 +24,7 @@ WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCom
 - `paycrypto_me` — Bitcoin On-Chain (HD derivation from xPub/ypub/zpub, mainnet + testnet).
 - `paycrypto_me_lightning` — Bitcoin Lightning Network (BTCPay Server or lnd REST): invoice creation, resolution, persistence, order-details rendering.
 
-Async webhook status updates and fiat→sats conversion are deliberately out of scope for this free plugin — see "Premium add-on" below.
+Async webhook status updates and fiat→sats conversion are deliberately out of scope for this free plugin — see "Pro add-on" below.
 
 ---
 
@@ -227,11 +227,11 @@ Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — 
 | `paycryptome_bitcoin_payment_uri` | filter | On-chain BIP21 URI: `($uri, $order, $payment_address, $crypto_amount, $gateway)` |
 | `paycryptome_bitcoin_payment_data` | filter | Final `$payment_data` returned by the Bitcoin processor: `($payment_data, $order, $gateway)` — on-chain analogue of `paycryptome_lightning_payment_data` (fires on both static-address and derived-address paths) |
 | `paycryptome_lightning_invoice_memo` / `paycryptome_lightning_invoice_expiry` | filter | Customize the Lightning invoice memo/expiry before creation |
-| `paycryptome_lightning_btcpay_invoice_args` / `paycryptome_lightning_lnd_invoice_args` | filter | Full invoice args array before `create_invoice()` (includes `amount`/`currency` already merged). `LndRestInvoiceService::create_invoice()` also honors an optional `value` key (sats) — free plugin never sets it; the premium fiat→sats add-on sets it here to enforce the invoice amount. |
+| `paycryptome_lightning_btcpay_invoice_args` / `paycryptome_lightning_lnd_invoice_args` | filter | Full invoice args array before `create_invoice()` (includes `amount`/`currency` already merged). `LndRestInvoiceService::create_invoice()` also honors an optional `value` key (sats) — free plugin never sets it; the Pro fiat→sats add-on sets it here to enforce the invoice amount. |
 | `paycryptome_lightning_payment_data` | filter | Final `$payment_data` returned by the Lightning processor |
 | `paycryptome_lightning_btcpay_payment_method_id` / `paycryptome_lightning_btcpay_speed_policy` | filter | BTCPay protocol constants that don't flow through the args array |
-| `paycryptome_lightning_status_changed` | action | Fired inside `PayCryptoMeLightningDBStatementsService::update_status($order_id, $old_status, $new_status)` after a successful, actual status change — premium add-on seam (webhook/polling consumers react here instead of monkey-patching) |
-| `paycryptome_bitcoin_status_changed` | action | On-chain analogue: fired inside `PayCryptoMeDBStatementsService::update_transaction_confirmations($order_id, $old_confirmations, $new_confirmations)` when the confirmation count actually changes — premium add-on seam (confirmation poller consumers react here). No production caller in the free plugin. |
+| `paycryptome_lightning_status_changed` | action | Fired inside `PayCryptoMeLightningDBStatementsService::update_status($order_id, $old_status, $new_status)` after a successful, actual status change — Pro add-on seam (webhook/polling consumers react here instead of monkey-patching) |
+| `paycryptome_bitcoin_status_changed` | action | On-chain analogue: fired inside `PayCryptoMeDBStatementsService::update_transaction_confirmations($order_id, $old_confirmations, $new_confirmations)` when the confirmation count actually changes — Pro add-on seam (confirmation poller consumers react here). No production caller in the free plugin. |
 
 **Note:** before adding a new filter for Lightning, check whether the value already flows through `base_invoice_args()`/the `invoice_args_filter()` array — only add a dedicated filter for values hardcoded inside a service that never reach that array.
 
@@ -379,13 +379,17 @@ declaration it now is.
 
 ## Pro add-on: scope boundaries and extension points
 
-> **Naming note (2026-08-25):** the separate add-on was renamed from "Premium" to "Pro". This
-> section uses the new name throughout. The strings actually shipped in *this* plugin's settings
-> UI (`paycrypto-premium-field` CSS class, "ships in the upcoming PayCrypto.Me Premium add-on",
-> "Premium · Coming soon" badge — all below) still say "Premium": renaming them would mean editing
-> live, translated (7 locales), already-released UI copy for a branding-only change, so that is
-> deliberately deferred, not done as part of this rename. Do not "fix" those strings to say "Pro"
-> without a real reason to touch this plugin's settings screens anyway.
+> **Naming note (2026-08-25, settings UI swept 2026-08-27):** the separate add-on was renamed from
+> "Premium" to "Pro". This section uses the new name throughout, and as of 2026-08-27 so does this
+> plugin's own settings UI: the `paycrypto-pro-field`/`paycrypto-pro-badge` CSS classes, the
+> `Abstract_WC_Gateway_PayCryptoMe::pro_soon_badge()` method, the "Pro · Coming soon" badge text and
+> the "ships in the upcoming PayCrypto.Me Pro add-on" field descriptions (both gateways) all say
+> "Pro" now — translations for the 7 locales were regenerated and recompiled alongside the rename,
+> so none of it is fuzzy or stale. Only genuinely frozen history is exempt: past `CHANGELOG.md`
+> entries for already-released versions (0.1.0–0.1.2) still say "premium add-on" because that is
+> what those releases actually shipped saying, and `docs/CRYPTO-DEPENDENCIES-AUDIT.md`'s mentions of
+> `PREMIUM-ADDON.md` record an actual filename at an actual point in git history — neither should be
+> rewritten to match current naming.
 
 Two capabilities are **intentionally absent from this free plugin and reserved for a separate Pro add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version. The approved implementation plan for that separate add-on lives in its own repo, at [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — the plan doc itself kept its original filename/history (the repo was renamed from `paycrypto-me-premium` alongside the product rename), see its own naming note.
 

@@ -1,7 +1,7 @@
 FROM wordpress:7.1-php8.3-apache
 
-# Every layer down to `chown` is byte-identical to the premium add-on repo's
-# (paycrypto-me-premium) Dockerfile on purpose: Docker's build cache is content-addressed per
+# Every layer down to `chown` is byte-identical to the Pro add-on repo's
+# (paycrypto-me-pro) Dockerfile on purpose: Docker's build cache is content-addressed per
 # layer on the local daemon, shared across any Dockerfile/build context — not scoped to this
 # repo or this compose project. Two repos can therefore reuse each other's cached layers for this
 # shared "WordPress dev image" shell without depending on one another at build time (whichever

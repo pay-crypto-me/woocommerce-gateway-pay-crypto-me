@@ -229,8 +229,8 @@ class PayCryptoMeDBStatementsService
 	/**
 	 * Persist on-chain confirmation progress for an order and fire a domain action on change.
 	 *
-	 * Premium add-on seam: the free plugin never calls this (on-chain confirmations are verified
-	 * manually). The premium confirmation poller drives it, and consumers react to
+	 * Pro add-on seam: the free plugin never calls this (on-chain confirmations are verified
+	 * manually). The Pro confirmation poller drives it, and consumers react to
 	 * `paycryptome_bitcoin_status_changed` (e.g. call $order->payment_complete() once the required
 	 * confirmations are reached) — mirroring the Lightning precedent
 	 * PayCryptoMeLightningDBStatementsService::update_status()/paycryptome_lightning_status_changed.

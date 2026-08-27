@@ -8,8 +8,8 @@ All notable changes to this project are documented in this file.
 ### Planned
 
  - Add support for additional blockchain networks (planned).
- - Add automatic payment confirmation (webhook/polling), reserved for a future premium add-on.
- - Add fiat → sats conversion, reserved for a future premium add-on.
+ - Add automatic payment confirmation (webhook/polling), reserved for a future Pro add-on.
+ - Add fiat → sats conversion, reserved for a future Pro add-on.
 
 ## 0.1.2
 

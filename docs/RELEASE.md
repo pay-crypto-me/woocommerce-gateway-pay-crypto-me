@@ -248,7 +248,7 @@ neutro, é confiado.
 |---|---|
 | todo caminho citado existe | renomear arquivo não quebra nada — só o doc, silenciosamente. Caminhos de plano aprovado-e-não-iniciado ficam em `PLANNED_PATHS`, para "planejado" continuar distinguível de "apodreceu" |
 | toda ref `arquivo.php:NNN` cai em código | número de linha apodrece a cada edição acima dele. A regra da casa é citar o **símbolo**; número fica só para `vendor/`, que o lock fixa (e por isso é ignorado aqui) |
-| tabela de hooks do `CLAUDE.md` ↔ código | é o contrato contra o qual o add-on premium é construído: hook faltando é seam que ninguém sabe que existe; hook listado e inexistente é promessa que o add-on não pode cumprir |
+| tabela de hooks do `CLAUDE.md` ↔ código | é o contrato contra o qual o add-on Pro é construído: hook faltando é seam que ninguém sabe que existe; hook listado e inexistente é promessa que o add-on não pode cumprir |
 | contagens afirmadas em prosa | 7 locales, 9 `validate_*_field`, 3 `generate_*_html`, 4 tabelas, 60 vetores |
 
 Não roda como teste do PHPUnit por um motivo concreto: o mundo da suíte é `src/trunk` (é só isso que

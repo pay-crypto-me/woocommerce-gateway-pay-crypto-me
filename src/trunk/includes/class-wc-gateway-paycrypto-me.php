@@ -290,18 +290,18 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'paycrypto-me-for-woocommerce'),
                 'type' => 'number',
-                'description' => $this->premium_soon_badge() . '<br>' . __('Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me Premium add-on. In the free version, on-chain addresses stay valid until paid.', 'paycrypto-me-for-woocommerce'),
+                'description' => $this->pro_soon_badge() . '<br>' . __('Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me Pro add-on. In the free version, on-chain addresses stay valid until paid.', 'paycrypto-me-for-woocommerce'),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '72', 'disabled' => 'disabled'),
                 'default' => '24',
-                'class' => 'paycrypto-premium-field',
+                'class' => 'paycrypto-pro-field',
             ),
             'payment_number_confirmations' => array(
                 'title' => __('Payment number of confirmations', 'paycrypto-me-for-woocommerce'),
                 'type' => 'number',
-                'description' => $this->premium_soon_badge() . '<br>' . __('Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me Premium add-on. In the free version, payments are verified manually.', 'paycrypto-me-for-woocommerce'),
+                'description' => $this->pro_soon_badge() . '<br>' . __('Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me Pro add-on. In the free version, payments are verified manually.', 'paycrypto-me-for-woocommerce'),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '6', 'disabled' => 'disabled'),
                 'default' => '3',
-                'class' => 'paycrypto-premium-field',
+                'class' => 'paycrypto-pro-field',
             ),
             'paycrypto_danger_area' => array(
                 'type' => 'title',
@@ -363,7 +363,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             'crypto_amount'          => $order->get_meta('_paycrypto_me_crypto_amount'),
             'crypto_currency'        => $order->get_meta('_paycrypto_me_crypto_currency'),
             'confirmations_required' => (int) $order->get_meta('_paycrypto_me_payment_number_confirmations'),
-            // On-chain has no timeout enforcement (Premium add-on feature), so no expiry is shown.
+            // On-chain has no timeout enforcement (Pro add-on feature), so no expiry is shown.
             'show_expiry'            => false,
         ];
     }
