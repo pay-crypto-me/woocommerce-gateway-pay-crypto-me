@@ -203,6 +203,19 @@ class DbInstallerTest extends TestCase
         $this->assertSame(['get', 'release'], $wpdb->lock_calls);
     }
 
+    public function test_install_rechecks_is_current_after_acquiring_the_lock()
+    {
+        // Simulate the loser-of-the-race-that-then-wins-the-lock case: another request already
+        // finished the upgrade and recorded DB_VERSION while this one was waiting on GET_LOCK.
+        $GLOBALS['__options']['paycrypto_me_db_version'] = DbInstaller::DB_VERSION;
+
+        $result = DbInstaller::install();
+
+        $this->assertTrue($result);
+        $this->assertSame([], $GLOBALS['__dbdelta_captured'], 'Must not rerun dbDelta once another request already brought the schema current');
+        $this->assertSame([], $this->recorded_version_writes(), 'Must not rewrite the version option a second time for no reason');
+    }
+
     public function test_records_every_failing_table_in_the_error_option()
     {
         global $wpdb;

@@ -274,6 +274,46 @@ class BitcoinPaymentProcessorTest extends TestCase
         $this->assertArrayNotHasKey('derivation_index', $out);
     }
 
+    public function test_derived_branch_reuses_a_fixed_address_row_left_behind_by_a_config_switch()
+    {
+        // Cross-flow case flagged by code review (Bloco 4a in the manual validation doc): an order
+        // got a fixed-address row (sentinel wallet_xpubkeys_id/derivation_index_id = 0), the merchant
+        // then reconfigured the gateway to an xPub, and the SAME order is retried (checkout retry /
+        // order-pay). The config now validates as an xPub, so process() takes the derived-address
+        // branch — but get_by_order_id()'s LEFT JOIN still surfaces the existing row, with
+        // derivation_index genuinely NULL (no real wallet/index ever backed it). The customer must
+        // get back the ORIGINAL fixed address, not a newly derived one, and a null derivation_index
+        // must flow through untouched rather than being coerced into a fabricated int or throwing.
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => 'xpub_fake',
+            'selected_network'   => 'mainnet',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(25);
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->with(25)->willReturn([
+            'payment_address'  => '1AddressTheCustomerSaw',
+            'derivation_index' => null,
+        ]);
+        $db->expects($this->never())->method('get_wallet_xpubkey_id');
+        $db->expects($this->never())->method('reserve_derivation_index_for_wallet');
+
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_extended_pubkey')->willReturn(true);
+        $btcSvc->expects($this->never())->method('generate_address_from_xPub');
+        $btcSvc->method('build_bitcoin_payment_uri')->willReturn('bitcoin:1AddressTheCustomerSaw');
+
+        $out = (new BitcoinPaymentProcessor($gateway, $btcSvc, $db))->process($order, ['crypto_amount' => 0.1]);
+
+        $this->assertSame('1AddressTheCustomerSaw', $out['payment_address']);
+        $this->assertArrayHasKey('derivation_index', $out);
+        $this->assertNull($out['derivation_index']);
+    }
+
     public function test_releases_derivation_index_when_persistence_fails()
     {
         // Regression test for C3: a failure between reserving the index and persisting the

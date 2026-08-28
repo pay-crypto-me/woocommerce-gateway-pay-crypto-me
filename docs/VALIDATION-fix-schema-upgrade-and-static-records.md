@@ -6,7 +6,7 @@
 > validação concluir e a branch mergear — o valor dele é só até a decisão de bump de versão.
 
 **Dono da execução:** Lucas. **Dono da rede automatizada (unit/integration/scripts):** Claude.
-Este documento cobre só a parte manual/regressão — a automatizada já roda (382 unit + 11 integration
+Este documento cobre só a parte manual/regressão — a automatizada já roda (384 unit + 11 integration
 + smoke + GMP-less + docs-drift + platform-pin, todos verdes nesta branch).
 
 **Critério de aceite:** todos os blocos abaixo com resultado registrado (PASS/FAIL + nota). Um FAIL
@@ -133,6 +133,13 @@ corretos, reprocessar o mesmo pedido → mesmo endereço, order-details ok (clie
 
 Confirmado por leitura de código, mas nunca observado rodando de verdade. Objetivo: ver o
 comportamento acontecer e confirmar que é inofensivo como a análise prevê.
+
+O caso 4a específico (linha fixa reaproveitada após troca de config, `derivation_index` chega
+`null` sem erro) agora também tem cobertura automatizada —
+`BitcoinPaymentProcessorTest::test_derived_branch_reuses_a_fixed_address_row_left_behind_by_a_config_switch`
+— confirmada com controle negativo (uma mutação que forçava `(int)` no valor fez o teste falhar como
+esperado, revertida em seguida). Isso não substitui rodar o passo manualmente uma vez — o teste prova
+o dado que chega no processor, não o que a tela realmente renderiza.
 
 **4a. Fixo → derivado no meio do pedido.**
 1. Configurar endereço fixo. Pedido novo, completar checkout (gera linha sentinela).

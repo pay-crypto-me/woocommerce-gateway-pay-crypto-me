@@ -66,6 +66,16 @@ class DbInstaller
         }
 
         try {
+            // Another request may have already finished the upgrade while this one waited for the
+            // lock (e.g. two admin_init hits racing right after an update). Recheck rather than
+            // blindly rerunning dbDelta on all 4 tables and rewriting the version option again —
+            // that redundant pass is wasted work at best, and at worst a transient DB hiccup on it
+            // would raise the "tables failed to install" notice for a schema that already upgraded
+            // cleanly.
+            if (self::is_current()) {
+                return true;
+            }
+
             return self::run_install();
         } finally {
             $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', self::INSTALL_LOCK));
@@ -134,9 +144,11 @@ class DbInstaller
     }
 
     /**
-     * upgrader_process_complete hands its callbacks ($upgrader, $hook_extra); maybe_upgrade() takes
-     * none. Bound directly, the day someone gives maybe_upgrade() a parameter WordPress would start
-     * filling it with an unrelated object. This wrapper is where those arguments stop.
+     * upgrader_process_complete fires after ANY plugin/theme/core update, not just this plugin's —
+     * cheap to no-op via is_current() for every update but this one. It hands its callbacks
+     * ($upgrader, $hook_extra); maybe_upgrade() takes none. Bound directly, the day someone gives
+     * maybe_upgrade() a parameter WordPress would start filling it with an unrelated object. This
+     * wrapper is where those arguments stop.
      */
     public static function maybe_upgrade_after_update(): void
     {

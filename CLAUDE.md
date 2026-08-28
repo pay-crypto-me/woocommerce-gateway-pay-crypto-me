@@ -16,7 +16,7 @@ confidence in it, and it moves to `docs/archive/` as `[DONE]` once that branch m
 - **[GUIDE]** [docs/GUIDE-DB-SCHEMA-UPGRADE.md](docs/GUIDE-DB-SCHEMA-UPGRADE.md) — checklist for bumping `DbInstaller::DB_VERSION`: editing the `CREATE TABLE` SQL, freezing a new `tests/schema/v<N>.sql`, running `schema-tests.sh`. Written 2026-08-27 alongside the mechanism itself, before any real bump exercised it — flagged in the doc as open to correction from the first real use.
 
 **In progress — validation before merge**
-- **[VALIDATION]** [docs/VALIDATION-fix-schema-upgrade-and-static-records.md](docs/VALIDATION-fix-schema-upgrade-and-static-records.md) — manual QA checklist for `fix/schema-upgrade-and-static-records` (fixed-address recording + schema-upgrade hardening) before its version bump: upgrade-from-a-real-install simulation, both address flows, the cross-flow edge cases the `INNER`→`LEFT JOIN` change introduced, deterministic persistence-failure and real-lock-contention checks, rollback safety. Automated coverage for this branch is done (382 unit + 11 integration tests, see the count above); this doc tracks the manual half. Temporary — moves to `docs/archive/` as `DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md` (or folds into the existing archived record) once validation concludes.
+- **[VALIDATION]** [docs/VALIDATION-fix-schema-upgrade-and-static-records.md](docs/VALIDATION-fix-schema-upgrade-and-static-records.md) — manual QA checklist for `fix/schema-upgrade-and-static-records` (fixed-address recording + schema-upgrade hardening) before its version bump: upgrade-from-a-real-install simulation, both address flows, the cross-flow edge cases the `INNER`→`LEFT JOIN` change introduced, deterministic persistence-failure and real-lock-contention checks, rollback safety. Automated coverage for this branch is done (384 unit + 11 integration tests, see the count above); this doc tracks the manual half. Temporary — moves to `docs/archive/` as `DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md` (or folds into the existing archived record) once validation concludes.
 
 **Executed and verified — archived, may be absent from your checkout**
 
@@ -36,7 +36,7 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 - **[PLAN — NOT STARTED]** [docs/PLAN-I18N-CONVENTIONS.md](docs/PLAN-I18N-CONVENTIONS.md) — how a translatable string should be authored (placeholders, brand-token constants, when to template near-duplicates, `translators:` comment format) and the retrofit plan that brings the existing catalog into compliance — motivated by the Premium→Pro rename's ~30-string, 7-locale cost. Read alongside [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md), which governs what belongs in the catalog at all.
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (382 unit tests + 11 MySQL-backed schema tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.1.2** (this number and the one below are bumped by `release.sh`, not by hand). Production-hardening and the WordPress.org review round are both complete and verified (384 unit tests + 11 MySQL-backed schema tests, 7 locales at 100%, Plugin Check clean, manual smoke test passed). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
 
 ---
 
@@ -345,7 +345,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 382 tests, 861 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 384 tests, 869 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Schema tests against real MySQL (run from the repo root)
 
