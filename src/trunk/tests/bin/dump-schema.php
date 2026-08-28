@@ -45,12 +45,7 @@ use PayCryptoMe\WooCommerce\PayCryptoMeLightningGatewayActivate;
 
 global $wpdb;
 
-$tables = [
-    'paycrypto_me_bitcoin_wallet_xpubkeys',
-    'paycrypto_me_bitcoin_derivation_indexes',
-    'paycrypto_me_bitcoin_transactions_data',
-    'paycrypto_me_lightning_invoices',
-];
+$tables = DbInstaller::tables();
 
 $version = $argv[1] ?? DbInstaller::DB_VERSION;
 $prefix  = 'pcmdump_';

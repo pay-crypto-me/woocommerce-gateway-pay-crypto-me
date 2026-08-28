@@ -6,8 +6,12 @@
 > validação concluir e a branch mergear — o valor dele é só até a decisão de bump de versão.
 
 **Dono da execução:** Lucas. **Dono da rede automatizada (unit/integration/scripts):** Claude.
-Este documento cobre só a parte manual/regressão — a automatizada já roda (384 unit + 11 integration
-+ smoke + GMP-less + docs-drift + platform-pin, todos verdes nesta branch).
+Este documento cobre só a parte manual/regressão — a automatizada já roda (403 unit + 18 integration
++ smoke + GMP-less + docs-drift + platform-pin, todos verdes nesta branch — os números subiram de
+384/11 para 403/18 com a execução de `docs/PLAN-SCHEMA-INSTALL-HARDENING.md` em cima desta mesma
+branch: repair path, visibilidade de falha mascarada do `dbDelta`, as corridas de double-submit
+dos Blocos 13/14 abaixo, e uma rodada de `/code-review` que corrigiu 3 achados reais antes do commit
+— ver a seção "Rodada de code review" no fim do plano).
 
 **Critério de aceite:** todos os blocos abaixo com resultado registrado (PASS/FAIL + nota). Um FAIL
 em qualquer bloco 1–5 é bloqueador para bump de versão até investigado. Blocos 6–11 são
@@ -184,17 +188,29 @@ o dado que chega no processor, não o que a tela realmente renderiza.
 6. Repetir o mesmo pedido → agora completa normalmente.
 
 **5b. Corrida real (melhor esforço, não determinístico — duas abas):**
+
+> **Atualizado (2026-08-28):** esta descrição original foi escrita antes de
+> `docs/PLAN-SCHEMA-INSTALL-HARDENING.md` (Front C) existir, quando a única proteção era a
+> `UNIQUE KEY unique_order` da tabela — nesse regime, a perdedora da corrida via mesmo o aviso
+> amigável, e isso contava como PASS. Front C mudou o que conta como sucesso aqui: agora a
+> perdedora relê a linha e devolve o endereço da vencedora **sem** mostrar erro nenhum (ver o
+> "Esperado" corrigido no passo 3 abaixo). O Bloco 14 mais adiante roda essa mesma corrida de duas
+> abas com esse novo critério já como foco principal do bloco (e cobre também o caminho derivado,
+> opcionalmente) — mantenha os dois se quiser tanto o smoke geral (Bloco 5) quanto o bloco dedicado
+> ao achado do Front C (Bloco 14).
+
 1. Configurar endereço fixo. Criar um pedido e ir até a tela de pagamento (`order-pay`), mas sem
    confirmar ainda, em **duas abas do navegador** (ou duas janelas anônimas) na mesma URL de
    pagamento do mesmo pedido.
 2. Confirmar o pagamento nas duas abas o mais simultaneamente possível.
-3. Esperado (proteção já existente, não nova nesta branch — a tabela tem `UNIQUE KEY unique_order`):
-   uma das duas conclui normalmente; a outra, na pior hipótese de corrida genuína, mostra o aviso
-   amigável em vez de duplicar linha ou fatalizar. Mais provável: as duas simplesmente mostram o
-   mesmo resultado (PHP processa sequencialmente na maioria dos setups de dev), o que também é
-   PASS — o objetivo aqui é só confirmar que não há duplicata na tabela e não há fatal, não forçar
-   a corrida a acontecer de fato.
-4. Conferir no banco: exatamente **uma** linha para esse `order_id`.
+3. **Esperado agora (pós Front C):** as duas abas terminam na página do pedido normalmente, **sem**
+   nenhuma mostrar o aviso amigável de falha — mesmo na pior hipótese de corrida genuína. Ver o
+   aviso amigável em qualquer uma das duas abas é **FAIL** (é exatamente o sintoma que Front C
+   corrigiu). Mais provável: as duas simplesmente mostram o mesmo resultado (PHP processa
+   sequencialmente na maioria dos setups de dev) — isso também é PASS, mas não exercita a corrida de
+   fato; não forçar artificialmente, só registrar se não conseguiu observar a corrida acontecendo.
+4. Conferir no banco: exatamente **uma** linha para esse `order_id`, com o mesmo endereço mostrado
+   nas duas abas.
 
 **Resultado:** PASS / FAIL por sub-caso — nota: ___________
 
@@ -306,6 +322,69 @@ docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-w
 
 ---
 
+## Bloco 13 — Reparo de tabela ausente (docs/PLAN-SCHEMA-INSTALL-HARDENING.md, Front A)
+
+Achado da revisão adversarial 2026-08-28 (M1): antes da Front A, um site com a versão gravada como
+atual mas com uma tabela faltando (migração/restore que copiou `wp_options` mas não as 4 tabelas
+custom; um merchant que apagou manualmente a tabela que `uninstall.php` deliberadamente preserva)
+não tinha **nenhum** caminho de auto-reparo — nem a ativação, que curto-circuitava em `is_current()`.
+
+1. Com o plugin ativo e saudável, apagar uma das 4 tabelas:
+   ```bash
+   docker compose exec -T wordpress wp --allow-root db query \
+     "DROP TABLE wp_paycrypto_me_bitcoin_transactions_data;"
+   docker compose exec -T wordpress wp --allow-root transient delete paycrypto_me_db_health_check
+   ```
+2. Carregar qualquer tela do **wp-admin** (dispara `admin_init`) → a tabela volta sozinha, sem
+   precisar reativar o plugin. Confirmar:
+   ```bash
+   docker compose exec -T wordpress wp --allow-root db query "SHOW TABLES LIKE 'wp_paycrypto%'"
+   ```
+   → as 4 tabelas presentes, nenhum aviso novo no admin, `paycrypto_me_db_version` continua `1`.
+3. **Throttle:** apagar a tabela de novo, **sem** apagar o transient `paycrypto_me_db_health_check`
+   desta vez, e carregar o wp-admin de novo → a tabela **não** volta (o probe é pulado enquanto o
+   transient estiver setado, no máximo a cada 12h).
+4. Com a tabela ainda faltando, ir em Plugins → **desativar/reativar** o plugin → a tabela volta
+   imediatamente (a ativação sempre repara, independente do transient/versão gravada).
+5. Confirmar que nada disso aparece numa request de visitante (mesmo cheque do Bloco 1, passo 5 —
+   `SAVEQUERIES`/Query Monitor numa aba anônima, sem `SHOW TABLES LIKE` nem `dbDelta` na query list).
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 14 — Double submit num endereço fixo (docs/PLAN-SCHEMA-INSTALL-HARDENING.md, Front C)
+
+Achado da mesma revisão (Front C): `insert_static_address()`/`insert_address()` retornando `false`
+significava tanto "o INSERT falhou" quanto "já existe uma linha pra esse pedido" — a segunda request
+de duas quase-simultâneas via `order-pay`/duplo-clique no checkout via a primeira leitura como "sem
+linha ainda", perde a corrida do INSERT, e via então um erro de pagamento para um pedido que, de
+fato, já estava registrado pela outra.
+
+1. Configurar On-Chain com um endereço fixo (bech32).
+2. Criar um pedido e chegar até a tela `order-pay`, mas **sem confirmar ainda**, em duas abas do
+   navegador (ou duas janelas anônimas) apontando pra mesma URL de pagamento do mesmo pedido.
+3. Confirmar o pagamento nas duas abas o mais simultaneamente possível.
+4. Esperado: **nenhuma** das duas mostra o aviso amigável de falha de pagamento — as duas terminam
+   na página do pedido normalmente (a perdedora da corrida agora relê e devolve o endereço da
+   vencedora em vez de falhar).
+5. Conferir no banco: exatamente **uma** linha para esse `order_id`.
+
+**Extra opcional (Front C2, caminho derivado):** o mesmo fix foi aplicado simetricamente ao caminho
+com xPub (`resolve_derived_address()`), mas ali o cenário é menos observável na UI — a proteção só
+aparece quando o INSERT perde a corrida depois do índice já ter sido reservado, então o sinal visível
+é o mesmo (nenhuma aba mostra erro, uma linha só na tabela) mas a garantia extra é o índice de
+derivação reservado pela perdedora ser liberado (`release_derivation_index()`), não reaproveitado nem
+vazado — algo que só dá pra confirmar olhando `paycrypto_me_bitcoin_derivation_indexes` (não há
+índice "furado" nem duplicado para o wallet usado). Repita os passos 1–5 configurando um xPub/zPub
+válido em vez do endereço fixo, se quiser cobrir os dois caminhos; cobertura automatizada já existe
+(`BitcoinPaymentProcessorTest::test_derived_address_double_submit_returns_the_winners_row_and_releases_the_index`),
+então isso é reforço, não bloqueador.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
 ## Resumo final
 
 | Bloco | Resultado | Nota |
@@ -322,5 +401,7 @@ docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-w
 | 10 — Reversão | | |
 | 11 — uninstall.php | | |
 | 12 — Técnico automatizado | | |
+| 13 — Reparo de tabela ausente | | |
+| 14 — Double submit endereço fixo (fixo + extra opcional derivado) | | |
 
 **Decisão de bump de versão:** ___________

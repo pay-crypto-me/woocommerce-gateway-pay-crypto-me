@@ -35,4 +35,30 @@ class HookRegistrationTest extends \PHPUnit\Framework\TestCase
             'The schema check must not run on every request — see admin_init/upgrader_process_complete instead'
         );
     }
+
+    public function test_activate_is_the_registered_activation_callback_not_install()
+    {
+        $plugin_file = plugin_basename(WP_PLUGIN_DIR . '/paycrypto-me-for-woocommerce/paycrypto-me-for-woocommerce.php');
+
+        $this->assertNotFalse(
+            has_action('activate_' . $plugin_file, [DbInstaller::class, 'activate']),
+            'DbInstaller::activate() must be the register_activation_hook target (T1)'
+        );
+        $this->assertFalse(
+            has_action('activate_' . $plugin_file, [DbInstaller::class, 'install']),
+            'install() must never be the direct activation target — activation fires it an argument (T1)'
+        );
+    }
+
+    public function test_neither_install_activate_nor_maybe_upgrade_is_hooked_on_a_front_end_hook()
+    {
+        foreach (['plugins_loaded', 'init', 'wp_loaded'] as $hook) {
+            foreach (['install', 'activate', 'maybe_upgrade'] as $method) {
+                $this->assertFalse(
+                    has_action($hook, [DbInstaller::class, $method]),
+                    "DbInstaller::{$method}() must not be hooked on {$hook} (T6)"
+                );
+            }
+        }
+    }
 }

@@ -113,6 +113,14 @@ Namespace: `PayCryptoMe\WooCommerce`. Autoloaded via Composer classmap from `inc
    - xPub/ypub/zpub → `BitcoinAddressService::generate_address_from_xPub()` with an auto-incremented derivation index
    - Index reservation uses `GET_LOCK` / `RELEASE_LOCK` for atomicity
    - Persists via `PayCryptoMeDBStatementsService`
+   - An order that already has a row (checkout retry, `order-pay`) reuses the address on file
+     as-is and does **not** re-validate it against the currently selected network — switching
+     mainnet↔testnet after the order already has a row keeps showing the original address
+     (deliberate: the address the customer already saw wins). A concurrent insert that loses the
+     race (`insert_address()`/`insert_static_address()` returning false because another request
+     just recorded the same order) re-reads and returns that row instead of failing the checkout —
+     see `PayCryptoMeDBStatementsService::insert_address()`'s docblock and
+     `BitcoinPaymentProcessor::resolve_static_address()`/`resolve_derived_address()`.
 5. `PaymentProcessor` saves `_paycrypto_me_*` order meta and sets status to `pending`
 
 ### Payment flow (Lightning)
@@ -215,7 +223,7 @@ All prefixed with `{$wpdb->prefix}`, created via `dbDelta()` in `PayCryptoMeBitc
 - `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id). Both derivation columns hold `PayCryptoMeDBStatementsService::WALLET_ID_STATIC_ADDRESS` (`0`) for a payment to a **fixed address**, where there is no extended key and no index. `0` can never collide — `wallet_xpubkeys.id` is `AUTO_INCREMENT` from 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the fixed-address payments. A sentinel rather than nullable columns because of F1 below. This is also why `get_by_order_id()` joins with `LEFT JOIN`: an `INNER JOIN` drops those rows entirely, which is how they went unrecorded before.
 - `paycrypto_me_lightning_invoices` — (order_id, node_type, invoice_id, payment_request, status, expires_at, amount_sats)
 
-Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — the single `register_activation_hook` target, plus `DbInstaller::maybe_upgrade()` on `admin_init` and `DbInstaller::maybe_upgrade_after_update()` on `upgrader_process_complete`. It runs both `*GatewayActivate::activate()` calls when the code's `DbInstaller::DB_VERSION` is newer than the recorded `paycrypto_me_db_version` (the only way a schema change reaches an already-installed site, since WordPress doesn't re-fire `register_activation_hook` on update). Each `dbDelta()` call is followed by a `$wpdb->last_error` check (dbDelta never checks its own error state); each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
+Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — `DbInstaller::activate()` (a zero-argument wrapper around `install(true)`) is the `register_activation_hook` target, plus `DbInstaller::maybe_upgrade()` on `admin_init` and `DbInstaller::maybe_upgrade_after_update()` on `upgrader_process_complete`. `activate()` always runs both `*GatewayActivate::activate()` calls, regardless of the recorded version — this is what lets it recreate a table that went missing (a restored migration, a merchant who manually dropped a table `uninstall.php` deliberately kept) even on a site whose `paycrypto_me_db_version` was already current. `maybe_upgrade()` (no force) runs them only when the code's `DbInstaller::DB_VERSION` is newer than the recorded version (the only way a schema change reaches an already-installed site otherwise, since WordPress doesn't re-fire `register_activation_hook` on update) — and additionally, when the version IS current, throttled-probes (`SHOW TABLES LIKE`, at most twice a day via the `paycrypto_me_db_health_check` transient) that the 4 tables still exist, force-repairing via `install(true)` if one is missing. The table names have one source: each activator's `TABLE_*` constants (bare names), exposed as `DbInstaller::tables()`. Each `dbDelta()` call goes through `DbDeltaRunner::run()`, which checks `$wpdb->last_error` **and then** a `dbDelta($sql, false)` dry run for anything still structurally missing (see F5 below) — see `DbDeltaRunner`'s own docblock for exactly what "unchanged" means here; each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
 
 ### Schema lifecycle and what `dbDelta()` will not do for you
 
@@ -233,6 +241,7 @@ inferred from the docs:
 | F2 | It *does* apply a **new column** and a **type change**. |
 | F3 | It parses **line by line**: two column definitions on one line means the second is dropped, silently. |
 | F4 | It **never removes** a column or an index. |
+| F5 | `$wpdb->last_error` only reflects the **LAST** statement `dbDelta()` executed — `wpdb::query()` calls `flush()` (which clears `last_error`) on every query, and `dbDelta()` builds every statement up front and executes them all in one loop, column `ALTER`s before index `ALTER`s. A failing `ADD COLUMN` followed by a succeeding `ADD INDEX` therefore leaves `last_error` **empty**, even though the column never landed. Verified against MySQL 8.0.46 (`tests/integration/DbDeltaErrorVisibilityTest.php`'s canary). This is why `DbDeltaRunner` re-runs `dbDelta($sql, false)` (a read-only dry run) after a clean `last_error` and treats any remaining `Created table `/`Added column `/`Added index ` description as a failure — `Changed type of …`/`Changed default value of …` are deliberately ignored as cross-engine normalisation noise. |
 
 F1 is the reason the fixed-address record uses a sentinel instead of nullable columns: the "make
 them nullable and bump `DB_VERSION`" design passes every unit test, works on a fresh install, and
@@ -254,7 +263,14 @@ does nothing at all on every site that already had the plugin.
   `GET_LOCK`/`RELEASE_LOCK`-in-a-`finally` pattern as
   `PayCryptoMeDBStatementsService::reserve_derivation_index_for_wallet()`). Losing the race returns
   `false` **without** recording an error: another request is doing the same work, and the admin
-  notice must not fire for something that resolves itself.
+  notice must not fire for something that resolves itself. `install(bool $force = false)`'s
+  `$force` skips the post-lock `is_current()` short-circuit so `activate()` (`install(true)`) always
+  rebuilds regardless of the recorded version — the self-repair path; `maybe_upgrade()`'s own
+  throttled health check (above) is what calls `install(true)` outside of activation. Neither the
+  install lock nor the wallet lock (`PayCryptoMeDBStatementsService`) is namespaced per
+  database/site — deliberate, not overlooked; see
+  [docs/PLAN-SCHEMA-INSTALL-HARDENING.md](docs/PLAN-SCHEMA-INSTALL-HARDENING.md) § "Deferred by
+  decision" for the finding, why it's acceptable, and what to do if it's ever revisited.
 - **Every `DB_VERSION` bump ships a new `src/trunk/tests/schema/v<N>.sql`**, generated by
   `tests/bin/dump-schema.php` *while that version is what's published*. The convergence test globs
   `tests/schema/v*.sql`, so each historical version stays covered automatically — and a version
@@ -299,7 +315,8 @@ later is cheap. The contract for whoever writes the first one:
 | `QrCodeService` | `services/class-qr-code-service.php` | Generate QR code as data URI (uses `endroid/qr-code`) |
 | `AssetManager` | `utils/class-asset-manager.php` | Register WooCommerce Gutenberg block scripts/styles |
 | `EnvironmentRequirements` | `utils/class-environment-requirements.php` | Which PHP extensions a capability needs (`gmp` on-chain; `gd`/`iconv`/`fileinfo` for QR) and which the host is missing, plus `describe()` for the user-facing message. Single source for the settings-save guard, `unavailability_reasons()` and `QrCodeService` — a missing extension must never be reported as bad user input |
-| `DbInstaller` | `services/class-db-installer.php` | Activation/upgrade of the 4 custom tables + the failed-install admin notice; owns `DB_VERSION`. `install()` is serialized on the `paycrypto_me_db_install` advisory lock; `maybe_upgrade()` is forward-only (`version_compare`) and hooked on `admin_init`/`upgrader_process_complete`, never on the front-end path; `is_current()` is what other code asks before depending on a newer schema |
+| `DbInstaller` | `services/class-db-installer.php` | Activation/upgrade of the 4 custom tables + the failed-install admin notice; owns `DB_VERSION`. `activate()` (zero-argument, the activation hook target) force-repairs regardless of the recorded version; `install(bool $force = false)` is serialized on the `paycrypto_me_db_install` advisory lock; `maybe_upgrade()` is forward-only (`version_compare`), hooked on `admin_init`/`upgrader_process_complete` (never the front-end path), and throttled-probes (`paycrypto_me_db_health_check`, 12h) that the 4 tables still exist even when the version is current; `is_current()` is what other code asks before depending on a newer schema; `tables()` is the one source for the 4 bare table names |
+| `DbDeltaRunner` | `services/class-db-delta-runner.php` | Runs one table's `dbDelta()` and verifies it actually applied: `$wpdb->last_error` first, then a `dbDelta($sql, false)` dry run for anything still structurally missing (F5 above) — `$wpdb->last_error` alone misses a failing non-final statement. Used by both `*GatewayActivate::activate()` methods, one call per table |
 | `OrderGatewayMatcher` | `utils/class-order-gateway-matcher.php` | Pure helper: does `$order->get_payment_method()` match a given gateway id (accepting the `{id}_express` block variant)? Shared by `PaymentOrderValidator` and both gateways' `build_order_display_args()` guards so the two accepted values never drift apart |
 | `AvailablePaymentGatewaysFilter` | `class-available-payment-gateways-filter.php` | Hooks `woocommerce_available_payment_gateways` to hide the alternate PayCryptoMe gateway on "Pay for order" once the order already has payment meta from one of the two — prevents switching payment rails mid-flow (registered once in `WC_PayCryptoMe::__construct()`) |
 
@@ -346,7 +363,7 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 384 tests, 869 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 403 tests, 916 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
 ### Schema tests against real MySQL (run from the repo root)
 

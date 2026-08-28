@@ -20,6 +20,16 @@ All notable changes to this project are documented in this file.
  - Two administrators loading the dashboard at the same moment on a site with a pending database
    upgrade no longer run that upgrade twice in parallel; the second request waits for the first and
    stays silent instead of reporting a failure.
+ - The plugin now restores a payments table that went missing (for example after a site
+   migration/restore, or a manual database cleanup) instead of assuming it is still there —
+   reactivating the plugin repairs it immediately, and the admin dashboard checks periodically on
+   its own.
+ - A database change that partly failed can no longer be recorded as successful. Previously, a
+   future update touching more than one thing on the same table could have a failure in an earlier
+   step masked by success in a later one.
+ - Submitting the same fixed-address Bitcoin order twice in quick succession (for example a
+   double-click, or two browser tabs on the same "Pay for order" page) no longer shows a payment
+   error for an order that was, in fact, already recorded.
 
 ### Planned
 

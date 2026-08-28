@@ -15,6 +15,15 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeBitcoinGatewayActivate
 {
+    // Bare (unprefixed) table names — the one source for them. DbInstaller::tables() exposes
+    // these for the missing-table health check; tests/integration/SchemaTestCase and
+    // tests/bin/dump-schema.php point at DbInstaller::tables() rather than repeating the list.
+    public const TABLE_WALLETS = 'paycrypto_me_bitcoin_wallet_xpubkeys';
+    public const TABLE_DERIVATION_INDEXES = 'paycrypto_me_bitcoin_derivation_indexes';
+    public const TABLE_TRANSACTIONS = 'paycrypto_me_bitcoin_transactions_data';
+
+    public const TABLES = [self::TABLE_WALLETS, self::TABLE_DERIVATION_INDEXES, self::TABLE_TRANSACTIONS];
+
     /**
      * @return string[] Errors recorded during this run — empty means every table is in place.
      *                  Returned as well as stored so DbInstaller::install() can decide whether to
@@ -35,7 +44,7 @@ class PayCryptoMeBitcoinGatewayActivate
         // literal word "IF" — dbDelta then always believes the table doesn't exist yet and
         // just re-runs this raw CREATE (harmless the first time, but any future column change
         // here becomes a silent no-op forever, since dbDelta's real diff/ALTER logic never runs).
-        $wallets_table = $wpdb->prefix . 'paycrypto_me_bitcoin_wallet_xpubkeys';
+        $wallets_table = $wpdb->prefix . self::TABLE_WALLETS;
         $sql = "CREATE TABLE $wallets_table (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             xpub VARCHAR(191) NOT NULL,
@@ -44,22 +53,20 @@ class PayCryptoMeBitcoinGatewayActivate
             UNIQUE KEY unique_xpub_network (xpub, network)
         ) $charset_collate;";
 
-        dbDelta($sql);
-        $errors = array_merge($errors, self::record_error_if_any($wallets_table));
+        $errors = array_merge($errors, DbDeltaRunner::run($sql, $wallets_table));
 
         // No FOREIGN KEY: dbDelta doesn't manage FKs at all, and on a MyISAM host the
         // constraint is silently dropped — integrity is already enforced by the composite PK.
-        $indexes_table = $wpdb->prefix . 'paycrypto_me_bitcoin_derivation_indexes';
+        $indexes_table = $wpdb->prefix . self::TABLE_DERIVATION_INDEXES;
         $sql = "CREATE TABLE $indexes_table (
             derivation_index BIGINT(20) UNSIGNED NOT NULL,
             wallet_xpubkeys_id BIGINT(20) UNSIGNED NOT NULL,
             PRIMARY KEY (derivation_index, wallet_xpubkeys_id)
         ) $charset_collate;";
 
-        dbDelta($sql);
-        $errors = array_merge($errors, self::record_error_if_any($indexes_table));
+        $errors = array_merge($errors, DbDeltaRunner::run($sql, $indexes_table));
 
-        $table_name = $wpdb->prefix . 'paycrypto_me_bitcoin_transactions_data';
+        $table_name = $wpdb->prefix . self::TABLE_TRANSACTIONS;
         $sql = "CREATE TABLE $table_name (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             order_id BIGINT(20) UNSIGNED NOT NULL,
@@ -75,34 +82,8 @@ class PayCryptoMeBitcoinGatewayActivate
             UNIQUE KEY unique_order (order_id)
         ) $charset_collate;";
 
-        dbDelta($sql);
-        $errors = array_merge($errors, self::record_error_if_any($table_name));
+        $errors = array_merge($errors, DbDeltaRunner::run($sql, $table_name));
 
         return $errors;
-    }
-
-    /**
-     * dbDelta()'s return value is a list of change descriptions, not a success flag — the
-     * only reliable failure signal is $wpdb->last_error, which dbDelta never checks itself.
-     * Without this, a failed CREATE (e.g. the InnoDB 767-byte index-key limit on older
-     * MySQL/MariaDB) reports activation as successful and fails silently on the first order.
-     *
-     * @return string[] The error recorded for this table, or an empty array.
-     */
-    private static function record_error_if_any(string $table_name): array
-    {
-        global $wpdb;
-
-        if (empty($wpdb->last_error)) {
-            return [];
-        }
-
-        $error = \sprintf('%s: %s', $table_name, $wpdb->last_error);
-
-        $errors   = get_option('paycrypto_me_db_activation_errors', []);
-        $errors[] = $error;
-        update_option('paycrypto_me_db_activation_errors', $errors);
-
-        return [$error];
     }
 }

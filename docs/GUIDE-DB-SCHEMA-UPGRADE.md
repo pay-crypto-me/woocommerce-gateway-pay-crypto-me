@@ -41,6 +41,15 @@ continuam valendo:
 - Coluna nova que precisa aceitar valor ausente em linhas antigas: **não** declare `NULL` se a
   coluna vai existir numa tabela que já tem linhas em produção — pense num valor sentinela como
   `WALLET_ID_STATIC_ADDRESS` fez, ou aceite que ela só é preenchida daqui pra frente.
+- **Um bump que toca mais de uma coisa na mesma tabela** (ex. uma coluna nova *e* um índice novo)
+  faz `dbDelta()` emitir várias `ALTER` na mesma chamada — colunas antes de índices. `$wpdb->last_error`
+  só reflete a **última** statement executada (F5 no CLAUDE.md), então uma coluna que falha seguida
+  de um índice que funciona deixa `last_error` vazio mesmo com a coluna ausente. Isso não é mais um
+  ponto cego silencioso: `DbDeltaRunner` (usado por ambos os `*GatewayActivate::activate()`) roda um
+  segundo cheque — `dbDelta($sql, false)` (dry run) — depois de um `last_error` limpo, e trata
+  qualquer `Created table `/`Added column `/`Added index ` restante como falha. Não precisa fazer
+  nada especial por causa disso; só saiba que é esse mecanismo, e não `last_error` sozinho, que pega
+  esse caso no passo 4 abaixo.
 
 ### 2. Bump `DbInstaller::DB_VERSION`
 
@@ -74,8 +83,19 @@ extra de registro é necessário além de o arquivo existir.
 
 Isso instala **cada** snapshot congelado (incluindo o que você acabou de gerar) e roda
 `DbInstaller::install()` por cima, comparando o resultado com uma instalação nova. Se falhar, é
-porque a mudança do passo 1 não faz o que você imagina que faz — volte para os fatos F1–F4 no
+porque a mudança do passo 1 não faz o que você imagina que faz — volte para os fatos F1–F5 no
 CLAUDE.md antes de assumir que é bug no teste.
+
+Além do teste de convergência (fingerprint de `SHOW COLUMNS`/`SHOW INDEX`), a trilha também roda a
+asserção "nada pendente" (`SchemaUpgradeTest::assert_nothing_pending()`, chamada tanto logo após uma
+instalação nova quanto depois de cada upgrade a partir de um snapshot congelado): ela re-executa os
+dois `*GatewayActivate::activate()` — que, via `DbDeltaRunner`, fazem o próprio `dbDelta($sql, false)`
+dry run — e falha se qualquer um reportar erro. Essa é a garantia permanente de que o dry run do
+`DbDeltaRunner` concorda com "nada pendente" para as nossas 4 tabelas, na engine que está rodando o
+teste. Se ela um dia falhar numa engine diferente (MariaDB, uma versão nova de MySQL), **não**
+alargue o filtro do `DbDeltaRunner` para fazer passar — a saída documentada nesse cenário é um cheque
+de pós-condição estrutural (parsear nomes de coluna/`KEY` do `CREATE TABLE` e checar via
+`SHOW COLUMNS`/`SHOW INDEX`), não relaxar o que conta como "ainda ausente".
 
 **Vale rodar um controle negativo pelo menos uma vez** (foi assim que esta trilha foi validada):
 quebre a mudança de propósito (ex. declare a coluna nova `NULL` quando devia ser `NOT NULL`) e

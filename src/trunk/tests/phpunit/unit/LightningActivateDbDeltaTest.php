@@ -44,10 +44,16 @@ class LightningActivateDbDeltaTest extends TestCase
         if (!isset($GLOBALS['__dbdelta_captured'])) {
             $GLOBALS['__dbdelta_captured'] = [];
         }
+        unset($GLOBALS['__dbdelta_dry_run_result']);
 
         if (!function_exists('dbDelta')) {
-            function dbDelta($queries)
+            // $execute = false is DbDeltaRunner's post-condition dry run — see ActivateDbDeltaTest.
+            function dbDelta($queries, $execute = true)
             {
+                if (!$execute) {
+                    return $GLOBALS['__dbdelta_dry_run_result'] ?? [];
+                }
+
                 if (is_string($queries)) {
                     $q = $queries;
                 } elseif (is_array($queries)) {
@@ -66,7 +72,7 @@ class LightningActivateDbDeltaTest extends TestCase
             if (!is_dir($upgrade_dir)) {
                 @mkdir($upgrade_dir, 0777, true);
             }
-            $stub = "<?php\nif (!function_exists('dbDelta')) { function dbDelta(\$queries) { global \$__dbdelta_captured; if (is_string(\$queries)) { \$q=\$queries; } elseif (is_array(\$queries)) { \$q=implode(\"\\n\", \$queries); } else { \$q=''; } \$GLOBALS['__dbdelta_captured'][] = \$q; return true; } }\n";
+            $stub = "<?php\nif (!function_exists('dbDelta')) { function dbDelta(\$queries, \$execute = true) { global \$__dbdelta_captured; if (!\$execute) { return []; } if (is_string(\$queries)) { \$q=\$queries; } elseif (is_array(\$queries)) { \$q=implode(\"\\n\", \$queries); } else { \$q=''; } \$GLOBALS['__dbdelta_captured'][] = \$q; return true; } }\n";
             @file_put_contents($upgrade_path, $stub);
         }
 

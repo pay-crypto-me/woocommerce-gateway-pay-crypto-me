@@ -22,6 +22,8 @@ class FakeWPDB
         return vsprintf($query, $args);
     }
 
+    public ?array $order_row_result = null;
+
     public function get_row($query, $output = ARRAY_A)
     {
         $this->last_query = $query;
@@ -31,7 +33,11 @@ class FakeWPDB
             return ['id' => 321];
         }
 
-        // No matching row for other queries (e.g. transactions)
+        if (stripos($query, 'FROM wp_paycrypto_me_bitcoin_transactions_data') !== false) {
+            return $this->order_row_result;
+        }
+
+        // No matching row for other queries
         return null;
     }
 
@@ -86,6 +92,7 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
     {
         global $wpdb;
         $wpdb = new FakeWPDB();
+        $GLOBALS['__wp_cache_store'] = [];
     }
 
     public function test_insert_wallet_xpubkey_returns_insert_id()
@@ -200,5 +207,48 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
             ['derivation_index' => 5, 'wallet_xpubkeys_id' => 1],
             $wpdb->delete_calls[0]['where']
         );
+    }
+
+    public function test_get_by_order_id_does_not_cache_a_miss()
+    {
+        // Front C3: the read guard already treats a cached null as a miss, so caching null is a
+        // no-op today — but a live trap for whoever later "tidies" that guard. Only a positive row
+        // may be cached, or a caller re-reading after losing an insert race (BitcoinPaymentProcessor)
+        // would get a stale null for 300 seconds.
+        $svc = new PayCryptoMeDBStatementsService();
+
+        $result = $svc->get_by_order_id(4000);
+
+        $this->assertNull($result);
+        $this->assertArrayNotHasKey('paycrypto_me:paycrypto_order_4000', $GLOBALS['__wp_cache_store']);
+    }
+
+    public function test_get_by_order_id_caches_a_hit()
+    {
+        global $wpdb;
+        $wpdb->order_row_result = ['payment_address' => '1CachedAddr'];
+
+        $svc = new PayCryptoMeDBStatementsService();
+        $result = $svc->get_by_order_id(4001);
+
+        $this->assertSame(['payment_address' => '1CachedAddr'], $result);
+        $this->assertSame(
+            ['payment_address' => '1CachedAddr'],
+            $GLOBALS['__wp_cache_store']['paycrypto_me:paycrypto_order_4001']
+        );
+    }
+
+    public function test_db_installer_tables_are_disjoint_and_non_empty()
+    {
+        $this->assertNotEmpty(\PayCryptoMe\WooCommerce\PayCryptoMeBitcoinGatewayActivate::TABLES);
+        $this->assertNotEmpty(\PayCryptoMe\WooCommerce\PayCryptoMeLightningGatewayActivate::TABLES);
+        $this->assertSame(
+            [],
+            array_intersect(
+                \PayCryptoMe\WooCommerce\PayCryptoMeBitcoinGatewayActivate::TABLES,
+                \PayCryptoMe\WooCommerce\PayCryptoMeLightningGatewayActivate::TABLES
+            )
+        );
+        $this->assertCount(4, \PayCryptoMe\WooCommerce\DbInstaller::tables());
     }
 }

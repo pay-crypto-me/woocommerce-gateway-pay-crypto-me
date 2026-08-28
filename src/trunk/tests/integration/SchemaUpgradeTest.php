@@ -22,7 +22,14 @@ class SchemaUpgradeTest extends SchemaTestCase
             'tests/schema/ is empty. Every DB_VERSION must have a frozen snapshot — see tests/bin/dump-schema.php.'
         );
 
-        $fresh = $this->schema_fingerprints($this->fresh_install());
+        $fresh_prefix = $this->fresh_install();
+        $fresh = $this->schema_fingerprints($fresh_prefix);
+
+        // Front B1 gate, permanent: right after a fresh install, dbDelta's own dry run must agree
+        // nothing is pending for our schema — the assumption DbDeltaRunner's post-condition check
+        // is built on. If this ever fails on a different engine (MariaDB, a newer MySQL), Front B
+        // must fall back to parsing CREATE TABLE structurally instead of widening this filter.
+        $this->assert_nothing_pending($fresh_prefix);
 
         foreach ($snapshots as $snapshot) {
             $upgraded_prefix = $this->reserve_prefix();
@@ -33,7 +40,7 @@ class SchemaUpgradeTest extends SchemaTestCase
 
             $this->assertTrue($installed, basename($snapshot) . ': the upgrade reported failure');
 
-            foreach (self::TABLES as $table) {
+            foreach (self::tables() as $table) {
                 $this->assertSame(
                     $fresh[$table],
                     $this->schema_fingerprint($upgraded_prefix . $table),
@@ -42,7 +49,28 @@ class SchemaUpgradeTest extends SchemaTestCase
                         . 'column declared on the same line, any removal) — this is what that looks like.'
                 );
             }
+
+            $this->assert_nothing_pending($upgraded_prefix, basename($snapshot) . ': ');
         }
+    }
+
+    /**
+     * Front B1 gate, made permanent: re-runs BOTH activators directly (not DbInstaller::install(),
+     * which would also touch the lock/version bookkeeping) under $prefix and asserts they report no
+     * error. Each activator's dbDelta($sql, false) dry run (via DbDeltaRunner) is exactly the check
+     * that would catch a structurally-absent table/column/index that $wpdb->last_error alone missed
+     * (F5, M2) — re-running against a schema that should already be complete is what proves it
+     * agrees with "nothing pending" for our own 4 tables, on THIS engine. Deliberately re-running
+     * the real activators rather than duplicating their CREATE TABLE strings into this test.
+     */
+    private function assert_nothing_pending(string $prefix, string $message_prefix = ''): void
+    {
+        $errors = $this->with_prefix($prefix, static fn(): array => array_merge(
+            \PayCryptoMe\WooCommerce\PayCryptoMeBitcoinGatewayActivate::activate(),
+            \PayCryptoMe\WooCommerce\PayCryptoMeLightningGatewayActivate::activate()
+        ));
+
+        $this->assertSame([], $errors, $message_prefix . 'dbDelta reports the schema is still incomplete: ' . implode('; ', $errors));
     }
 
     public function test_install_is_idempotent()
@@ -123,7 +151,7 @@ class SchemaUpgradeTest extends SchemaTestCase
 
         global $wpdb;
 
-        foreach (self::TABLES as $table) {
+        foreach (self::tables() as $table) {
             $this->assertSame(
                 $prefix . $table,
                 $wpdb->get_var("SHOW TABLES LIKE '{$prefix}{$table}'")

@@ -15,12 +15,15 @@ use PayCryptoMe\WooCommerce\DbInstaller;
  */
 abstract class SchemaTestCase extends TestCase
 {
-    protected const TABLES = [
-        'paycrypto_me_bitcoin_wallet_xpubkeys',
-        'paycrypto_me_bitcoin_derivation_indexes',
-        'paycrypto_me_bitcoin_transactions_data',
-        'paycrypto_me_lightning_invoices',
-    ];
+    /**
+     * @return string[] The 4 bare table names — sourced from DbInstaller::tables() (itself backed
+     *                  by each activator's TABLE_* constants) rather than repeated here, per
+     *                  docs/PLAN-SCHEMA-INSTALL-HARDENING.md Front A3.
+     */
+    protected static function tables(): array
+    {
+        return DbInstaller::tables();
+    }
 
     /** Unique across the whole run, so a leaked table from one test cannot be seen by another. */
     private static int $namespace_counter = 0;
@@ -56,7 +59,7 @@ abstract class SchemaTestCase extends TestCase
         $wpdb->prefix = $this->original_prefix;
 
         foreach ($this->created_prefixes as $prefix) {
-            foreach (self::TABLES as $table) {
+            foreach (self::tables() as $table) {
                 $wpdb->query("DROP TABLE IF EXISTS `{$prefix}{$table}`");
             }
         }
@@ -209,7 +212,7 @@ abstract class SchemaTestCase extends TestCase
     {
         $fingerprints = [];
 
-        foreach (self::TABLES as $table) {
+        foreach (self::tables() as $table) {
             $fingerprints[$table] = $this->schema_fingerprint($prefix . $table);
         }
 

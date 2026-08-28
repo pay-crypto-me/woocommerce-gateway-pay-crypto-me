@@ -32,6 +32,11 @@ class DbInstaller
     public const ERRORS_OPTION  = 'paycrypto_me_db_activation_errors';
     public const RETRY_TRANSIENT = 'paycrypto_me_db_upgrade_retry';
 
+    // Throttles the "are the 4 tables actually there" probe added alongside the repair path
+    // below — otherwise every admin_init hit would run a SHOW TABLES LIKE per table.
+    public const HEALTH_TRANSIENT = 'paycrypto_me_db_health_check';
+    private const HEALTH_CHECK_INTERVAL = 12 * HOUR_IN_SECONDS;
+
     // MySQL advisory lock serializing install(): two admin requests arriving on an out-of-date
     // site would otherwise run dbDelta's ALTERs against the same tables concurrently. Same
     // mechanism as PayCryptoMeDBStatementsService::reserve_derivation_index_for_wallet().
@@ -47,9 +52,13 @@ class DbInstaller
      * forever: the upgrade never ran again and the failure surfaced only as broken payments much
      * later. On failure the recorded version stays behind so the next attempt retries.
      *
+     * @param bool $force Skip the post-lock is_current() short-circuit and always run the
+     *                     activators — needed by activate() so a site whose recorded version is
+     *                     already current but whose tables are missing (a restored/rolled-back
+     *                     site) still gets them recreated on the SAME activation.
      * @return bool Whether the schema is now at DB_VERSION.
      */
-    public static function install(): bool
+    public static function install(bool $force = false): bool
     {
         global $wpdb;
 
@@ -71,8 +80,9 @@ class DbInstaller
             // blindly rerunning dbDelta on all 4 tables and rewriting the version option again —
             // that redundant pass is wasted work at best, and at worst a transient DB hiccup on it
             // would raise the "tables failed to install" notice for a schema that already upgraded
-            // cleanly.
-            if (self::is_current()) {
+            // cleanly. Skipped under $force: the caller already established the tables need
+            // rebuilding regardless of the recorded version.
+            if (!$force && self::is_current()) {
                 return true;
             }
 
@@ -80,6 +90,19 @@ class DbInstaller
         } finally {
             $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', self::INSTALL_LOCK));
         }
+    }
+
+    /**
+     * The register_activation_hook target. A zero-argument wrapper, not install() directly:
+     * activation fires do_action("activate_{$plugin}", $network_wide) with a bool, and
+     * install(bool $force) would silently receive it as $force — a single-site activation would
+     * pass false (today's bug intact) and a network activation true, coupling the schema-force
+     * behaviour to multisite by accident. See maybe_upgrade_after_update() for the same hazard on
+     * the other hook.
+     */
+    public static function activate(): void
+    {
+        self::install(true);
     }
 
     private static function run_install(): bool
@@ -105,7 +128,8 @@ class DbInstaller
 
     /**
      * Re-runs the install when DB_VERSION changed since the last successful run — the only way a
-     * schema change reaches a site that installed an earlier version.
+     * schema change reaches a site that installed an earlier version — and, when the schema is
+     * already current, throttled-probes that the 4 tables actually still exist.
      *
      * Throttled after a failure: install() deliberately leaves the recorded version behind so the
      * upgrade is retried, and without the transient that retry would re-run dbDelta on every
@@ -113,20 +137,82 @@ class DbInstaller
      */
     public static function maybe_upgrade(): void
     {
+        if (get_transient(self::RETRY_TRANSIENT)) {
+            return;
+        }
+
         // version_compare, not a strict comparison: a RECORDED version newer than the code's is
         // also "different", and the site that has it is running an older plugin than the one that
         // wrote it (a manual downgrade, a rolled-back update). Re-running the activators there
         // would rewrite the option backwards, so the real upgrade would then be skipped when the
         // newer plugin came back. Forward-only, like the schema itself.
-        if (self::is_current()) {
+        if (!self::is_current()) {
+            self::install();
+
             return;
         }
 
-        if (get_transient(self::RETRY_TRANSIENT)) {
+        self::verify_tables_present();
+    }
+
+    /**
+     * A recorded version that is current says nothing about whether the tables are actually
+     * there — a restored site migration, or a merchant who manually dropped the tables
+     * uninstall.php deliberately kept, both leave that option set with nothing behind it. Without
+     * this, activation is the ONLY self-repair path, and the admin notice's own advice
+     * ("try deactivating/reactivating the plugin") has nothing else to point at.
+     */
+    private static function verify_tables_present(): void
+    {
+        if (get_transient(self::HEALTH_TRANSIENT)) {
             return;
         }
 
-        self::install();
+        // Set before the work, not after: an uncaught fatal below must not turn this into a
+        // per-request probe for as long as the host stays broken. A repair attempt that returns
+        // normally but FAILS un-sets it again (below) — otherwise this 12h window would outlive
+        // install()'s own 1h RETRY_TRANSIENT and silence the next automatic repair attempt for up
+        // to ~11 hours longer than the rest of the code's retry cadence implies.
+        set_transient(self::HEALTH_TRANSIENT, 1, self::HEALTH_CHECK_INTERVAL);
+
+        if (self::missing_tables() === []) {
+            return;
+        }
+
+        if (!self::install(true)) {
+            delete_transient(self::HEALTH_TRANSIENT);
+        }
+    }
+
+    /** @return string[] Full, prefixed names of the declared tables that do not currently exist. */
+    private static function missing_tables(): array
+    {
+        global $wpdb;
+
+        $missing = [];
+
+        foreach (self::tables() as $table) {
+            $full_name = $wpdb->prefix . $table;
+
+            $found = $wpdb->get_var(
+                $wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($full_name))
+            );
+
+            if ($found !== $full_name) {
+                $missing[] = $full_name;
+            }
+        }
+
+        return $missing;
+    }
+
+    /** @return string[] Bare (unprefixed) names of all 4 custom tables — the one source for them. */
+    public static function tables(): array
+    {
+        return array_merge(
+            PayCryptoMeBitcoinGatewayActivate::TABLES,
+            PayCryptoMeLightningGatewayActivate::TABLES
+        );
     }
 
     /**

@@ -31,8 +31,6 @@ TRUNK="$REPO_ROOT/src/trunk"
 # of loosening the check, so "planned" stays distinguishable from "rotted".
 PLANNED_PATHS=(
     "scripts/check-i18n-conventions.sh"
-    # docs/PLAN-SCHEMA-INSTALL-HARDENING.md's front B creates this. Drop the entry when it exists.
-    "src/trunk/includes/services/class-db-delta-runner.php"
 )
 # WordPress core, not ours: the docs cite wp-includes/functions.php,
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) and wp-includes/class-wpdb.php

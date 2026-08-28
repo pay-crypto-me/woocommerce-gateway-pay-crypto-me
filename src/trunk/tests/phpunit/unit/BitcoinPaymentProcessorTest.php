@@ -413,4 +413,80 @@ class BitcoinPaymentProcessorTest extends TestCase
             $this->assertSame($original, $e->getPrevious());
         }
     }
+
+    public function test_static_address_double_submit_returns_the_winners_row_instead_of_failing()
+    {
+        // Front C1: insert_static_address() returning false means either "insert failed" or "a row
+        // already exists" (its own exists_for_order() guard) — a near-simultaneous second
+        // order-pay/checkout submission can lose that race after already passing the FIRST
+        // get_by_order_id() check. The loser must see the winner's row, not fail the customer.
+        [$gateway, $order] = $this->static_address_gateway_and_order(31, '1StaticAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturnOnConsecutiveCalls(
+            null,
+            ['payment_address' => '1StaticAddr']
+        );
+        $db->method('insert_static_address')->willReturn(false);
+
+        $out = (new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db))
+            ->process($order, ['crypto_amount' => 0.5]);
+
+        $this->assertSame('1StaticAddr', $out['payment_address']);
+    }
+
+    public function test_static_address_still_throws_when_insert_fails_and_no_row_exists()
+    {
+        // The genuine failure case: insert_static_address() returned false and the re-read still
+        // finds nothing, so this really was an INSERT failure, not a lost race.
+        [$gateway, $order] = $this->static_address_gateway_and_order(32, '1StaticAddr');
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturn(null);
+        $db->method('insert_static_address')->willReturn(false);
+
+        $processor = new BitcoinPaymentProcessor($gateway, $this->static_address_service(), $db);
+
+        $this->expectException(\PayCryptoMe\WooCommerce\PayCryptoMePaymentException::class);
+        $processor->process($order, ['crypto_amount' => 0.5]);
+    }
+
+    public function test_derived_address_double_submit_returns_the_winners_row_and_releases_the_index()
+    {
+        // Front C2, symmetric to C1: insert_address() returning false after the first
+        // get_by_order_id() miss means the other racing request already recorded the order. The
+        // loser must return that row (not throw) and release the index it reserved for nothing.
+        $gateway = $this->createMock(\WC_Payment_Gateway::class);
+        $gateway->method('get_option')->willReturnCallback(fn ($key, $empty_value = null) => match ($key) {
+            'network_identifier' => 'xpub_fake',
+            'selected_network'   => 'mainnet',
+            default              => $empty_value,
+        });
+
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(88);
+
+        $db = $this->createMock(\PayCryptoMe\WooCommerce\PayCryptoMeDBStatementsService::class);
+        $db->method('get_by_order_id')->willReturnOnConsecutiveCalls(
+            null,
+            ['payment_address' => '1WinnerAddr', 'derivation_index' => 4]
+        );
+        $db->method('get_wallet_xpubkey_id')->willReturn(9);
+        $db->method('reserve_derivation_index_for_wallet')->willReturn(3);
+        $db->method('insert_address')->willReturn(false);
+        $db->expects($this->once())
+            ->method('release_derivation_index')
+            ->with(9, 3)
+            ->willReturn(true);
+
+        $btcSvc = $this->createMock(\PayCryptoMe\WooCommerce\BitcoinAddressService::class);
+        $btcSvc->method('validate_extended_pubkey')->willReturn(true);
+        $btcSvc->method('generate_address_from_xPub')->willReturn('1LoserAddr');
+        $btcSvc->method('build_bitcoin_payment_uri')->willReturn('bitcoin:1WinnerAddr');
+
+        $out = (new BitcoinPaymentProcessor($gateway, $btcSvc, $db))->process($order, ['crypto_amount' => 0.1]);
+
+        $this->assertSame('1WinnerAddr', $out['payment_address']);
+        $this->assertSame(4, $out['derivation_index']);
+    }
 }

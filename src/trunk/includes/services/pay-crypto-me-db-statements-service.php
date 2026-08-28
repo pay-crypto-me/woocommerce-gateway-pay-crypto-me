@@ -36,9 +36,9 @@ class PayCryptoMeDBStatementsService
 	public function __construct()
 	{
 		global $wpdb;
-		$this->table_name = $wpdb->prefix . 'paycrypto_me_bitcoin_transactions_data';
-		$this->indexes_table = $wpdb->prefix . 'paycrypto_me_bitcoin_derivation_indexes';
-		$this->wallet_xpubkeys_table = $wpdb->prefix . 'paycrypto_me_bitcoin_wallet_xpubkeys';
+		$this->table_name = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_TRANSACTIONS;
+		$this->indexes_table = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_DERIVATION_INDEXES;
+		$this->wallet_xpubkeys_table = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_WALLETS;
 	}
 
 	public function get_table_name(): string
@@ -82,7 +82,13 @@ class PayCryptoMeDBStatementsService
 		);
 
 		$row = $row ?: null;
-		if (function_exists('wp_cache_set')) {
+
+		// Only cache a positive hit. The read guard above already treats a cached null as a miss
+		// (`$cached !== false && $cached !== null`), so caching null here is a no-op today — but a
+		// later "tidy" of that guard to `$cached !== false` would silently turn it into a real
+		// 300-second stale negative cache, defeating the re-read a caller does after losing an
+		// insert race (see BitcoinPaymentProcessor::resolve_static_address()/resolve_derived_address()).
+		if ($row !== null && function_exists('wp_cache_set')) {
 			wp_cache_set( $cache_key, $row, 'paycrypto_me', 300 );
 		}
 
@@ -316,7 +322,7 @@ class PayCryptoMeDBStatementsService
 
 		// Table name is constructed from $wpdb->prefix in the constructor.
 		// Use explicit prefix concat in-place to reduce variable interpolation heuristics.
-		$table_name = esc_sql( $wpdb->prefix . 'paycrypto_me_bitcoin_derivation_indexes' );
+		$table_name = esc_sql( $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_DERIVATION_INDEXES );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		// TRUNCATE operates on the concrete table name; we escape the fragment above.

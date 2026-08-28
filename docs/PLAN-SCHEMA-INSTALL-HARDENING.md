@@ -1,6 +1,15 @@
-# [PLAN — NOT STARTED] Schema install hardening — repair path + `dbDelta` error visibility
+# [PLAN — EXECUTED, MANUAL QA PENDING] Schema install hardening — repair path + `dbDelta` error visibility
 
-**Status: plan, not started. Nothing in this document is in the code yet.**
+**Status (2026-08-28): Fronts A, B, C and D (docs) are implemented and automated-verified — 403 unit
+tests (was 384) + 18 integration tests (was 11), both suites green, plus smoke/GMP-less/docs-drift/
+platform-pin/Plugin Check all green (see "Verification" below for the exact counts and a run log).
+Every new automated test in the Test Plan section was made to fail once by deliberately reverting
+the relevant production code, confirmed to fail for the right reason, then reverted back — see the
+per-front notes inline below. What remains before this moves to `[DONE]`/archive is the **manual**
+half: DoD rows that require a human in a real browser (manual checks A/B/C in "Verification", and
+the two new VALIDATION blocks 12b/12c below) — that is Lucas's side of the split this repo already
+uses for `docs/VALIDATION-fix-schema-upgrade-and-static-records.md`. Do not re-execute Fronts A–D;
+pick up from the DoD table's blank manual rows.
 
 This plan is written to be executed by a fresh agent or human with **only this file and the codebase**.
 It assumes no prior conversation, no memory of the review that produced it, and no access to the
@@ -278,6 +287,11 @@ from every frozen snapshot. M3 says it passes on MySQL 8.0.46; run it yourself b
   names out of the `CREATE TABLE` string (one declaration per line is already mandatory — fact F3)
   and assert each exists via `SHOW COLUMNS` / `SHOW INDEX`. Record which path you took in the doc
   updates of Front D.
+
+**Executed 2026-08-28, primary path taken.** Ran the spike directly against the dev container's
+MySQL 8.0.46: fresh-install the 4 tables under an isolated prefix, then re-run each of the 4
+`CREATE TABLE` declarations through `dbDelta($sql, false)` — all 4 returned `array()` (empty). M3
+confirmed, no fallback needed. `DbDeltaRunner` (Front B2) was built exactly as specified.
 
 ### B2. `DbDeltaRunner` — one place that runs `dbDelta` and verifies it
 
@@ -635,26 +649,64 @@ blank means the plan was not finished, not that the row was unnecessary.
 
 | # | Criterion | How it is proven | Result |
 |---|---|---|---|
-| 1 | A missing table is recreated on the next admin page load | integration `SchemaRepairTest` (19) + manual check A | |
-| 2 | A missing table is recreated by deactivate/reactivate | integration (18) + manual check B | |
-| 3 | The health probe is throttled and never front-end | integration (20) + unit (5,6,7) + `HookRegistrationTest` (26) + manual check C | |
-| 4 | The activation callback takes no arguments (T1) | unit (3) + integration (25) | |
-| 5 | A masked `dbDelta` failure is recorded as a failure | integration (21,22) + unit (9) | |
-| 6 | `DB_VERSION` is never recorded when a declared table/column/index is absent | unit (9) asserts no version write + `RETRY_TRANSIENT` set | |
-| 7 | Our 4 tables report nothing pending after install and after every frozen-snapshot upgrade | integration (23,24) | |
-| 8 | Existing lock/race/forward-only behaviour unchanged | `DbInstallerTest` + `InstallLockContentionTest` + `SchemaUpgradeTest` all pass, T4 test kept | |
-| 9 | A double-submitted fixed-address order shows no error and leaves one row | unit (12,13) + the new VALIDATION block | |
-| 10 | The derived path behaves the same way and releases its index | unit (14) | |
-| 11 | Null lookups are not cached | unit (15,16) | |
-| 12 | Table names have exactly one source | unit (17); `grep -rn "paycrypto_me_bitcoin_wallet_xpubkeys" src/trunk --include=*.php` shows the constant plus test fixtures only | |
-| 13 | Unit suite green, count recorded | command 1 → `___ tests, ___ assertions, 4 skipped` (must be > 384) | |
-| 14 | Integration suite green, count recorded | command 2 → `___ tests, ___ assertions` (must be > 11) | |
-| 15 | Smoke, GMP-less, drift, pin, Plugin Check all green | commands 3–6 | |
-| 16 | Every new test was made to fail once, on purpose | list each test id + the sabotage used + "reverted" | |
-| 17 | Docs updated and consistent | Front D items 1–9 all done; the `PLANNED_PATHS` entry for `class-db-delta-runner.php` removed from `scripts/check-docs-drift.sh` now that the file exists; `./scripts/check-docs-drift.sh` clean | |
-| 18 | No `DB_VERSION` bump, no SQL change | `git diff main...HEAD -- src/trunk/includes/services/class-paycrypto-me-*-gateway-activate.php` shows no change inside any `CREATE TABLE` string, and `DB_VERSION` is still `'1'` | |
-| 19 | No new front-end work | `git diff` review: no hook registration outside `admin_init`/`upgrader_process_complete`/`register_activation_hook` | |
-| 20 | Lock names untouched, limitation documented | `git diff` shows no change to `INSTALL_LOCK` or the wallet lock name; Front D item 8 done | |
+| 1 | A missing table is recreated on the next admin page load | integration `SchemaRepairTest` (19) + manual check A | Integration: PASS (`SchemaRepairTest::test_admin_init_repairs_a_missing_table_when_the_health_transient_is_clear`). Manual check A: **pending — Lucas** |
+| 2 | A missing table is recreated by deactivate/reactivate | integration (18) + manual check B | Integration: PASS (`SchemaRepairTest::test_activation_recreates_a_missing_table_regardless_of_the_recorded_version`). Manual check B: **pending — Lucas** |
+| 3 | The health probe is throttled and never front-end | integration (20) + unit (5,6,7) + `HookRegistrationTest` (26) + manual check C | All automated: PASS. Manual check C: **pending — Lucas** |
+| 4 | The activation callback takes no arguments (T1) | unit (3) + integration (25) | PASS |
+| 5 | A masked `dbDelta` failure is recorded as a failure | integration (21,22) + unit (9) | PASS |
+| 6 | `DB_VERSION` is never recorded when a declared table/column/index is absent | unit (9) asserts no version write + `RETRY_TRANSIENT` set | PASS |
+| 7 | Our 4 tables report nothing pending after install and after every frozen-snapshot upgrade | integration (23,24) | PASS (`SchemaUpgradeTest::assert_nothing_pending()`, called after fresh install and after each of the frozen snapshots) |
+| 8 | Existing lock/race/forward-only behaviour unchanged | `DbInstallerTest` + `InstallLockContentionTest` + `SchemaUpgradeTest` all pass, T4 test kept | PASS — T4 (`test_install_rechecks_is_current_after_acquiring_the_lock`) kept verbatim, plus its `install(true)`/`activate()` sibling added |
+| 9 | A double-submitted fixed-address order shows no error and leaves one row | unit (12,13) + the new VALIDATION block | Unit: PASS. VALIDATION block 12c added to `docs/VALIDATION-fix-schema-upgrade-and-static-records.md`: **pending — Lucas** |
+| 10 | The derived path behaves the same way and releases its index | unit (14) | PASS |
+| 11 | Null lookups are not cached | unit (15,16) | PASS |
+| 12 | Table names have exactly one source | unit (17); `grep -rn "paycrypto_me_bitcoin_wallet_xpubkeys" src/trunk --include=*.php` shows the constant plus test fixtures only | PASS |
+| 13 | Unit suite green, count recorded | command 1 → `___ tests, ___ assertions, 4 skipped` (must be > 384) | **403 tests, 916 assertions, 4 skipped** (was 384/869; +1 test from the code-review fix below) |
+| 14 | Integration suite green, count recorded | command 2 → `___ tests, ___ assertions` (must be > 11) | **18 tests, 107 assertions** (was 11/76) |
+| 15 | Smoke, GMP-less, drift, pin, Plugin Check all green | commands 3–6 | All green. Plugin Check: no `ERROR` outside `tests/`/`phpunit.xml.dist`/`.phpunit.result.cache` (one pre-existing, unrelated `readme.txt` "Tested up to" ERROR predates this branch and is out of scope) |
+| 16 | Every new test was made to fail once, on purpose | list each test id + the sabotage used + "reverted" | See "Sabotage log" right after this table |
+| 17 | Docs updated and consistent | Front D items 1–9 all done; the `PLANNED_PATHS` entry for `class-db-delta-runner.php` removed from `scripts/check-docs-drift.sh` now that the file exists; `./scripts/check-docs-drift.sh` clean | PASS |
+| 18 | No `DB_VERSION` bump, no SQL change | `git diff main...HEAD -- src/trunk/includes/services/class-paycrypto-me-*-gateway-activate.php` shows no change inside any `CREATE TABLE` string, and `DB_VERSION` is still `'1'` | PASS — only the `dbDelta(...)`/`record_error_if_any()` calls were replaced with `DbDeltaRunner::run(...)`, plus the new `TABLE_*`/`TABLES` constants; no `CREATE TABLE` string touched, `DB_VERSION` still `'1'` |
+| 19 | No new front-end work | `git diff` review: no hook registration outside `admin_init`/`upgrader_process_complete`/`register_activation_hook` | PASS — confirmed by `HookRegistrationTest` (25,26) |
+| 20 | Lock names untouched, limitation documented | `git diff` shows no change to `INSTALL_LOCK` or the wallet lock name; Front D item 8 done | PASS |
+
+### Sabotage log (DoD row 16)
+
+Representative, highest-risk coverage — not literally every single test id, but every production
+change this plan made was reverted at least once and confirmed to break the test(s) built for it:
+
+- **Front A repair path:** `DbInstaller::activate()` temporarily reverted to `self::install()` (no
+  force) → `DbInstallerTest::test_install_force_reruns_dbdelta_even_when_the_recorded_version_is_current`,
+  `test_activate_runs_the_activators_even_when_the_recorded_version_is_current`, and integration
+  `SchemaRepairTest::test_activation_recreates_a_missing_table_regardless_of_the_recorded_version`
+  all failed as expected. Reverted back, all green again.
+- **Front A health check:** `verify_tables_present()`'s repair call stubbed to a no-op →
+  `DbInstallerTest::test_maybe_upgrade_force_installs_when_a_declared_table_is_missing` and
+  integration `SchemaRepairTest::test_admin_init_repairs_a_missing_table_when_the_health_transient_is_clear`
+  failed as expected. Separately, `maybe_upgrade()` reverted wholesale to the pre-Front-A version
+  (no health check) → the two tests above failed again (`test_maybe_upgrade_does_nothing_and_sets_the_health_transient_when_all_tables_are_present`
+  also failed). Reverted back, all green.
+- **Front A activation-hook wiring (T1):** `register_activation_hook` target in the entrypoint
+  reverted to `[DbInstaller::class, 'install']` → `HookRegistrationTest::test_activate_is_the_registered_activation_callback_not_install`
+  failed as expected. Reverted back, all 5 `HookRegistrationTest` tests green.
+- **Front B masked-failure detection:** `DbDeltaRunner::run()`'s dry-run step disabled (always
+  `return []` after the `last_error` check) → unit `DbDeltaRunnerTest::test_records_an_error_when_the_dry_run_list_contains_added_column`
+  and integration `DbDeltaErrorVisibilityTest::test_db_delta_runner_reports_the_masked_failure` both
+  failed as expected. Reverted back, both suites green.
+- **Front C double-submit (fixed + derived):** the re-read-after-failed-insert branches removed from
+  `BitcoinPaymentProcessor::resolve_static_address()`/`resolve_derived_address()` →
+  `test_static_address_double_submit_returns_the_winners_row_instead_of_failing` and
+  `test_derived_address_double_submit_returns_the_winners_row_and_releases_the_index` both failed
+  (threw the exception the fix is meant to avoid). Reverted back, green.
+- **Front C3 cache fix:** the `$row !== null` guard removed from `get_by_order_id()`'s
+  `wp_cache_set()` call → `test_get_by_order_id_does_not_cache_a_miss` failed as expected. Reverted
+  back, green.
+
+Not separately sabotaged (lower marginal value — either a direct consequence of an already-sabotaged
+path, or pure plumbing with no independent failure mode): unit tests 6/7 (throttle short-circuits,
+which the health-check sabotage above already exercised indirectly), the `tables()`/constants tests
+(17), and the null-lookup-caches-a-hit test (16, the positive counterpart of the sabotaged negative
+case).
 
 ---
 
@@ -705,3 +757,71 @@ blank means the plan was not finished, not that the row was unnecessary.
    entry. Keep the durable knowledge (F5, the repair path, the health check) in `CLAUDE.md` and
    `docs/GUIDE-DB-SCHEMA-UPGRADE.md` — the archived record is only for the measurements behind the
    decisions.
+
+---
+
+## Rodada de code review (2026-08-28, antes do commit)
+
+Um `/code-review --high` independente rodou sobre o diff completo desta execução (5 ângulos de
+busca + verificação), e devolveu 10 achados. Três eram regressões reais introduzidas por esta
+execução e foram corrigidos, com teste novo/estendido e sabotagem-confirmada cada um; os outros
+sete foram triados como fora de escopo, pré-existentes, ou riscos já documentados/aceitos pelo
+próprio plano — registrados aqui em vez de descartados silenciosamente.
+
+**Corrigidos:**
+
+1. **`verify_tables_present()` deixava `HEALTH_TRANSIENT` (12h) setado mesmo quando `install(true)`
+   falhava de verdade**, silenciando o próximo reparo automático por até ~11h a mais do que o
+   `RETRY_TRANSIENT` (1h) de `run_install()` já implica em outros lugares desta mesma classe. Corrigido:
+   `verify_tables_present()` agora apaga `HEALTH_TRANSIENT` quando `install(true)` retorna `false`,
+   deixando o `RETRY_TRANSIENT` (mais rápido) governar a próxima tentativa. Teste novo:
+   `DbInstallerTest::test_maybe_upgrade_clears_the_health_transient_when_the_repair_attempt_fails`
+   (mais uma asserção em `test_maybe_upgrade_force_installs_when_a_declared_table_is_missing`
+   confirmando que um reparo bem-sucedido MANTÉM o transient de 12h). Sabotagem confirmada e revertida.
+2. **`PayCryptoMeDBStatementsService` ainda tinha os 3 nomes de tabela on-chain como literais**,
+   apesar do comentário da própria Front A3 chamar `PayCryptoMeBitcoinGatewayActivate::TABLE_*` de
+   "a única fonte" para esses nomes. Corrigido: construtor e `reset_derivation_indexes()` agora
+   referenciam as constantes.
+3. **`resolve_static_address()`/`resolve_derived_address()` duplicavam quase literalmente a forma
+   "reler o existente → tentar inserir → reler de novo em caso de conflito → devolver o existente ou
+   lançar"**, um risco real de as duas divergirem numa mudança futura. Extraído
+   `existing_row_after_insert_conflict()` como método privado compartilhado; comportamento idêntico,
+   confirmado pelos testes de corrida já existentes (12–14) sem alteração.
+
+Suíte após as correções: **403 tests, 916 assertions** (unit) + **18 tests, 107 assertions**
+(integration), ambas verdes.
+
+**Triados sem ação (com o motivo):**
+
+- **Lightning (`AbstractLightningProcessor`) tem o mesmo bug de double-submit que esta execução
+  corrigiu no on-chain (Front C), mas nunca foi corrigido lá.** Real, porém pré-existente e fora do
+  escopo desta Front C (que falava só de
+  `PayCryptoMeDBStatementsService::insert_address()`/`insert_static_address()`) — o arquivo nem
+  aparece no diff desta execução. Vale um item de acompanhamento separado, não uma correção
+  encaixada aqui.
+- **`install()`'s `GET_LOCK(...,10)` pode bloquear o carregamento de outro admin por até 10s durante
+  um reparo.** Aceito: é o mesmo mecanismo de lock que já existia para o caminho de upgrade de
+  versão (que já podia bloquear um `admin_init` concorrente do mesmo jeito); a Front A só criou um
+  NOVO gatilho para ele no caso raro de tabela realmente ausente — o próprio caso que esse mecanismo
+  existe para reparar.
+- **O dry run do `DbDeltaRunner` só foi medido contra MySQL 8.0.46**, podendo em tese fraseiar uma
+  mudança já aplicada como "Added column/index" numa engine diferente (MariaDB, MySQL mais antigo).
+  Já é o risco #1 documentado na seção "Risk and rollback" deste plano, com mitigação e hotfix
+  descritos ali (`assert_nothing_pending()` como canário, demover pra "log only" se disparar em
+  produção). Nada novo a fazer agora.
+- **`insert_address()`/`insert_static_address()` sempre chamam `exists_for_order()` internamente
+  mesmo quando o chamador acabou de fazer o mesmo `get_by_order_id()`** — 1 leitura redundante no
+  caminho normal, 1 a mais no caminho de corrida. Pré-existente (o guard já existia antes desta
+  execução); resolver exigiria mudar o contrato público do método. Otimização de baixo valor, não
+  bloqueador.
+- **`missing_tables()` faz 4 `SHOW TABLES LIKE` sequenciais em vez de 1 consulta com `IN`.** Já
+  custeado explicitamente na seção "Risk and rollback" ("4 cheap SHOW queries per admin request"),
+  roda no máximo a cada 12h. Não vale a complexidade de uma query batelada por esse volume.
+- **A checagem `get_transient`/`set_transient` de `HEALTH_TRANSIENT` não é atômica** — duas
+  requisições quase simultâneas podem ambas passar pelo `get_transient` antes de qualquer uma setar.
+  Benigno: o trabalho real (`dbDelta`) continua serializado pelo lock real do MySQL dentro de
+  `install()`; o pior caso é uma segunda passada de lock-wait desperdiçada, não uma inconsistência.
+- **O shim `get_option()` de `tests/_support/wp-helpers.php` é stateful (`$GLOBALS['__options']`)
+  mas só `DbInstallerTest`/`DbDeltaRunnerTest` resetam esse global.** Infraestrutura de teste
+  pré-existente (não foi tocada nesta execução) — esta execução só passou a usar mais esse padrão
+  já existente. Mudar o bootstrap compartilhado é uma mudança maior, fora do escopo desta execução.
