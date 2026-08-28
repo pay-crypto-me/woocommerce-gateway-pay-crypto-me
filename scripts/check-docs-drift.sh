@@ -31,14 +31,17 @@ TRUNK="$REPO_ROOT/src/trunk"
 # of loosening the check, so "planned" stays distinguishable from "rotted".
 PLANNED_PATHS=(
     "scripts/check-i18n-conventions.sh"
+    # docs/PLAN-SCHEMA-INSTALL-HARDENING.md's front B creates this. Drop the entry when it exists.
+    "src/trunk/includes/services/class-db-delta-runner.php"
 )
-# WordPress core, not ours: the docs cite wp-includes/functions.php and
-# wp-admin/includes/upgrade.php (the file dbDelta lives in) by their tail.
+# WordPress core, not ours: the docs cite wp-includes/functions.php,
+# wp-admin/includes/upgrade.php (the file dbDelta lives in) and wp-includes/class-wpdb.php
+# (whose flush() is what clears $wpdb->last_error) by their tail.
 # docs/PREMIUM-ADDON.md moved to the paycrypto-me-pro repo on 2026-08-25 — genuinely external
 # now, not planned. CLAUDE.md links it by full GitHub URL (matches the substring), and
 # DONE-CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
 # should be "fixed" by resurrecting the file.
-EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php" "docs/PREMIUM-ADDON.md")
+EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php" "includes/class-wpdb.php" "docs/PREMIUM-ADDON.md")
 # Executed-and-verified plans/records, moved to docs/archive/ (see CLAUDE.md's "Context and
 # guides" — "Executed and verified" group) and added to .gitignore so they stop being committed
 # going forward. They still exist in THIS working tree, but a fresh clone from this point on will
@@ -50,6 +53,10 @@ ARCHIVED_PATHS=(
     "docs/archive/DONE-LEAN-VENDOR-TREE.md"
     "docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md"
     "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md"
+    # Not archived yet: docs/PLAN-SCHEMA-INSTALL-HARDENING.md cites this as the path it will be
+    # moved to once executed (its "Lifecycle of this document" section). Listed up front so the
+    # forward reference doesn't have to be vague — it belongs to this same gitignored group.
+    "docs/archive/DONE-SCHEMA-INSTALL-HARDENING.md"
 )
 
 FINDINGS=0
