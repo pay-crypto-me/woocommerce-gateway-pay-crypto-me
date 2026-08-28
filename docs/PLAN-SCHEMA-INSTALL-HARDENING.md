@@ -791,37 +791,47 @@ próprio plano — registrados aqui em vez de descartados silenciosamente.
 Suíte após as correções: **403 tests, 916 assertions** (unit) + **18 tests, 107 assertions**
 (integration), ambas verdes.
 
-**Triados sem ação (com o motivo):**
+**Pendente — real, fora do escopo desta execução, ação recomendada em item separado:**
 
 - **Lightning (`AbstractLightningProcessor`) tem o mesmo bug de double-submit que esta execução
   corrigiu no on-chain (Front C), mas nunca foi corrigido lá.** Real, porém pré-existente e fora do
   escopo desta Front C (que falava só de
   `PayCryptoMeDBStatementsService::insert_address()`/`insert_static_address()`) — o arquivo nem
-  aparece no diff desta execução. Vale um item de acompanhamento separado, não uma correção
-  encaixada aqui.
+  aparece no diff desta execução. **Não descartado** — vale um item de plano/acompanhamento
+  separado espelhando a Front C para o Lightning, não uma correção encaixada aqui.
+
+**Descartados — avaliados e decidido não fazer, com o motivo (não reabrir sem medir de novo):**
+
 - **`install()`'s `GET_LOCK(...,10)` pode bloquear o carregamento de outro admin por até 10s durante
-  um reparo.** Aceito: é o mesmo mecanismo de lock que já existia para o caminho de upgrade de
-  versão (que já podia bloquear um `admin_init` concorrente do mesmo jeito); a Front A só criou um
-  NOVO gatilho para ele no caso raro de tabela realmente ausente — o próprio caso que esse mecanismo
-  existe para reparar.
+  um reparo.** É o mesmo mecanismo de lock que já existia para o caminho de upgrade de versão (que
+  já podia bloquear um `admin_init` concorrente do mesmo jeito); a Front A só criou um NOVO gatilho
+  para ele no caso raro de tabela realmente ausente — o próprio caso que esse mecanismo existe para
+  reparar. Reduzir o timeout só para esse gatilho agregaria uma segunda constante/parâmetro para uma
+  janela de exposição que já é rara×rara (tabela ausente E dois admins na mesma millisecond).
 - **O dry run do `DbDeltaRunner` só foi medido contra MySQL 8.0.46**, podendo em tese fraseiar uma
   mudança já aplicada como "Added column/index" numa engine diferente (MariaDB, MySQL mais antigo).
   Já é o risco #1 documentado na seção "Risk and rollback" deste plano, com mitigação e hotfix
   descritos ali (`assert_nothing_pending()` como canário, demover pra "log only" se disparar em
-  produção). Nada novo a fazer agora.
+  produção). Testar contra MariaDB de verdade exigiria um serviço novo no `docker-compose.yml` —
+  desproporcional a um risco que já tem canário e rollback de uma linha.
 - **`insert_address()`/`insert_static_address()` sempre chamam `exists_for_order()` internamente
   mesmo quando o chamador acabou de fazer o mesmo `get_by_order_id()`** — 1 leitura redundante no
   caminho normal, 1 a mais no caminho de corrida. Pré-existente (o guard já existia antes desta
-  execução); resolver exigiria mudar o contrato público do método. Otimização de baixo valor, não
-  bloqueador.
+  execução); resolver exigiria mudar o contrato público do método (o guard deixaria de proteger
+  quem chama `insert_address()` diretamente, fora do processor). Otimização de baixo valor por um
+  risco de contrato desproporcional.
 - **`missing_tables()` faz 4 `SHOW TABLES LIKE` sequenciais em vez de 1 consulta com `IN`.** Já
   custeado explicitamente na seção "Risk and rollback" ("4 cheap SHOW queries per admin request"),
-  roda no máximo a cada 12h. Não vale a complexidade de uma query batelada por esse volume.
+  roda no máximo a cada 12h — 4 queries a cada 12h por site é ruído, não custo.
 - **A checagem `get_transient`/`set_transient` de `HEALTH_TRANSIENT` não é atômica** — duas
   requisições quase simultâneas podem ambas passar pelo `get_transient` antes de qualquer uma setar.
   Benigno: o trabalho real (`dbDelta`) continua serializado pelo lock real do MySQL dentro de
-  `install()`; o pior caso é uma segunda passada de lock-wait desperdiçada, não uma inconsistência.
+  `install()`; o pior caso é uma segunda passada de lock-wait desperdiçada, nunca uma inconsistência
+  de dado. Adicionar lock só para proteger uma flag de cache seria mais código que o problema.
 - **O shim `get_option()` de `tests/_support/wp-helpers.php` é stateful (`$GLOBALS['__options']`)
-  mas só `DbInstallerTest`/`DbDeltaRunnerTest` resetam esse global.** Infraestrutura de teste
-  pré-existente (não foi tocada nesta execução) — esta execução só passou a usar mais esse padrão
-  já existente. Mudar o bootstrap compartilhado é uma mudança maior, fora do escopo desta execução.
+  mas só `DbInstallerTest`/`DbDeltaRunnerTest` resetam esse global.** Verificado: nenhum outro
+  arquivo em `tests/phpunit/` chama a função global `get_option()` — todo outro uso encontrado é o
+  método `get_option()` de um mock/gateway de teste (`grep -n '[^->]get_option(' tests/phpunit/unit/*.php`
+  só bate em declarações `public function get_option(...)`, nunca em chamadas à função global). O
+  risco é puramente hipotético (um teste futuro que chame a global sem resetar), não uma falha
+  latente hoje — as duas classes que de fato usam esse global já resetam no próprio `setUp()`.
