@@ -1,0 +1,319 @@
+# [VALIDATION] Roteiro de validação manual — `fix/schema-upgrade-and-static-records`
+
+> Documento de trabalho para esta branch, não um guia permanente do repo (esse é o
+> [docs/GUIDE-DB-SCHEMA-UPGRADE.md](GUIDE-DB-SCHEMA-UPGRADE.md), que fica). Move para `docs/archive/`
+> como `[DONE]` (mesmo grupo/convenção de `DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md`) assim que a
+> validação concluir e a branch mergear — o valor dele é só até a decisão de bump de versão.
+
+**Dono da execução:** Lucas. **Dono da rede automatizada (unit/integration/scripts):** Claude.
+Este documento cobre só a parte manual/regressão — a automatizada já roda (382 unit + 11 integration
++ smoke + GMP-less + docs-drift + platform-pin, todos verdes nesta branch).
+
+**Critério de aceite:** todos os blocos abaixo com resultado registrado (PASS/FAIL + nota). Um FAIL
+em qualquer bloco 1–5 é bloqueador para bump de versão até investigado. Blocos 6–11 são
+confirmação/rede de segurança — um FAIL ali também bloqueia, mas com menos ambiguidade sobre causa.
+
+---
+
+## Bloco 0 — Ambiente
+
+**Decisão:** usar o stack docker já existente (`docker-compose.yml`, serviços `wordpress`+`wp_db`),
+sem baixar nada do WordPress.org. `docker-compose` monta `src/trunk/` do working tree — então trocar
+de branch com `git checkout` **enquanto os containers continuam rodando** é, literalmente, a mesma
+operação que um update real de produção faz (troca os arquivos do plugin, mantém o banco intacto).
+Não precisa de `git worktree` nem de zip nenhum.
+
+**Ponto de partida:** `main`, não a tag `v0.1.2`. Cheguei a considerar a tag (é o que está
+publicado no WordPress.org agora — `main` está 7 commits à frente, todos de rename/docs Premium→Pro),
+mas `main` é o pai real desta branch (`fix/schema-upgrade-and-static-records` nasce dele), e é isso
+que isola precisamente o escopo em teste: o diff `main` → branch é **só** o que esta branch mudou.
+Usar a tag misturaria esse diff com o dos commits de rename, que não fazem parte deste escopo —
+mesmo confirmando (fiz isso: `git diff v0.1.2..main -- src/trunk/includes`) que esse diff extra é
+só um comentário renomeado, sem lógica, prefiro não depender disso.
+
+```bash
+cd /home/lucas/repos/paycrypto-me-for-woocommerce
+git status --short          # confirmar árvore limpa antes de trocar de branch
+docker compose up -d wordpress wp_db   # (ou docker-compose, conforme o binário disponível)
+git checkout main
+docker compose exec -T wordpress wp --allow-root plugin list   # confirmar 0.1.2 ativo (main é o que está publicado + só rename)
+```
+
+Se você tiver como restaurar um dump real do site em produção (tabelas + options do plugin) para
+dentro do `wp_db` deste container, é o sinal mais forte possível — faça isso em vez do estado
+sintético do Bloco 1 abaixo. Se não for viável, o Bloco 1 monta um estado sintético "realista" que
+cobre os mesmos casos.
+
+---
+
+## Bloco 1 — Upgrade a partir de instalação existente (o mais importante)
+
+Objetivo: provar que um site **já rodando em produção** não quebra ao receber esta mudança, sem
+reativar o plugin (update real não reativa).
+
+1. Com `main` já checked out (Bloco 0) e o plugin ativo:
+   - Configurar On-Chain com um **xPub/zPub** válido.
+   - Fazer 1 pedido, completar checkout → gera linha derivada real (wallet + index + endereço).
+   - Trocar a configuração para um **endereço fixo** (bech32, ex. `bc1q...`).
+   - Fazer 1 pedido, completar checkout → **não gera linha nenhuma** (comportamento antigo,
+     confirme isso mesmo — é o bug que esta branch corrige).
+   - Anotar os dois `order_id` e o endereço/derivation_index do pedido derivado.
+2. `wp option get paycrypto_me_db_version` → deve ser `1`. Anote.
+3. **Sem** desativar/reativar o plugin, troque o código:
+   ```bash
+   git checkout fix/schema-upgrade-and-static-records
+   ```
+4. Abrir o **wp-admin** (dispara `admin_init`) → sem fatal, sem aviso de "tabelas falharam ao
+   instalar".
+5. Abrir o site como **visitante**, em aba anônima (página de produto ou carrinho) → sem fatal.
+   *(Prova indireta — não dá pra observar de fora que o `admin_init` não roda no front-end sem
+   instrumentar. Se quiser esse nível extra: ative `SAVEQUERIES` + um plugin tipo Query Monitor e
+   confirme que nenhuma query de `dbDelta`/dos activators aparece numa request de visitante.
+   Opcional, não bloqueador.)*
+6. Reprocessar o pedido **derivado antigo** via `order-pay` (Minha Conta → Pedidos → Pagar):
+   mesmo endereço, mesmo `derivation_index` de antes — prova que o `LEFT JOIN` não regrediu leitura
+   de linha real.
+7. Reprocessar o pedido **fixo antigo** (o que não tinha linha) via `order-pay`:
+   - Mesmo endereço mostrado ao cliente (a configuração não mudou nesse meio-tempo).
+   - Pedido conclui normalmente.
+   - **Agora sim** aparece uma linha nova na tabela pra ele, retroativa:
+     ```bash
+     docker compose exec -T wordpress wp --allow-root db query \
+       "SELECT order_id, payment_address, derivation_index_id, wallet_xpubkeys_id FROM wp_paycrypto_me_bitcoin_transactions_data WHERE wallet_xpubkeys_id = 0"
+     ```
+8. `wp option get paycrypto_me_db_version` continua `1`. Nenhum aviso novo no admin.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 2 — Endereço fixo, pedido novo (o mecanismo em si)
+
+Rodar **cada sub-caso** abaixo pelo menos uma vez, alternando checkout clássico e blocks quando
+indicado (o processamento é o mesmo `process_payment()` nos dois, mas é caminho de entrada
+diferente e o teste é barato).
+
+| # | Sub-caso | Checkout |
+|---|---|---|
+| 2a | Endereço fixo bech32 mainnet (`bc1...`) | Clássico |
+| 2b | Endereço fixo bech32 mainnet (`bc1...`) | Blocks |
+| 2c | Endereço fixo testnet (`tb1...`), rede testnet selecionada | Clássico |
+| 2d | Endereço fixo legado/base58 (`1...` ou `3...`, mainnet) — caminho que usa GMP | Clássico |
+
+Para cada um:
+1. Configurar On-Chain com o endereço/rede do sub-caso.
+2. Pedido novo, completar checkout.
+3. Conferir: pedido concluído sem erro; order-details do **cliente** e do **admin** mostram
+   endereço e QR corretos.
+4. Conferir no banco: linha nova com `wallet_xpubkeys_id=0`/`derivation_index_id=0`.
+5. Reprocessar o **mesmo** pedido (`order-pay`) → não duplica linha, endereço não muda.
+
+**Caso extra, só no 2a (o mais importante do bloco):**
+
+6. **Endereço trocado depois do pedido criado.** Com o pedido do passo 2 ainda pendente, vá em
+   Settings → mude o endereço fixo configurado para um endereço **diferente**. Reprocesse o mesmo
+   pedido (`order-pay`). O cliente deve continuar vendo o endereço **original** (o que ele já viu
+   vence — nunca o recém-configurado). **Este é o teste mais crítico do bloco inteiro** — é onde um
+   bug faria o cliente pagar num endereço diferente do que a página mostrou primeiro.
+
+**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+
+---
+
+## Bloco 3 — Regressão do fluxo derivado (xPub)
+
+Rápido, só pra provar que nada mudou: configurar com zPub/xPub, pedido novo, endereço/index
+corretos, reprocessar o mesmo pedido → mesmo endereço, order-details ok (cliente e admin).
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 4 — Casos cruzados (achado na revisão de código, não óbvio)
+
+Confirmado por leitura de código, mas nunca observado rodando de verdade. Objetivo: ver o
+comportamento acontecer e confirmar que é inofensivo como a análise prevê.
+
+**4a. Fixo → derivado no meio do pedido.**
+1. Configurar endereço fixo. Pedido novo, completar checkout (gera linha sentinela).
+2. **Sem** tocar o pedido, trocar a configuração do gateway para um xPub válido.
+3. Reprocessar o mesmo pedido via `order-pay`.
+4. Esperado: o cliente recebe de volta o **endereço fixo original** (a linha existente vence,
+   mesma regra do Bloco 2.6) — **não** deriva um endereço novo do xPub recém-configurado.
+5. Checar a order meta `_paycrypto_me_derivation_index` (`wp post meta list <order_id>` ou direto
+   na tabela `wp_postmeta`) — deve estar presente com valor vazio/null. Confirme que isso **não**
+   causa nenhum erro visível em nenhuma tela (order-details do cliente e do admin).
+
+**4b. Derivado → fixo no meio do pedido.**
+1. Configurar xPub. Pedido novo, completar checkout (gera linha real derivada).
+2. Trocar a configuração para um endereço fixo.
+3. Reprocessar o mesmo pedido via `order-pay`.
+4. Esperado: o cliente recebe de volta o endereço **derivado original** (não o endereço fixo
+   recém-configurado). Nenhuma linha nova é criada.
+
+**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+
+---
+
+## Bloco 5 — Falha de persistência determinística + corrida real
+
+**5a. Forçar a falha de INSERT (determinístico, via schema temporário):**
+1. Anotar o `CREATE TABLE` atual de `paycrypto_me_bitcoin_transactions_data` (ou confie no
+   `dump-schema.php` pra restaurar depois).
+2. ```bash
+   docker compose exec -T wordpress wp --allow-root db query \
+     "ALTER TABLE wp_paycrypto_me_bitcoin_transactions_data MODIFY payment_address VARCHAR(5) NOT NULL"
+   ```
+3. Configurar endereço fixo (com endereço mais longo que 5 caracteres, qualquer bech32 real).
+   Pedido novo, tentar completar checkout.
+4. **Esperado:** checkout falha com o aviso amigável ("We could not register your payment...",
+   ou a tradução se o site estiver em pt_BR/etc — ver Bloco 7), redireciona para o checkout,
+   **sem fatal, sem tela branca**. Confirme isso é exatamente o que aparece.
+5. Reverter o schema:
+   ```bash
+   docker compose exec -T wordpress wp --allow-root db query \
+     "ALTER TABLE wp_paycrypto_me_bitcoin_transactions_data MODIFY payment_address VARCHAR(255) NOT NULL"
+   ```
+6. Repetir o mesmo pedido → agora completa normalmente.
+
+**5b. Corrida real (melhor esforço, não determinístico — duas abas):**
+1. Configurar endereço fixo. Criar um pedido e ir até a tela de pagamento (`order-pay`), mas sem
+   confirmar ainda, em **duas abas do navegador** (ou duas janelas anônimas) na mesma URL de
+   pagamento do mesmo pedido.
+2. Confirmar o pagamento nas duas abas o mais simultaneamente possível.
+3. Esperado (proteção já existente, não nova nesta branch — a tabela tem `UNIQUE KEY unique_order`):
+   uma das duas conclui normalmente; a outra, na pior hipótese de corrida genuína, mostra o aviso
+   amigável em vez de duplicar linha ou fatalizar. Mais provável: as duas simplesmente mostram o
+   mesmo resultado (PHP processa sequencialmente na maioria dos setups de dev), o que também é
+   PASS — o objetivo aqui é só confirmar que não há duplicata na tabela e não há fatal, não forçar
+   a corrida a acontecer de fato.
+4. Conferir no banco: exatamente **uma** linha para esse `order_id`.
+
+**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+
+---
+
+## Bloco 6 — Ambiente sem GMP
+
+Repetir o Bloco 2 (endereço fixo, sub-caso 2a e 2d) num host/container sem a extensão GMP:
+
+```bash
+docker compose exec -T wordpress php -d disable_functions=gmp_init /usr/local/bin/wp eval '...'
+```
+
+(ou mais simples: usar `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli` com a
+extensão gmp de fato ausente na imagem, pra um teste mais realista que o `disable_functions`).
+
+Esperado: 2a (bech32) completa normalmente e cria a linha. 2d (base58/legado, que depende de GMP)
+deve ser rejeitado/indisponível de forma explicada — **não** fatal.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 7 — Tradução renderizada de verdade
+
+A mensagem de falha de persistência (Bloco 5a) é a única string nova desta branch. Confirmar que
+ela aparece **traduzida**, não em inglês, num site não-inglês:
+
+1. `wp language core install pt_BR --activate` (ou trocar o site para pt_BR nas configurações gerais).
+2. Repetir o Bloco 5a (ALTER TABLE temporário) com o site em pt_BR.
+3. Esperado: o aviso amigável aparece em português ("Não foi possível registrar seu pagamento...").
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 8 — Lightning (smoke rápido)
+
+Nada nesta branch toca código Lightning. Um pedido ponta a ponta (BTCPay ou lnd, o que tiver
+configurado) só pra fechar a garantia de que não abrimos gap em outro lugar.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 9 — Instalação nova (site do zero)
+
+Banco novo, plugin novo (branch já ativa). Confirmar: tabelas criadas, `DB_VERSION=1` gravado,
+endereço fixo e derivado funcionando desde o primeiro pedido (repetir uma vez cada, rápido).
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 10 — Reversão (o teste que sustenta ou derruba a hipótese de "não precisa tag de incompatibilidade")
+
+Depois de rodar os blocos 1–9 com o código novo (banco agora tem linhas de endereço fixo que não
+existiam antes desta branch):
+
+```bash
+git checkout main
+```
+
+(containers continuam rodando, banco intacto)
+
+1. Abrir wp-admin → sem fatal, sem aviso.
+2. Pedido **novo** de endereço fixo, código antigo → completa normalmente (o código antigo nunca lê
+   a tabela nesse ramo, deve ignorar as linhas novas sem erro).
+3. Reprocessar (`order-pay`) um pedido **criado durante os blocos 1–9** com o código novo → confirma
+   que o código antigo não fatala nem se comporta mal ao encontrar uma linha sentinela
+   (`wallet_xpubkeys_id=0`) que ele não sabe que existe (o ramo fixo do código antigo nunca chama
+   `get_by_order_id()`, então isso deve ser um não-evento — mas confirme).
+4. Pedidos derivados (antigos e feitos durante o teste) continuam corretos.
+
+**Se isso passar limpo:** não acho que precisamos de tag de incompatibilidade — é aditivo e
+reversível de verdade, não só na teoria. **Se falhar:** é o sinal concreto pra reconsiderar.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 11 — `uninstall.php` (sanidade rápida, custo quase zero)
+
+Não foi tocado por esta branch, mas agora existe um tipo novo de linha na tabela que ele
+deliberadamente preserva. Confirmar que continua preservando (não precisa desinstalar de verdade o
+site principal — pode ser feito num site de teste descartável):
+
+1. Num site de teste separado, com linhas de ambos os tipos (fixo e derivado) na tabela, desativar
+   e desinstalar o plugin pelo wp-admin.
+2. Confirmar: as 4 tabelas custom continuam existindo, com as linhas intactas.
+3. Confirmar: `paycrypto_me_db_version` e as settings (incluindo secrets) foram removidos.
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Bloco 12 — Checklist técnico automatizado (recap, já roda do meu lado)
+
+Útil rodar você mesmo por conta própria, como parte de ficar em sintonia:
+
+```bash
+docker compose run --rm release ./vendor/bin/phpunit
+./scripts/schema-tests.sh
+./scripts/smoke-minimal-host.sh
+docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv
+```
+
+**Resultado:** PASS / FAIL — nota: ___________
+
+---
+
+## Resumo final
+
+| Bloco | Resultado | Nota |
+|---|---|---|
+| 1 — Upgrade de instalação existente | | |
+| 2 — Endereço fixo, pedido novo (2a–2d + troca mid-flight) | | |
+| 3 — Regressão derivado | | |
+| 4 — Casos cruzados (fixo↔derivado) | | |
+| 5 — Falha determinística + corrida | | |
+| 6 — Sem GMP | | |
+| 7 — Tradução renderizada | | |
+| 8 — Lightning smoke | | |
+| 9 — Instalação nova | | |
+| 10 — Reversão | | |
+| 11 — uninstall.php | | |
+| 12 — Técnico automatizado | | |
+
+**Decisão de bump de versão:** ___________

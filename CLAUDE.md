@@ -5,13 +5,18 @@
 Grouped by status, and every doc carries the same tag as its own H1 title — so a plan that has
 already been executed is never mistaken for one still pending, or vice versa. **[GUIDE]** docs have
 no "done" state (living operational reference, always current); **[PLAN]** docs are inert until
-someone implements them — nothing in a `[PLAN — NOT STARTED]` doc is in the code yet.
+someone implements them — nothing in a `[PLAN — NOT STARTED]` doc is in the code yet; **[VALIDATION]**
+docs are a working checklist for a specific branch's manual QA — code already exists, the doc tracks
+confidence in it, and it moves to `docs/archive/` as `[DONE]` once that branch merges.
 
 **Operational guides**
 - **[GUIDE]** [docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md) — how to build a release and submit to WordPress.org (SVN or direct upload); SVN flow battle-tested against the real first push (2026-08-08), including recovery from a transient WP.org server-side commit error.
 - **[GUIDE]** [docs/GUIDE-TRANSLATION.md](docs/GUIDE-TRANSLATION.md) — translation commands and status (7 locales, 100%).
 - **[GUIDE]** [docs/GUIDE-ADD-NEW-GATEWAY.md](docs/GUIDE-ADD-NEW-GATEWAY.md) — checklist to implement a third gateway.
 - **[GUIDE]** [docs/GUIDE-DB-SCHEMA-UPGRADE.md](docs/GUIDE-DB-SCHEMA-UPGRADE.md) — checklist for bumping `DbInstaller::DB_VERSION`: editing the `CREATE TABLE` SQL, freezing a new `tests/schema/v<N>.sql`, running `schema-tests.sh`. Written 2026-08-27 alongside the mechanism itself, before any real bump exercised it — flagged in the doc as open to correction from the first real use.
+
+**In progress — validation before merge**
+- **[VALIDATION]** [docs/VALIDATION-fix-schema-upgrade-and-static-records.md](docs/VALIDATION-fix-schema-upgrade-and-static-records.md) — manual QA checklist for `fix/schema-upgrade-and-static-records` (fixed-address recording + schema-upgrade hardening) before its version bump: upgrade-from-a-real-install simulation, both address flows, the cross-flow edge cases the `INNER`→`LEFT JOIN` change introduced, deterministic persistence-failure and real-lock-contention checks, rollback safety. Automated coverage for this branch is done (382 unit + 11 integration tests, see the count above); this doc tracks the manual half. Temporary — moves to `docs/archive/` as `DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md` (or folds into the existing archived record) once validation concludes.
 
 **Executed and verified — archived, may be absent from your checkout**
 
