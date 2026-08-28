@@ -229,6 +229,9 @@ docker compose up -d wordpress wp_db   # se ainda não estiver no ar
 | `test_version_is_not_recorded_when_a_table_fails` | Com uma falha real de `dbDelta` (índice UNIQUE sobre dado duplicado), `install()` devolve `false`, a versão **não** é gravada e o transient de retry é setado. |
 | `test_version_is_never_downgraded` | Versão gravada `'9'` + código na `'1'` → nada roda, nada é rebaixado. |
 | `test_fresh_install_records_the_current_version` | Caminho feliz ponta a ponta. |
+| `SchemaFixedAddressReadTest` (2 testes) | Uma linha de endereço fixo (sentinela) volta legível com `derivation_index`/`xpub`/`network` = `null` via o `LEFT JOIN`; uma linha derivada continua vindo totalmente preenchida — regressão que a suíte unitária não pode ver, porque seu `FakeWPDB` devolve `null` pra qualquer query independente do SQL. |
+| `InstallLockContentionTest` | Uma **segunda conexão MySQL real** (não um mock) segura o lock `paycrypto_me_db_install`; `install()` tem que recusar rodar, sem gravar erro, e instalar normalmente assim que o lock é liberado. |
+| `HookRegistrationTest` (3 testes) | `DbInstaller::maybe_upgrade()` está pendurado em `admin_init`, `maybe_upgrade_after_update()` em `upgrader_process_complete`, e **nenhum dos dois está mais em `plugins_loaded`** — só observável contra um registro de hooks real, não um mock. |
 
 Isolamento é por prefixo de tabela (`pcmit<n>_`), não por banco: os activators derivam o nome das
 tabelas de `$wpdb->prefix`, então cada teste tem seu próprio namespace dentro do banco de dev e

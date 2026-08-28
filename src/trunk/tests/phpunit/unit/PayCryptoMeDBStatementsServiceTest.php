@@ -143,6 +143,20 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
+    public function test_get_by_order_id_uses_left_join_not_inner_join()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeDBStatementsService();
+
+        $svc->get_by_order_id(3000);
+
+        // FakeWPDB returns null regardless of the SQL text, so nothing else here would catch a
+        // regression back to INNER JOIN — which would silently drop every fixed-address row. See
+        // the real-MySQL read-path proof in tests/integration/SchemaFixedAddressReadTest.php.
+        $this->assertStringContainsStringIgnoringCase('LEFT JOIN', $wpdb->last_query);
+        $this->assertStringNotContainsStringIgnoringCase('INNER JOIN', $wpdb->last_query);
+    }
+
     public function test_insert_static_address_uses_the_sentinel_wallet_id()
     {
         global $wpdb;
