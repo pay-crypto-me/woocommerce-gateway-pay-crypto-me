@@ -384,7 +384,15 @@ git checkout main
 **Se isso passar limpo:** não acho que precisamos de tag de incompatibilidade — é aditivo e
 reversível de verdade, não só na teoria. **Se falhar:** é o sinal concreto pra reconsiderar.
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: rollback real para `main` com o banco da instalação
+nova intacto; wp-admin e front-end abriram sem fatal ou aviso de schema. No código antigo, o novo
+pedido fixo 18 completou normalmente e, como esperado, não criou row na tabela. O pedido fixo 15
+criado pelo código novo foi reprocessado sem erro: sua row sentinela `0/0` permaneceu intacta,
+inalterada e com endereço igual ao order meta, sendo ignorada de forma segura pelo ramo fixo
+antigo. O pedido derivado 17 também foi reprocessado sem erro e preservou sua única row no wallet
+1/índice 1, com endereço e índice iguais ao order meta. O log registrou os três sucessos sem erro.
+Branch `fix/schema-upgrade-and-static-records` restaurada depois do teste. A reversão é, portanto,
+aditiva e segura no cenário validado, sustentando a decisão de não exigir tag de incompatibilidade.
 
 ---
 
@@ -397,9 +405,21 @@ site principal — pode ser feito num site de teste descartável):
 1. Num site de teste separado, com linhas de ambos os tipos (fixo e derivado) na tabela, desativar
    e desinstalar o plugin pelo wp-admin.
 2. Confirmar: as 4 tabelas custom continuam existindo, com as linhas intactas.
-3. Confirmar: `paycrypto_me_db_version` e as settings (incluindo secrets) foram removidos.
+3. Confirmar: as settings (incluindo secrets) foram removidas; `paycrypto_me_db_version` continua
+   `1`, pois descreve a versão das tabelas deliberadamente preservadas e permite que uma futura
+   reinstalação retome/atualize o schema correto (`uninstall.php` documenta esse contrato).
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: gerado o ZIP de produção 0.1.2 e instalado sob o slug
+temporário isolado `paycrypto-me-block11`, sem risco de apagar o bind mount de `src/trunk`. Antes
+do uninstall havia 4 tabelas, 1 wallet, 2 índices e 3 transações (incluindo rows fixa e derivadas);
+foram também inseridos secrets Lightning sentinela para tornar sua remoção observável. O lifecycle
+real de uninstall removeu ambas as options de settings e os secrets sentinela, preservou
+`paycrypto_me_db_version=1`, as 4 tabelas e todas as contagens/rows/timestamps. Duas invocações
+WP-CLI sobrepostas ficaram presas apenas na remoção física do diretório temporário depois de
+`uninstall.php` já ter concluído; os dois processos foram encerrados e somente o pacote temporário
+foi removido manualmente. O bind mount original permaneceu intacto. A expectativa antiga deste
+bloco, de remover também `paycrypto_me_db_version`, foi corrigida para refletir o contrato explícito
+do código: a versão precisa acompanhar o schema financeiro preservado.
 
 ---
 
