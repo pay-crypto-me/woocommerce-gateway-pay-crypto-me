@@ -474,7 +474,16 @@ não tinha **nenhum** caminho de auto-reparo — nem a ativação, que curto-cir
 5. Confirmar que nada disso aparece numa request de visitante (mesmo cheque do Bloco 1, passo 5 —
    `SAVEQUERIES`/Query Monitor numa aba anônima, sem `SHOW TABLES LIKE` nem `dbDelta` na query list).
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: com `paycrypto_me_db_version=1`, a tabela de
+transações Bitcoin foi apagada e o transient de health check limpo; uma visita ao wp-admin
+recriou imediatamente a quarta tabela com o schema esperado, sem erro de ativação e sem alterar a
+versão. A tabela foi apagada novamente mantendo o transient: outra visita ao admin não a recriou,
+confirmando o throttle de 12h. Desativar/reativar o plugin reparou a tabela imediatamente mesmo
+com o transient ainda ativo; as 4 tabelas voltaram e nenhum buffer de erro apareceu. O storefront
+como visitante respondeu HTTP 200 e Lucas confirmou navegação sem fatal/aviso; inspeção de queries
+com Query Monitor/SAVEQUERIES não foi instrumentada nesta rodada. O checkout não listou métodos de
+pagamento porque o Bloco 11 havia removido intencionalmente ambas as options de settings/secrets;
+o banco confirmou sua ausência, portanto isso exige reconfiguração e não é regressão do reparo.
 
 ---
 
