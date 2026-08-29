@@ -51,8 +51,9 @@ class PaymentProcessor
         } catch (\Throwable $e) {
 
             $e = PayCryptoMePaymentException::convertToMyself($e);
+            $user_message = $e->getUserFriendlyMessage();
 
-            wc_add_notice($e->getUserFriendlyMessage(), 'error');
+            wc_add_notice($user_message, 'error');
 
                 $gateway->register_paycrypto_me_log(
                     \sprintf(
@@ -65,7 +66,10 @@ class PaymentProcessor
 
             return [
                 'result' => 'failure',
-                'redirect' => wc_get_checkout_url()
+                'redirect' => wc_get_checkout_url(),
+                // WooCommerce Blocks consumes process_payment() through the Store API adapter,
+                // which reads this field directly. Classic checkout continues to use the notice.
+                'message' => $user_message,
             ];
         }
     }

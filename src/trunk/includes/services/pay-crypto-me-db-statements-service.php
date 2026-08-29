@@ -233,16 +233,27 @@ class PayCryptoMeDBStatementsService
 		// Use escaped concrete table name for insert to satisfy static analysis checks.
 		$table = esc_sql( $this->table_name );
 
-		$inserted = $wpdb->insert(
-			$table,
-			[
-				'order_id' => $order_id,
-				'payment_address' => $payment_address,
-				'derivation_index_id' => $derivation_index,
-				'wallet_xpubkeys_id' => $wallet_xpub_id,
-			],
-			['%d', '%s', '%d', '%d']
-		);
+		// A database error must become our controlled checkout failure, not be printed into the
+		// Store API JSON response when WP_DEBUG_DISPLAY is enabled. Restore the site's prior wpdb
+		// setting immediately after this expected-to-be-handled write.
+		$can_suppress_errors = \method_exists($wpdb, 'suppress_errors');
+		$previous_suppress_errors = $can_suppress_errors ? $wpdb->suppress_errors() : false;
+		try {
+			$inserted = $wpdb->insert(
+				$table,
+				[
+					'order_id' => $order_id,
+					'payment_address' => $payment_address,
+					'derivation_index_id' => $derivation_index,
+					'wallet_xpubkeys_id' => $wallet_xpub_id,
+				],
+				['%d', '%s', '%d', '%d']
+			);
+		} finally {
+			if ($can_suppress_errors) {
+				$wpdb->suppress_errors($previous_suppress_errors);
+			}
+		}
 
 		return $inserted !== false;
 	}

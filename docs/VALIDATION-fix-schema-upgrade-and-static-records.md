@@ -87,7 +87,14 @@ reativar o plugin (update real não reativa).
      ```
 8. `wp option get paycrypto_me_db_version` continua `1`. Nenhum aviso novo no admin.
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: Lucas confirmou manualmente o upgrade sobre uma
+instalação existente sem desativar/reativar o plugin. As linhas existentes do banco, configurações
+dos métodos e dados dos pedidos foram preservados; os pedidos antigos e o novo comportamento de
+registro continuaram funcionando, sem fatal ou aviso novo de schema. Double-check independente no
+banco: `DB_VERSION=1`, as 4 tabelas presentes, nenhum buffer de erro/retry; pedidos fixos 14/15 com
+sentinela `0/0`; pedidos derivados 16–18 com índices `0/1/2` ligados ao mesmo wallet; endereço e
+índice de todas as linhas iguais ao order meta correspondente. Os registros Lightning 19–22 também
+coincidem com invoice id, método e status dos respectivos pedidos.
 
 ---
 
@@ -120,7 +127,13 @@ Para cada um:
    vence — nunca o recém-configurado). **Este é o teste mais crítico do bloco inteiro** — é onde um
    bug faria o cliente pagar num endereço diferente do que a página mostrou primeiro.
 
-**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+**Resultado:** **PASS** em todos os sub-casos (2026-08-29) — nota: Lucas validou checkout,
+order-details/QR, retry sem duplicação e a troca mid-flight mantendo o endereço original. Double-check
+independente: Classic representado pelos pedidos 26 (`bc1`), 27 (`tb1`) e 31 (`1…`); Blocks pelos
+pedidos 33 (`bc1`), 34 (`tb1`) e 35 (`1…`, extra opcional). Todos os 6 têm exatamente uma linha,
+sentinela `wallet_xpubkeys_id=0`/`derivation_index_id=0`, e endereço idêntico ao order meta. O pedido
+28 manteve uma única linha/meta com o endereço fixo original no caso mid-flight; a configuração B
+transitória é evidência da observação manual, não reconstruível do estado final do banco.
 
 ---
 
@@ -129,7 +142,10 @@ Para cada um:
 Rápido, só pra provar que nada mudou: configurar com zPub/xPub, pedido novo, endereço/index
 corretos, reprocessar o mesmo pedido → mesmo endereço, order-details ok (cliente e admin).
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: Lucas reprocessou manualmente o pedido derivado 29
+via `order-pay`, mantendo endereço/índice e telas sem erro. Double-check independente confirmou uma
+única linha, wallet mainnet 2, índice `0`, timestamps inalterados e endereço/índice iguais ao order
+meta.
 
 ---
 
@@ -151,9 +167,11 @@ o dado que chega no processor, não o que a tela realmente renderiza.
 3. Reprocessar o mesmo pedido via `order-pay`.
 4. Esperado: o cliente recebe de volta o **endereço fixo original** (a linha existente vence,
    mesma regra do Bloco 2.6) — **não** deriva um endereço novo do xPub recém-configurado.
-5. Checar a order meta `_paycrypto_me_derivation_index` (`wp post meta list <order_id>` ou direto
-   na tabela `wp_postmeta`) — deve estar presente com valor vazio/null. Confirme que isso **não**
-   causa nenhum erro visível em nenhuma tela (order-details do cliente e do admin).
+5. Checar `_paycrypto_me_derivation_index` via `$order->get_meta()` — deve ser lido como vazio/null.
+   No armazenamento HPOS, WooCommerce pode não criar uma row física em `wp_wc_orders_meta` para o
+   `null` que o processor devolve (no legado, a inspeção equivalente é em `wp_postmeta`); ausência
+   da row e row vazia são equivalentes aqui. Confirme que isso **não** causa nenhum erro visível em
+   nenhuma tela (order-details do cliente e do admin).
 
 **4b. Derivado → fixo no meio do pedido.**
 1. Configurar xPub. Pedido novo, completar checkout (gera linha real derivada).
@@ -162,30 +180,41 @@ o dado que chega no processor, não o que a tela realmente renderiza.
 4. Esperado: o cliente recebe de volta o endereço **derivado original** (não o endereço fixo
    recém-configurado). Nenhuma linha nova é criada.
 
-**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+**Resultado:** **PASS** nos dois sub-casos (2026-08-29) — nota: Lucas validou manualmente as duas
+trocas e as telas. Double-check independente: pedido 37 (fixo→derivado) manteve uma única row
+sentinela `0/0` e o endereço original igual ao order meta; HPOS omitiu a row física do meta nulo,
+comportamento documentado acima. Pedido 38 (derivado→fixo) manteve uma única row no wallet mainnet
+2/índice 2, com endereço e índice originais iguais ao order meta. Nenhuma row nova foi criada.
 
 ---
 
 ## Bloco 5 — Falha de persistência determinística + corrida real
 
-**5a. Forçar a falha de INSERT (determinístico, via schema temporário):**
-1. Anotar o `CREATE TABLE` atual de `paycrypto_me_bitcoin_transactions_data` (ou confie no
-   `dump-schema.php` pra restaurar depois).
-2. ```bash
-   docker compose exec -T wordpress wp --allow-root db query \
-     "ALTER TABLE wp_paycrypto_me_bitcoin_transactions_data MODIFY payment_address VARCHAR(5) NOT NULL"
+**5a. Forçar a falha de INSERT (determinístico, via trigger temporário):**
+
+> **Corrigido no primeiro uso manual (2026-08-29):** a versão original estreitava
+> `payment_address` para `VARCHAR(5)`, mas isso falha antes de montar o teste quando a tabela já tem
+> endereços reais maiores que 5 caracteres — exatamente o estado esperado nesta altura do roteiro.
+> Um trigger temporário rejeita apenas INSERTs novos, sem reescrever ou arriscar as rows existentes.
+
+1. Criar um trigger temporário que rejeita todo INSERT novo nessa tabela:
+   ```bash
+   docker compose exec -T wp_db mysql -uwordpressdbuser -pwordpress123456 wordpressdb \
+     -e "CREATE TRIGGER wp_paycrypto_me_validation_reject_insert
+         BEFORE INSERT ON wp_paycrypto_me_bitcoin_transactions_data
+         FOR EACH ROW SIGNAL SQLSTATE '45000'
+         SET MESSAGE_TEXT = 'Intentional validation insert failure';"
    ```
-3. Configurar endereço fixo (com endereço mais longo que 5 caracteres, qualquer bech32 real).
-   Pedido novo, tentar completar checkout.
-4. **Esperado:** checkout falha com o aviso amigável ("We could not register your payment...",
+2. Configurar endereço fixo (qualquer bech32 real). Pedido novo, tentar completar checkout.
+3. **Esperado:** checkout falha com o aviso amigável ("We could not register your payment...",
    ou a tradução se o site estiver em pt_BR/etc — ver Bloco 7), redireciona para o checkout,
    **sem fatal, sem tela branca**. Confirme isso é exatamente o que aparece.
-5. Reverter o schema:
+4. Remover o trigger mesmo se o passo anterior falhar de forma inesperada:
    ```bash
-   docker compose exec -T wordpress wp --allow-root db query \
-     "ALTER TABLE wp_paycrypto_me_bitcoin_transactions_data MODIFY payment_address VARCHAR(255) NOT NULL"
+   docker compose exec -T wp_db mysql -uwordpressdbuser -pwordpress123456 wordpressdb \
+     -e "DROP TRIGGER IF EXISTS wp_paycrypto_me_validation_reject_insert;"
    ```
-6. Repetir o mesmo pedido → agora completa normalmente.
+5. Repetir o mesmo pedido → agora completa normalmente e cria exatamente uma row.
 
 **5b. Corrida real (melhor esforço, não determinístico — duas abas):**
 
@@ -212,7 +241,30 @@ o dado que chega no processor, não o que a tela realmente renderiza.
 4. Conferir no banco: exatamente **uma** linha para esse `order_id`, com o mesmo endereço mostrado
    nas duas abas.
 
-**Resultado:** PASS / FAIL por sub-caso — nota: ___________
+**Resultado parcial (2026-08-29):**
+
+- **5a: PASS após correção do Blocks.** Pedido 40: o trigger rejeitou o INSERT como
+  esperado, nenhuma row nem order meta foi gravada, e o log registrou corretamente
+  `Failed to persist fixed-address payment for order #40`. Porém o cliente viu apenas a mensagem
+  genérica do Store API ("Something went wrong when placing the order...") em vez do aviso amigável
+  do plugin. Trigger removido; retry então completou normalmente e o double-check confirmou uma
+  única row sentinela `0/0`, endereço igual ao order meta e nenhum trigger restante. Persistência,
+  rollback e recuperação: PASS. O primeiro teste revelou que o Blocks recebia a mensagem genérica
+  do Store API; a correção passou a devolver a mensagem amigável no resultado de falha e a impedir
+  que o erro SQL contamine a resposta JSON. No reteste do Blocks, pedido 44, o cliente viu
+  corretamente "We could not register your payment. Please try again or contact the store.", o
+  pedido permaneceu pendente e nenhuma row de transação foi criada. Controle
+  no checkout Classic com pedido 42 mostrou corretamente "We could not register your payment...",
+  sem criar row; após remover o trigger, o retry do 42 criou exatamente uma row sentinela `0/0`,
+  com endereço igual ao order meta. Após o reteste, o trigger temporário também foi removido e sua
+  ausência confirmada no banco. Novos cliques sem recarregar ainda exibiram o erro já mantido pelo
+  estado do Blocks e não chegaram ao servidor (nenhum novo erro no log); após recarregar a página,
+  o retry do 44 completou normalmente. Double-check: exatamente uma row sentinela `0/0`, endereço
+  igual ao order meta, e uma única falha seguida por sucesso no log. Esse refresh é comportamento
+  de recuperação do cliente após a falha forçada, não nova falha de persistência do plugin.
+- **5b: PASS.** Pedido 39 processado em duas abas sem erro visível; o log mostra três passagens pelo
+  processor em ~2 segundos, mas o banco tem exatamente uma row sentinela `0/0`, com endereço igual
+  ao order meta e timestamps não regravados.
 
 ---
 
@@ -405,10 +457,10 @@ então isso é reforço, não bloqueador.
 
 | Bloco | Resultado | Nota |
 |---|---|---|
-| 1 — Upgrade de instalação existente | | |
-| 2 — Endereço fixo, pedido novo (2a–2d + troca mid-flight) | | |
-| 3 — Regressão derivado | | |
-| 4 — Casos cruzados (fixo↔derivado) | | |
+| 1 — Upgrade de instalação existente | **PASS** | Fluxo manual validado por Lucas; double-check independente confirmou schema v1 saudável e payment rows consistentes com os order metas (2026-08-29). |
+| 2 — Endereço fixo, pedido novo (2a–2d + troca mid-flight) | **PASS** | Classic + Blocks, incluindo os casos opcionais; 6/6 rows sentinela consistentes e mid-flight confirmado manualmente (2026-08-29). |
+| 3 — Regressão derivado | **PASS** | Pedido 29 reprocessado; uma row, endereço/índice inalterados e consistentes com order meta (2026-08-29). |
+| 4 — Casos cruzados (fixo↔derivado) | **PASS** | Pedidos 37/38, uma row cada; endereço original preservado nos dois sentidos e metas consistentes (2026-08-29). |
 | 5 — Falha determinística + corrida | | |
 | 6 — Sem GMP | | |
 | 7 — Tradução renderizada | | |

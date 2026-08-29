@@ -11,6 +11,9 @@ class FakeWPDB
     public $last_query = '';
     public $release_lock_result = '1';
     public $release_lock_calls = 0;
+    public bool $suppressing_errors = false;
+    public array $suppress_errors_calls = [];
+    public $insert_result = 1;
 
     public function prepare($query /*, ...$args */)
     {
@@ -68,7 +71,15 @@ class FakeWPDB
         $this->last_query = 'INSERT INTO ' . $table;
         $this->insert_calls[] = ['table' => $table, 'data' => $data];
         // return 1 on success
-        return 1;
+        return $this->insert_result;
+    }
+
+    public function suppress_errors($suppress = true)
+    {
+        $previous = $this->suppressing_errors;
+        $this->suppressing_errors = (bool) $suppress;
+        $this->suppress_errors_calls[] = (bool) $suppress;
+        return $previous;
     }
 
     public array $delete_calls = [];
@@ -148,6 +159,17 @@ class PayCryptoMeDBStatementsServiceTest extends TestCase
         $result = $svc->insert_address(1000, 0, 'tb1address', 1);
 
         $this->assertTrue($result);
+    }
+
+    public function test_insert_address_suppresses_database_output_and_restores_previous_setting()
+    {
+        global $wpdb;
+        $wpdb->insert_result = false;
+        $svc = new PayCryptoMeDBStatementsService();
+
+        $this->assertFalse($svc->insert_address(1001, 0, 'tb1address', 1));
+        $this->assertSame([true, false], $wpdb->suppress_errors_calls);
+        $this->assertFalse($wpdb->suppressing_errors);
     }
 
     public function test_get_by_order_id_uses_left_join_not_inner_join()
