@@ -282,7 +282,16 @@ extensão gmp de fato ausente na imagem, pra um teste mais realista que o `disab
 Esperado: 2a (bech32) completa normalmente e cria a linha. 2d (base58/legado, que depende de GMP)
 deve ser rejeitado/indisponível de forma explicada — **não** fatal.
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: GMP foi removido de fato do carregamento do PHP no
+container WordPress (`extension_loaded('gmp') === false`) e o Apache foi reiniciado; o site
+continuou respondendo normalmente. No sub-caso 2a, o pedido 45 com endereço fixo bech32 completou
+sem fatal e criou exatamente uma linha na tabela de transações, com sentinela
+`wallet_xpubkeys_id=0`/`derivation_index_id=0`; o endereço persistido
+`bc1qgvc07956sxuudk3jku6n03q5vc9tkrvkcar7uw` coincide com o order meta, e o pedido ficou pendente
+com o método `paycrypto_me` em mainnet. Nos casos dependentes de GMP, incluindo 2d com endereço
+legado `1…`, a configuração foi preservada e o admin exibiu o alerta explicativo, enquanto o
+método ficou indisponível no checkout para o cliente, sem fatal — rejeição esperada para esse
+ambiente.
 
 ---
 
@@ -295,7 +304,11 @@ ela aparece **traduzida**, não em inglês, num site não-inglês:
 2. Repetir o Bloco 5a (ALTER TABLE temporário) com o site em pt_BR.
 3. Esperado: o aviso amigável aparece em português ("Não foi possível registrar seu pagamento...").
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **SKIPPED por decisão** (2026-08-29) — nota: repetir toda a falha forçada de
+persistência do Bloco 5 apenas para inspecionar visualmente uma única tradução foi considerado
+esforço excessivo para o ganho de confiança. O comportamento funcional e a mensagem amigável já
+foram validados no Bloco 5; este resultado não é registrado como PASS porque a renderização em
+português não foi testada manualmente, mas a dispensa foi aceita como não bloqueadora.
 
 ---
 
@@ -320,7 +333,16 @@ mantendo checkout e futuros webhooks em sintonia.
 6. Repetir 2–5 depois que a invoice armazenada expirar, para cobrir a corrida de substituição; o
    resultado esperado é o mesmo.
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: smoke no pedido 46 criou exatamente uma invoice LND
+e manteve invoice id, BOLT11 e payment URI idênticos entre a tabela e o order meta. Na corrida de
+invoice ainda válida, o pedido 47 passou por três processamentos e terminou com uma única row,
+um único invoice id e um único BOLT11, sem divergência no pedido. Para a substituição, o
+`expires_at` persistido do pedido 48 foi movido de forma controlada para o passado e duas abas
+reprocessaram o pedido: exatamente uma nova invoice substituiu a antiga, as duas passagens de
+sucesso devolveram o mesmo BOLT11, e invoice id, payment request e URI finais coincidem exatamente
+com o order meta. Houve timeouts de transporte do LND antes dos sucessos (cURL 28, inclusive nas
+duas primeiras tentativas simultâneas da substituição), tratados como instabilidade externa do
+node: essas tentativas não criaram nem corromperam rows; o retry terminou pendente e consistente.
 
 ---
 
@@ -329,7 +351,13 @@ mantendo checkout e futuros webhooks em sintonia.
 Banco novo, plugin novo (branch já ativa). Confirmar: tabelas criadas, `DB_VERSION=1` gravado,
 endereço fixo e derivado funcionando desde o primeiro pedido (repetir uma vez cada, rápido).
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: stack recriado do zero; ativação nova gravou
+`paycrypto_me_db_version=1`, criou as 4 tabelas custom e não deixou option de erro/retry de schema.
+O pedido fixo 15 ficou pendente com `paycrypto_me`, uma única row sentinela
+`wallet_xpubkeys_id=0`/`derivation_index_id=0` e endereço idêntico ao order meta. O pedido derivado
+17 ficou pendente com o mesmo método, uma única row ligada ao wallet mainnet 1 no índice 1, e
+endereço e índice idênticos ao order meta; a tabela de índices também contém as reservas 0 e 1
+para esse wallet.
 
 ---
 
