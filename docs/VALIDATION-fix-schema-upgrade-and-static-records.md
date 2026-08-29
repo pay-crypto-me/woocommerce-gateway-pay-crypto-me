@@ -247,10 +247,26 @@ ela aparece **traduzida**, não em inglês, num site não-inglês:
 
 ---
 
-## Bloco 8 — Lightning (smoke rápido)
+## Bloco 8 — Lightning: smoke + double submit
 
-Nada nesta branch toca código Lightning. Um pedido ponta a ponta (BTCPay ou lnd, o que tiver
-configurado) só pra fechar a garantia de que não abrimos gap em outro lugar.
+O follow-up do último achado da rodada de code review agora toca `AbstractLightningProcessor`: se
+duas requests criarem invoices para o mesmo pedido antes de qualquer uma persistir, a perdedora da
+`UNIQUE KEY unique_order` relê e devolve a invoice vencedora que ficou no banco. O mesmo vale quando
+ambas tentam substituir uma invoice expirada: `replace_invoice()` faz compare-and-swap pelo invoice
+id antigo, então só uma request vence. A invoice criada pela request perdedora pode continuar
+existindo no node, mas nunca chega ao order meta nem ao cliente — o registro persistido vence,
+mantendo checkout e futuros webhooks em sintonia.
+
+1. Fazer um pedido Lightning ponta a ponta (BTCPay ou lnd, o que estiver configurado).
+2. Criar outro pedido e abrir a mesma tela `order-pay` em duas abas/janelas, antes de confirmar.
+3. Confirmar nas duas tão simultaneamente quanto possível.
+4. Esperado: ambas terminam normalmente na página do pedido, sem aviso de falha; ambas mostram o
+   mesmo BOLT11/invoice id.
+5. Confirmar no banco exatamente uma linha para o `order_id`, com o mesmo BOLT11/invoice id mostrado
+   nas duas respostas. Se o node expuser a invoice perdedora criada durante uma corrida real, ela
+   não pode ser a que aparece no pedido — registre isso na nota, mas não é FAIL por si só.
+6. Repetir 2–5 depois que a invoice armazenada expirar, para cobrir a corrida de substituição; o
+   resultado esperado é o mesmo.
 
 **Resultado:** PASS / FAIL — nota: ___________
 
@@ -396,7 +412,7 @@ então isso é reforço, não bloqueador.
 | 5 — Falha determinística + corrida | | |
 | 6 — Sem GMP | | |
 | 7 — Tradução renderizada | | |
-| 8 — Lightning smoke | | |
+| 8 — Lightning smoke + double submit | | |
 | 9 — Instalação nova | | |
 | 10 — Reversão | | |
 | 11 — uninstall.php | | |

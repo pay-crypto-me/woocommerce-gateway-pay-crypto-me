@@ -71,8 +71,30 @@ abstract class AbstractLightningProcessor extends AbstractPaymentProcessor
         $amount_sats    = isset($args['amount_sats']) ? (int) $args['amount_sats'] : null;
 
         $persisted = $existing
-            ? $this->db->replace_invoice($order_id, $this->node_type(), $response->invoice_id, $response->payment_request, $expires_at, $amount_sats)
+            ? $this->db->replace_invoice($order_id, $this->node_type(), $response->invoice_id, $response->payment_request, $expires_at, $amount_sats, $existing['invoice_id'])
             : $this->db->insert_invoice($order_id, $this->node_type(), $response->invoice_id, $response->payment_request, $expires_at, $amount_sats);
+
+        // Two near-simultaneous requests can both create an invoice before either persists it. The
+        // unique order key serializes inserts; replace_invoice() compare-and-swaps the expired
+        // invoice id. If this request lost either race, return the invoice actually on file.
+        if (!$persisted) {
+            $winner = $this->db->get_by_order_id($order_id);
+
+            if ($winner) {
+                $response = new LightningInvoiceResponse(
+                    $winner['invoice_id'],
+                    $winner['payment_request'],
+                    $winner['status']
+                );
+
+                return $this->finalize_payment_data(
+                    $payment_data,
+                    $response,
+                    $order,
+                    $this->expires_at_timestamp($winner['expires_at'])
+                );
+            }
+        }
 
         if (!$persisted) {
             throw new PayCryptoMePaymentException(

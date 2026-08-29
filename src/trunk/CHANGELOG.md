@@ -30,6 +30,9 @@ All notable changes to this project are documented in this file.
  - Submitting the same fixed-address Bitcoin order twice in quick succession (for example a
    double-click, or two browser tabs on the same "Pay for order" page) no longer shows a payment
    error for an order that was, in fact, already recorded.
+ - Submitting the same Lightning order twice in quick succession now returns the invoice already
+   recorded for the order instead of showing an error or sending one request to an invoice that the
+   plugin cannot later reconcile.
 
 ### Planned
 
@@ -133,4 +136,3 @@ Admin errors, warnings and logs are now always in English; customer-facing text 
 = 0.1.0 =
 
 Initial release.
-

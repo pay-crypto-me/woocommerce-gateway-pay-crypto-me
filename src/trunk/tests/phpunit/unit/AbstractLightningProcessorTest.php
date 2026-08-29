@@ -225,7 +225,7 @@ class AbstractLightningProcessorTest extends TestCase
         $db->expects($this->never())->method('insert_invoice');
         $db->expects($this->once())
             ->method('replace_invoice')
-            ->with(51, 'btcpay', 'inv_new', 'lnbc1new', $this->anything(), null)
+            ->with(51, 'btcpay', 'inv_new', 'lnbc1new', $this->anything(), null, 'inv_old')
             ->willReturn(true);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
@@ -234,18 +234,88 @@ class AbstractLightningProcessorTest extends TestCase
         $this->assertSame('lnbc1new', $result['payment_request']);
     }
 
-    public function test_throws_when_invoice_persistence_fails(): void
+    public function test_double_submit_returns_the_winners_invoice_instead_of_failing(): void
     {
-        // insert_invoice() can return false on a race (UNIQUE KEY unique_order hit between the
-        // get_by_order_id() check and the insert) — this must never be swallowed silently.
         $order = $this->createMock(\WC_Order::class);
         $order->method('get_id')->willReturn(52);
 
         $service = $this->createMock(LightningInvoiceServiceContract::class);
-        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv6', 'lnbc1six', 'New', null));
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv_loser', 'lnbc1loser', 'New', null));
 
         $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
-        $db->method('get_by_order_id')->willReturn(null);
+        $db->expects($this->exactly(2))
+            ->method('get_by_order_id')
+            ->with(52)
+            ->willReturnOnConsecutiveCalls(null, [
+                'order_id'        => 52,
+                'node_type'       => 'btcpay',
+                'invoice_id'      => 'inv_winner',
+                'payment_request' => 'lnbc1winner',
+                'status'          => 'New',
+                'expires_at'      => gmdate('Y-m-d H:i:s', time() + 3600),
+                'amount_sats'     => null,
+            ]);
+        $db->method('insert_invoice')->willReturn(false);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        $this->assertSame('inv_winner', $result['lightning_invoice_id']);
+        $this->assertSame('lnbc1winner', $result['payment_request']);
+        $this->assertSame('lightning:lnbc1winner', $result['payment_uri']);
+    }
+
+    public function test_expired_invoice_double_submit_returns_the_replace_winners_invoice(): void
+    {
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(56);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv_loser', 'lnbc1loser', 'New', null));
+
+        $expired = [
+            'order_id'        => 56,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_expired',
+            'payment_request' => 'lnbc1expired',
+            'status'          => 'New',
+            'expires_at'      => gmdate('Y-m-d H:i:s', time() - 3600),
+            'amount_sats'     => null,
+        ];
+        $winner = [
+            'order_id'        => 56,
+            'node_type'       => 'btcpay',
+            'invoice_id'      => 'inv_winner',
+            'payment_request' => 'lnbc1winner',
+            'status'          => 'New',
+            'expires_at'      => gmdate('Y-m-d H:i:s', time() + 3600),
+            'amount_sats'     => null,
+        ];
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->expects($this->exactly(2))->method('get_by_order_id')->with(56)->willReturnOnConsecutiveCalls($expired, $winner);
+        $db->expects($this->once())
+            ->method('replace_invoice')
+            ->with(56, 'btcpay', 'inv_loser', 'lnbc1loser', $this->anything(), null, 'inv_expired')
+            ->willReturn(false);
+
+        $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);
+        $result    = $processor->process($order, []);
+
+        $this->assertSame('inv_winner', $result['lightning_invoice_id']);
+        $this->assertSame('lnbc1winner', $result['payment_request']);
+    }
+
+    public function test_throws_when_invoice_persistence_fails_and_no_winning_row_exists(): void
+    {
+        $order = $this->createMock(\WC_Order::class);
+        $order->method('get_id')->willReturn(55);
+
+        $service = $this->createMock(LightningInvoiceServiceContract::class);
+        $service->method('create_invoice')->willReturn(new LightningInvoiceResponse('inv_failed', 'lnbc1failed', 'New', null));
+
+        $db = $this->createMock(PayCryptoMeLightningDBStatementsService::class);
+        $db->expects($this->exactly(2))->method('get_by_order_id')->with(55)->willReturn(null);
         $db->method('insert_invoice')->willReturn(false);
 
         $processor = $this->make_processor(new \WC_Payment_Gateway(), $service, $db);

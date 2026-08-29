@@ -791,14 +791,19 @@ próprio plano — registrados aqui em vez de descartados silenciosamente.
 Suíte após as correções: **403 tests, 916 assertions** (unit) + **18 tests, 107 assertions**
 (integration), ambas verdes.
 
-**Pendente — real, fora do escopo desta execução, ação recomendada em item separado:**
+**Resolvido em follow-up sem commit, 2026-08-29:**
 
 - **Lightning (`AbstractLightningProcessor`) tem o mesmo bug de double-submit que esta execução
-  corrigiu no on-chain (Front C), mas nunca foi corrigido lá.** Real, porém pré-existente e fora do
-  escopo desta Front C (que falava só de
-  `PayCryptoMeDBStatementsService::insert_address()`/`insert_static_address()`) — o arquivo nem
-  aparece no diff desta execução. **Não descartado** — vale um item de plano/acompanhamento
-  separado espelhando a Front C para o Lightning, não uma correção encaixada aqui.
+  corrigiu no on-chain (Front C).** O follow-up relê `get_by_order_id()` quando o insert de uma
+  invoice nova perde a corrida e devolve a invoice vencedora persistida. A revisão do próprio diff
+  encontrou a variante com invoice expirada: `replace_invoice()` agora faz compare-and-swap pelo id
+  observado, e a perdedora relê a vencedora da mesma forma. Se nenhuma linha apareceu, a falha real
+  continua lançando `PayCryptoMePaymentException`. `get_by_order_id()` também deixou de armazenar
+  misses nulos no cache. Cobertura: os casos de corrida de insert e replace em
+  `AbstractLightningProcessorTest`, o teste unitário do compare-and-swap, o caso que preserva a
+  exceção sem linha vencedora e a asserção de cache; controle negativo confirmado removendo
+  temporariamente a recuperação (o teste lançou a exceção antiga) e revertido. O Bloco 8 do roteiro
+  manual agora cobre as duas corridas Lightning em duas abas.
 
 **Descartados — avaliados e decidido não fazer, com o motivo (não reabrir sem medir de novo):**
 

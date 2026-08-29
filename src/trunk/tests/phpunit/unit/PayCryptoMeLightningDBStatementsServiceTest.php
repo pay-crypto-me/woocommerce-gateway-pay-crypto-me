@@ -54,6 +54,9 @@ class FakeWPDBLightningInvoices
         if (!isset($this->rows[$order_id])) {
             return false;
         }
+        if (isset($where['invoice_id']) && $this->rows[$order_id]['invoice_id'] !== $where['invoice_id']) {
+            return 0;
+        }
         $this->rows[$order_id] = array_merge($this->rows[$order_id], $data);
         return 1;
     }
@@ -178,10 +181,8 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
         $svc->get_by_order_id(123);
         $svc->get_by_order_id(123);
 
-        // Current implementation's cache-hit guard rejects a cached `null`, so a
-        // repeated miss always re-queries $wpdb. Documented here as characterization
-        // of existing behavior, not an endorsement of it.
         $this->assertSame(2, $wpdb->get_row_calls);
+        $this->assertArrayNotHasKey('paycrypto_me:paycrypto_lightning_order_123', $GLOBALS['__wp_cache_store']);
     }
 
     public function test_get_by_invoice_id_returns_matching_row()
@@ -239,7 +240,7 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
         $svc = new PayCryptoMeLightningDBStatementsService();
         $svc->insert_invoice(20, 'btcpay', 'inv_old', 'lnbc_old', '2026-01-01 00:00:00', 1000);
 
-        $result = $svc->replace_invoice(20, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00', 2000);
+        $result = $svc->replace_invoice(20, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00', 2000, 'inv_old');
 
         $this->assertTrue($result);
         $this->assertSame([
@@ -257,7 +258,20 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
     {
         $svc = new PayCryptoMeLightningDBStatementsService();
 
-        $this->assertFalse($svc->replace_invoice(999, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00'));
+        $this->assertFalse($svc->replace_invoice(999, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00', null, 'inv_old'));
+    }
+
+    public function test_replace_invoice_returns_false_when_another_request_already_replaced_it()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(22, 'btcpay', 'inv_old', 'lnbc_old', '2026-01-01 00:00:00');
+        $wpdb->rows[22]['invoice_id'] = 'inv_winner';
+
+        $result = $svc->replace_invoice(22, 'btcpay', 'inv_loser', 'lnbc_loser', '2026-02-01 00:00:00', null, 'inv_old');
+
+        $this->assertFalse($result);
+        $this->assertSame('inv_winner', $wpdb->rows[22]['invoice_id']);
     }
 
     public function test_replace_invoice_invalidates_cache()
@@ -267,7 +281,7 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
         $svc->insert_invoice(21, 'btcpay', 'inv_old', 'lnbc_old', '2026-01-01 00:00:00');
         $svc->get_by_order_id(21); // warm the cache
 
-        $svc->replace_invoice(21, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00');
+        $svc->replace_invoice(21, 'btcpay', 'inv_new', 'lnbc_new', '2026-02-01 00:00:00', null, 'inv_old');
 
         $fresh = $svc->get_by_order_id(21);
         $this->assertSame('inv_new', $fresh['invoice_id']);
