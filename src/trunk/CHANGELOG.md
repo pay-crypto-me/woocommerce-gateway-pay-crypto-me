@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.0
+
 ### Fixed
 
  - Bitcoin On-Chain orders paid to a fixed address are now recorded in the plugin's payments table,

@@ -8,7 +8,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 6.5
 WC tested up to: 10.9
-Stable tag: 0.1.2
+Stable tag: 0.2.0
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -135,6 +135,13 @@ resume derivation from that wallet through this plugin.
 
 == Changelog ==
 
+= 0.2.0 =
+* Fixed-address On-Chain orders are now recorded in the payments table and safely reused on checkout retries.
+* Database upgrades now run only on admin/update paths, are serialized and preserve forward-only schema versions during rollback/reinstall cycles.
+* Missing payment tables are repaired automatically, and a partially failed database change can no longer be recorded as successful.
+* Concurrent submissions of the same fixed-address On-Chain order now reuse the winning persisted payment instead of showing a false failure.
+* Concurrent Lightning submissions, including replacement of an expired invoice, now return the invoice that won the persistence race so the customer, order metadata and webhook lookup stay aligned.
+
 = 0.1.2 =
 * Fixed: saving the Bitcoin On-Chain settings works again on hosts that display PHP errors (typically a staging site with WP_DEBUG on), where notices from the Bitcoin library printed on the screen and broke the redirect after saving with "headers already sent". The payment page is quiet the same way.
 * Changed: the bundled libraries were updated to the versions built for PHP 8.1, which this plugin has always required. They were being installed as if the site ran PHP 7.4, so the download carried an encryption compatibility layer a full version behind and one package that never ran at all. Both are gone and the plugin ships smaller. This is routine maintenance, not a security fix — no advisory applied to the previous versions — and payments, invoices and QR codes work exactly as before.
@@ -165,6 +172,9 @@ resume derivation from that wallet through this plugin.
 * Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
 
 == Upgrade Notice ==
+
+= 0.2.0 =
+Adds persistent fixed-address payment records and hardens schema repair/upgrades and concurrent On-Chain/Lightning checkout retries. Existing data and settings are preserved on upgrade; rollback to 0.1.2 was validated as safe.
 
 = 0.1.2 =
 Fixes saving the On-Chain settings on hosts that display PHP errors. Bundled libraries updated to the versions built for the PHP 8.1 this plugin already requires (maintenance, not a security fix), and a site below PHP 8.1 now gets an explanation instead of a fatal error.

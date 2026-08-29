@@ -3,7 +3,7 @@
  * Plugin Name: PayCrypto.Me for WooCommerce
  * Plugin URI: https://paycrypto.me/woocommerce/
  * Description: PayCrypto.Me for WooCommerce lets your store accept Bitcoin payments — On-Chain and Lightning Network — directly into wallets and nodes you control.
- * Version: 0.1.2
+ * Version: 0.2.0
  * Requires at least: 6.5
  * Tested up to: 7.0
  * Requires PHP: 8.1
@@ -68,7 +68,7 @@ register_activation_hook(__FILE__, [DbInstaller::class, 'activate']);
 if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
     class WC_PayCryptoMe
     {
-        public const VERSION = '0.1.2';
+        public const VERSION = '0.2.0';
 
         public const URL_SUPPORT = 'mailto:contact@paycrypto.me';
         public const URL_PRO = 'https://paycrypto.me/woocommerce/';
