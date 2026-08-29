@@ -17,6 +17,18 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeDBStatementsService
 {
+	/**
+	 * wallet_xpubkeys_id used for a payment to a fixed address: there is no extended public key and
+	 * no derivation index involved. Zero can never collide with a real row — wallet_xpubkeys.id is
+	 * AUTO_INCREMENT and starts at 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the
+	 * fixed-address payments.
+	 *
+	 * A sentinel instead of NULL because dbDelta() does not apply NOT NULL -> NULL (verified against
+	 * MySQL 8), so making those columns nullable would silently leave already-published installs
+	 * unchanged while working on fresh ones.
+	 */
+	public const WALLET_ID_STATIC_ADDRESS = 0;
+
 	private string $table_name;
 	private string $indexes_table;
 	private string $wallet_xpubkeys_table;
@@ -24,9 +36,9 @@ class PayCryptoMeDBStatementsService
 	public function __construct()
 	{
 		global $wpdb;
-		$this->table_name = $wpdb->prefix . 'paycrypto_me_bitcoin_transactions_data';
-		$this->indexes_table = $wpdb->prefix . 'paycrypto_me_bitcoin_derivation_indexes';
-		$this->wallet_xpubkeys_table = $wpdb->prefix . 'paycrypto_me_bitcoin_wallet_xpubkeys';
+		$this->table_name = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_TRANSACTIONS;
+		$this->indexes_table = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_DERIVATION_INDEXES;
+		$this->wallet_xpubkeys_table = $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_WALLETS;
 	}
 
 	public function get_table_name(): string
@@ -53,12 +65,15 @@ class PayCryptoMeDBStatementsService
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		// Table names are derived from $wpdb->prefix and are escaped above; this query is prepared for the dynamic value.
+		// LEFT JOIN, not INNER: a payment to a fixed address has no wallet key and no derivation
+		// index (wallet_xpubkeys_id = WALLET_ID_STATIC_ADDRESS), and an INNER JOIN would silently
+		// drop its row. Derived payments always have matching rows, so their result is unchanged.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT t.*, i.derivation_index AS derivation_index, w.xpub AS xpub, w.network AS network
 				FROM {$table} t
-				INNER JOIN {$indexes} i ON t.derivation_index_id = i.derivation_index AND t.wallet_xpubkeys_id = i.wallet_xpubkeys_id
-				INNER JOIN {$wallets} w ON i.wallet_xpubkeys_id = w.id
+				LEFT JOIN {$indexes} i ON t.derivation_index_id = i.derivation_index AND t.wallet_xpubkeys_id = i.wallet_xpubkeys_id
+				LEFT JOIN {$wallets} w ON i.wallet_xpubkeys_id = w.id
 				WHERE t.order_id = %d
 				LIMIT 1",
 				$order_id
@@ -67,7 +82,13 @@ class PayCryptoMeDBStatementsService
 		);
 
 		$row = $row ?: null;
-		if (function_exists('wp_cache_set')) {
+
+		// Only cache a positive hit. The read guard above already treats a cached null as a miss
+		// (`$cached !== false && $cached !== null`), so caching null here is a no-op today — but a
+		// later "tidy" of that guard to `$cached !== false` would silently turn it into a real
+		// 300-second stale negative cache, defeating the re-read a caller does after losing an
+		// insert race (see BitcoinPaymentProcessor::resolve_static_address()/resolve_derived_address()).
+		if ($row !== null && function_exists('wp_cache_set')) {
 			wp_cache_set( $cache_key, $row, 'paycrypto_me', 300 );
 		}
 
@@ -212,18 +233,45 @@ class PayCryptoMeDBStatementsService
 		// Use escaped concrete table name for insert to satisfy static analysis checks.
 		$table = esc_sql( $this->table_name );
 
-		$inserted = $wpdb->insert(
-			$table,
-			[
-				'order_id' => $order_id,
-				'payment_address' => $payment_address,
-				'derivation_index_id' => $derivation_index,
-				'wallet_xpubkeys_id' => $wallet_xpub_id,
-			],
-			['%d', '%s', '%d', '%d']
-		);
+		// A database error must become our controlled checkout failure, not be printed into the
+		// Store API JSON response when WP_DEBUG_DISPLAY is enabled. Restore the site's prior wpdb
+		// setting immediately after this expected-to-be-handled write.
+		$can_suppress_errors = \method_exists($wpdb, 'suppress_errors');
+		$previous_suppress_errors = $can_suppress_errors ? $wpdb->suppress_errors() : false;
+		try {
+			$inserted = $wpdb->insert(
+				$table,
+				[
+					'order_id' => $order_id,
+					'payment_address' => $payment_address,
+					'derivation_index_id' => $derivation_index,
+					'wallet_xpubkeys_id' => $wallet_xpub_id,
+				],
+				['%d', '%s', '%d', '%d']
+			);
+		} finally {
+			if ($can_suppress_errors) {
+				$wpdb->suppress_errors($previous_suppress_errors);
+			}
+		}
 
 		return $inserted !== false;
+	}
+
+	/**
+	 * Records a payment to a fixed address — no derivation index, no wallet key.
+	 *
+	 * Delegates to insert_address() so both flows share one INSERT and the same
+	 * exists_for_order() guard.
+	 */
+	public function insert_static_address(int $order_id, string $payment_address): bool
+	{
+		return $this->insert_address(
+			$order_id,
+			self::WALLET_ID_STATIC_ADDRESS,
+			$payment_address,
+			self::WALLET_ID_STATIC_ADDRESS
+		);
 	}
 
 	/**
@@ -285,7 +333,7 @@ class PayCryptoMeDBStatementsService
 
 		// Table name is constructed from $wpdb->prefix in the constructor.
 		// Use explicit prefix concat in-place to reduce variable interpolation heuristics.
-		$table_name = esc_sql( $wpdb->prefix . 'paycrypto_me_bitcoin_derivation_indexes' );
+		$table_name = esc_sql( $wpdb->prefix . PayCryptoMeBitcoinGatewayActivate::TABLE_DERIVATION_INDEXES );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		// TRUNCATE operates on the concrete table name; we escape the fragment above.

@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+ - Bitcoin On-Chain orders paid to a fixed address are now recorded in the plugin's payments table,
+   the same way orders paid to an address derived from an xPub already were. Until now those orders
+   left no row at all, so they were missing from any accounting or reconciliation done against that
+   table. Reprocessing an existing order (a checkout retry, or the "Pay for order" page) reuses the
+   record already on file, so the customer always sees the address they were first given.
+ - Database upgrades no longer run during a shopper's page load. They are checked when an
+   administrator opens the dashboard and immediately after the plugin itself is updated, so a table
+   change never lands in the middle of someone's visit to the store.
+ - Rolling the plugin back to an older version no longer rewrites the recorded database version
+   backwards, which used to make the real upgrade a no-op once the newer version was reinstalled.
+ - Two administrators loading the dashboard at the same moment on a site with a pending database
+   upgrade no longer run that upgrade twice in parallel; the second request waits for the first and
+   stays silent instead of reporting a failure.
+ - The plugin now restores a payments table that went missing (for example after a site
+   migration/restore, or a manual database cleanup) instead of assuming it is still there —
+   reactivating the plugin repairs it immediately, and the admin dashboard checks periodically on
+   its own.
+ - A database change that partly failed can no longer be recorded as successful. Previously, a
+   future update touching more than one thing on the same table could have a failure in an earlier
+   step masked by success in a later one.
+ - Submitting the same fixed-address Bitcoin order twice in quick succession (for example a
+   double-click, or two browser tabs on the same "Pay for order" page) no longer shows a payment
+   error for an order that was, in fact, already recorded.
+ - Submitting the same Lightning order twice in quick succession now returns the invoice already
+   recorded for the order instead of showing an error or sending one request to an invoice that the
+   plugin cannot later reconcile.
+
 ### Planned
 
  - Add support for additional blockchain networks (planned).
@@ -107,4 +136,3 @@ Admin errors, warnings and logs are now always in English; customer-facing text 
 = 0.1.0 =
 
 Initial release.
-

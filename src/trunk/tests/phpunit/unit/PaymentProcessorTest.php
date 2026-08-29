@@ -262,6 +262,7 @@ class PaymentProcessorTest extends TestCase
 
         $this->assertSame('failure', $result['result']);
         $this->assertSame('https://example.org/checkout', $result['redirect']);
+        $this->assertNotEmpty($result['message']);
     }
 
     public function test_get_return_url_falls_back_to_checkout_received_url_without_redirect_key()

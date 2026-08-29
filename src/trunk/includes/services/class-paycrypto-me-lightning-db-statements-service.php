@@ -50,7 +50,9 @@ class PayCryptoMeLightningDBStatementsService
         );
 
         $row = $row ?: null;
-        if (function_exists('wp_cache_set')) {
+        // A miss must be re-readable immediately: another request may insert the order's invoice
+        // between the caller's first lookup and its own insert attempt.
+        if ($row !== null && function_exists('wp_cache_set')) {
             wp_cache_set($cache_key, $row, 'paycrypto_me', 300);
         }
 
@@ -119,12 +121,13 @@ class PayCryptoMeLightningDBStatementsService
     }
 
     /**
-     * Overwrites an existing (expired) invoice row with a freshly created one.
+     * Compare-and-swaps an existing (expired) invoice row with a freshly created one.
      *
      * Used instead of insert_invoice() when the order already has a row — insert_invoice()
      * would silently return false (UNIQUE KEY unique_order) and the caller would otherwise
      * diverge: the customer pays the new invoice while the DB (and any webhook lookup) still
-     * points at the old one.
+     * points at the old one. Matching the invoice id observed by the caller makes concurrent
+     * replacements deterministic: only one request can replace that exact expired row.
      */
     public function replace_invoice(
         int $order_id,
@@ -132,7 +135,8 @@ class PayCryptoMeLightningDBStatementsService
         string $invoice_id,
         string $payment_request,
         string $expires_at,
-        ?int $amount_sats = null
+        ?int $amount_sats = null,
+        ?string $expected_invoice_id = null
     ): bool {
         global $wpdb;
 
@@ -152,13 +156,21 @@ class PayCryptoMeLightningDBStatementsService
             $formats[]           = '%d';
         }
 
-        $updated = $wpdb->update($table, $data, ['order_id' => $order_id], $formats, ['%d']);
+        $where         = ['order_id' => $order_id];
+        $where_formats = ['%d'];
+
+        if ($expected_invoice_id !== null) {
+            $where['invoice_id'] = $expected_invoice_id;
+            $where_formats[]     = '%s';
+        }
+
+        $updated = $wpdb->update($table, $data, $where, $formats, $where_formats);
 
         if (function_exists('wp_cache_delete')) {
             wp_cache_delete('paycrypto_lightning_order_' . $order_id, 'paycrypto_me');
         }
 
-        return $updated !== false;
+        return $expected_invoice_id === null ? $updated !== false : $updated === 1;
     }
 
     public function update_status(int $order_id, string $status): bool

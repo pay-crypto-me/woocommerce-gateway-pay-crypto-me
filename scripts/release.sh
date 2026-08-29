@@ -353,6 +353,7 @@ if [[ $DRY_RUN -eq 0 ]]; then
     --exclude='.git' \
     --exclude='.phpunit.result.cache' \
     --exclude='phpunit.xml.dist' \
+    --exclude='phpunit-integration.xml.dist' \
     --exclude='*~' \
     --exclude='*.po~' \
     --exclude='*.map' \

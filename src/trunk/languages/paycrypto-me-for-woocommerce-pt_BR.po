@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:50+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -328,8 +328,8 @@ msgid ""
 "and are not editable yet."
 msgstr ""
 "A confirmação automática de pagamento via webhooks (push do BTCPay / polling "
-"do lnd) chega no futuro add-on Pro do PayCrypto.Me. Na versão gratuita, "
-"os pagamentos via Lightning são confirmados manualmente — as configurações "
+"do lnd) chega no futuro add-on Pro do PayCrypto.Me. Na versão gratuita, os "
+"pagamentos via Lightning são confirmados manualmente — as configurações "
 "abaixo são apenas uma prévia e ainda não são editáveis."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:172
@@ -450,8 +450,8 @@ msgid ""
 "Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "A expiração automática do pedido após o tempo limite chega no futuro add-on "
-"Pro do PayCrypto.Me. Na versão gratuita, os endereços on-chain "
-"permanecem válidos até o pagamento."
+"Pro do PayCrypto.Me. Na versão gratuita, os endereços on-chain permanecem "
+"válidos até o pagamento."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
@@ -508,8 +508,15 @@ msgstr ""
 "Sua fatura Lightning está levando mais tempo que o esperado para ser gerada. "
 "Tente novamente em um momento."
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr ""
+"Não foi possível registrar seu pagamento. Tente novamente ou entre em "
+"contato com a loja."
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Pagamento enviado para %1$s, Referência do Pedido #%2$s"

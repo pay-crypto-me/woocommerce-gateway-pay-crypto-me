@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -310,8 +310,8 @@ msgid ""
 "and are not editable yet."
 msgstr ""
 "通过 webhook（BTCPay 推送 / lnd 轮询）自动确认付款将在即将推出的 "
-"PayCrypto.Me Pro 附加组件中提供。在免费版中，闪电网络付款需手动确认——下方设"
-"置仅为预览，暂不可编辑。"
+"PayCrypto.Me Pro 附加组件中提供。在免费版中，闪电网络付款需手动确认——下方设置"
+"仅为预览，暂不可编辑。"
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:172
 msgid "BTCPay Webhook Secret"
@@ -474,8 +474,13 @@ msgid ""
 "try again in a moment."
 msgstr "您的闪电发票生成时间比预期长。请稍后重试。"
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr "无法记录您的付款。请重试或联系店铺。"
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "支付已发送至 %1$s，订单参考号 #%2$s"

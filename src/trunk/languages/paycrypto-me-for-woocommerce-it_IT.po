@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T12:28:39+00:00\n"
+"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -329,10 +329,9 @@ msgid ""
 "and are not editable yet."
 msgstr ""
 "La conferma automatica dei pagamenti tramite webhook (push BTCPay / polling "
-"lnd) arriverà nel prossimo componente aggiuntivo Pro di PayCrypto.Me. "
-"Nella versione gratuita, i pagamenti Lightning vengono confermati "
-"manualmente — le impostazioni qui sotto sono un'anteprima e non sono ancora "
-"modificabili."
+"lnd) arriverà nel prossimo componente aggiuntivo Pro di PayCrypto.Me. Nella "
+"versione gratuita, i pagamenti Lightning vengono confermati manualmente — le "
+"impostazioni qui sotto sono un'anteprima e non sono ancora modificabili."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:172
 msgid "BTCPay Webhook Secret"
@@ -454,8 +453,8 @@ msgid ""
 "Pro add-on. In the free version, on-chain addresses stay valid until paid."
 msgstr ""
 "La scadenza automatica dell'ordine allo scadere del tempo arriverà nel "
-"prossimo componente aggiuntivo Pro di PayCrypto.Me. Nella versione "
-"gratuita, gli indirizzi on-chain restano validi fino al pagamento."
+"prossimo componente aggiuntivo Pro di PayCrypto.Me. Nella versione gratuita, "
+"gli indirizzi on-chain restano validi fino al pagamento."
 
 #: includes/class-wc-gateway-paycrypto-me.php:299
 msgid "Payment number of confirmations"
@@ -512,8 +511,15 @@ msgstr ""
 "La tua fattura Lightning sta impiegando più tempo del previsto per "
 "generarsi. Per favore, riprova tra un momento."
 
+#: includes/processors/class-bitcoin-payment-processor.php:129
+msgid ""
+"We could not register your payment. Please try again or contact the store."
+msgstr ""
+"Non è stato possibile registrare il tuo pagamento. Riprova o contatta il "
+"negozio."
+
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:177
+#: includes/processors/class-bitcoin-payment-processor.php:208
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Pagamento inviato a %1$s, Riferimento Ordine #%2$s"

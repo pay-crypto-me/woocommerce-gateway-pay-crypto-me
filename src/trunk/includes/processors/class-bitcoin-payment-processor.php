@@ -50,8 +50,10 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
         // static Bitcoin address (bech32/legacy). If a static address is provided
         // treat it as the payment address for this order (no derivation).
         if ($this->bitcoin_address_service->validate_bitcoin_address($xPub, $bitcoin_network)) {
-            $payment_data['payment_address'] = $xPub;
-            $payment_data['payment_uri']     = $this->build_payment_uri($order, $xPub, $payment_data['crypto_amount']);
+            $payment_address = $this->resolve_static_address($order, $xPub);
+
+            $payment_data['payment_address'] = $payment_address;
+            $payment_data['payment_uri']     = $this->build_payment_uri($order, $payment_address, $payment_data['crypto_amount']);
 
             return $this->finalize($payment_data, $order);
         }
@@ -103,6 +105,71 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
     }
 
     /**
+     * Returns the address this order is paid to, persisting the payment record on first use.
+     *
+     * Mirrors resolve_derived_address()'s reuse branch and AbstractLightningProcessor::process():
+     * WooCommerce reuses the same order across checkout retries and the order-pay endpoint, and the
+     * order's own meta is written with add_meta_data(..., true) — so the address the customer first
+     * saw must win, even if the merchant changes the configured one afterwards.
+     *
+     * insert_static_address() returning false means either "the INSERT failed" or "a row already
+     * exists for this order" (its own exists_for_order() guard) — the latter happens when two
+     * near-simultaneous requests for the same order (a double-click, two order-pay submissions)
+     * both pass the first get_by_order_id() check before either has inserted. Re-reading here tells
+     * the two apart: if a row is now there, the other request won the race and this order's payment
+     * IS recorded — this request has nothing to fail about.
+     *
+     * @throws PayCryptoMePaymentException when the record cannot be persisted AND no row exists —
+     *                                     the order meta would otherwise claim a payment the DB has
+     *                                     no row for.
+     */
+    private function resolve_static_address(\WC_Order $order, string $address): string
+    {
+        $existing = $this->db->get_by_order_id((int) $order->get_id());
+
+        if ($existing && !empty($existing['payment_address'])) {
+            return $existing['payment_address'];
+        }
+
+        if ($this->db->insert_static_address((int) $order->get_id(), $address)) {
+            return $address;
+        }
+
+        if ($existing = $this->existing_row_after_insert_conflict($order)) {
+            return $existing['payment_address'];
+        }
+
+        throw new PayCryptoMePaymentException(
+            \sprintf('Failed to persist fixed-address payment for order #%s', esc_html((string) $order->get_id())),
+            esc_html__('We could not register your payment. Please try again or contact the store.', 'paycrypto-me-for-woocommerce')
+        );
+    }
+
+    /**
+     * A failed insert (`insert_static_address()`/`insert_address()` returning false) means either
+     * "the INSERT failed" or "a row already exists for this order" (their own `exists_for_order()`
+     * guard) — the latter happens when two near-simultaneous requests for the same order (a
+     * double-click, two order-pay submissions) both pass the caller's initial `get_by_order_id()`
+     * check before either has inserted. Shared by both resolve_*_address() methods so their
+     * race-recovery shape (and which of the two failure classes it is) can't drift apart between
+     * them.
+     *
+     * @return array{payment_address: string, derivation_index: mixed}|null The winning row, or
+     *                                                                      null when this really
+     *                                                                      was a write failure.
+     */
+    private function existing_row_after_insert_conflict(\WC_Order $order): ?array
+    {
+        $existing = $this->db->get_by_order_id((int) $order->get_id());
+
+        if ($existing && !empty($existing['payment_address'])) {
+            return $existing;
+        }
+
+        return null;
+    }
+
+    /**
      * Returns [payment_address, derivation_index]: reuses the order's existing reservation
      * when present, otherwise reserves an index, derives an address and persists it.
      *
@@ -146,6 +213,12 @@ class BitcoinPaymentProcessor extends AbstractPaymentProcessor
             $inserted = $this->db->insert_address((int) $order->get_id(), $derivation_index, $payment_address, $wallet_xpub_id);
 
             if ($inserted === false) {
+                if ($existing = $this->existing_row_after_insert_conflict($order)) {
+                    $this->db->release_derivation_index($wallet_xpub_id, $derivation_index);
+
+                    return [$existing['payment_address'], $existing['derivation_index']];
+                }
+
                 throw new PayCryptoMeException(
                     \sprintf('Failed to persist generated address for order #%s', esc_html( (string) $order->get_id() ))
                 );

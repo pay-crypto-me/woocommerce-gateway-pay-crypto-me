@@ -15,6 +15,12 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeLightningGatewayActivate
 {
+    // Bare (unprefixed) table name — see PayCryptoMeBitcoinGatewayActivate::TABLES for why this
+    // is the one source rather than a literal repeated across DbInstaller/tests.
+    public const TABLE_LIGHTNING_INVOICES = 'paycrypto_me_lightning_invoices';
+
+    public const TABLES = [self::TABLE_LIGHTNING_INVOICES];
+
     /**
      * @return string[] Errors recorded during this run — see the Bitcoin activator for why the
      *                  list is returned as well as stored.
@@ -29,7 +35,7 @@ class PayCryptoMeLightningGatewayActivate
 
         // No "IF NOT EXISTS" — see the docblock on PayCryptoMeBitcoinGatewayActivate for why:
         // dbDelta() would otherwise capture "IF" as the table name and never diff/ALTER again.
-        $table_name = $wpdb->prefix . 'paycrypto_me_lightning_invoices';
+        $table_name = $wpdb->prefix . self::TABLE_LIGHTNING_INVOICES;
         $sql = "CREATE TABLE $table_name (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             order_id BIGINT(20) UNSIGNED NOT NULL,
@@ -45,20 +51,6 @@ class PayCryptoMeLightningGatewayActivate
             UNIQUE KEY unique_order (order_id)
         ) $charset_collate;";
 
-        dbDelta($sql);
-
-        // See PayCryptoMeBitcoinGatewayActivate::record_error_if_any() — dbDelta() never
-        // checks $wpdb->last_error itself, so a failed CREATE would otherwise report success.
-        if (empty($wpdb->last_error)) {
-            return [];
-        }
-
-        $error = \sprintf('%s: %s', $table_name, $wpdb->last_error);
-
-        $errors   = get_option('paycrypto_me_db_activation_errors', []);
-        $errors[] = $error;
-        update_option('paycrypto_me_db_activation_errors', $errors);
-
-        return [$error];
+        return DbDeltaRunner::run($sql, $table_name);
     }
 }

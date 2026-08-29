@@ -153,6 +153,7 @@ Antes de executar o release, verifique:
 | `readme.txt` atualizado com changelog da nova versão **antes** de rodar com `-v` (o script bumpa números, nunca escreve changelog) | `sed -n '/== Changelog ==/,/= 0/p' src/trunk/readme.txt` — a primeira seção deve ser a versão nova; idem `## X.Y.Z` no `CHANGELOG.md` |
 | Todos os testes passando | `./scripts/release.sh ... --no-zip` primeiro |
 | Smoke de host mínimo passando (**stack de dev precisa estar no ar** — diferente do resto do release) | `docker compose up -d wordpress` e depois `./scripts/smoke-minimal-host.sh` — ver seção abaixo |
+| Trilha de schema passando (**stack de dev precisa estar no ar**, com o banco) | `docker compose up -d wordpress wp_db` e depois `./scripts/schema-tests.sh` — ver seção abaixo |
 | Auditoria do pin de plataforma passando | `./scripts/check-platform-pin.sh` — **já roda automaticamente** na fase de testes do `release.sh`; ver seção abaixo |
 | Auditoria de drift dos docs passando | `./scripts/check-docs-drift.sh` — **já roda automaticamente** na fase de testes do `release.sh` (fase *Docs drift audit*); confere caminhos citados, refs `arquivo:linha`, a tabela de hooks do `CLAUDE.md` e as contagens afirmadas em prosa |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
@@ -199,6 +200,62 @@ temporários em `src/trunk/.smoke-minimal-host-tmp/` (necessário para rodar via
 > num host que realmente não tenha a extensão compilada (como o WordPress Playground do
 > revisor) — o smoke test cobre a parte que É simulável: a construção/listagem dos gateways
 > nunca deve tocar `gmp_init` diretamente.
+
+---
+
+## Trilha de schema (passo obrigatório antes de gerar release)
+
+`./scripts/schema-tests.sh` é a única suíte deste repo que vê um `dbDelta()` de verdade contra um
+MySQL de verdade. Ela existe pelo mesmo motivo do smoke de host mínimo: fechar uma classe de bug que
+nenhum PHPUnit da suíte unitária **pode** pegar, por construção. A suíte unitária faz shim de `wpdb`
+e o `ActivateDbDeltaTest` define o próprio `dbDelta` de mentira — é isso que a mantém em ~5s e sem
+WordPress, e é isso que a cega.
+
+O que ela cega esconde é específico e medido: `dbDelta()` **não** aplica mudança de nullability
+(`NOT NULL` → `NULL` não gera ALTER, não gera erro, e `$wpdb->last_error` fica vazio), **nunca**
+remove coluna nem índice, e parseia **linha a linha** — duas colunas declaradas na mesma linha
+significam que a segunda é silenciosamente ignorada. Cada um desses casos passa em review, funciona
+em instalação nova, e não faz absolutamente nada nos sites que já estão publicados.
+
+```bash
+docker compose up -d wordpress wp_db   # se ainda não estiver no ar
+./scripts/schema-tests.sh
+```
+
+| Teste | O que afirma |
+|---|---|
+| `test_upgrade_from_each_frozen_version_converges_to_a_fresh_install` | Para cada `src/trunk/tests/schema/v*.sql`: criar aquele schema, rodar o upgrade, e o resultado tem que ser **idêntico** ao de uma instalação nova. É o teste que pega a declaração silenciosamente ignorada. |
+| `test_install_is_idempotent` | Rodar `install()` duas vezes não muda o schema nem registra erro. |
+| `test_version_is_not_recorded_when_a_table_fails` | Com uma falha real de `dbDelta` (índice UNIQUE sobre dado duplicado), `install()` devolve `false`, a versão **não** é gravada e o transient de retry é setado. |
+| `test_version_is_never_downgraded` | Versão gravada `'9'` + código na `'1'` → nada roda, nada é rebaixado. |
+| `test_fresh_install_records_the_current_version` | Caminho feliz ponta a ponta. |
+| `SchemaFixedAddressReadTest` (2 testes) | Uma linha de endereço fixo (sentinela) volta legível com `derivation_index`/`xpub`/`network` = `null` via o `LEFT JOIN`; uma linha derivada continua vindo totalmente preenchida — regressão que a suíte unitária não pode ver, porque seu `FakeWPDB` devolve `null` pra qualquer query independente do SQL. |
+| `InstallLockContentionTest` | Uma **segunda conexão MySQL real** (não um mock) segura o lock `paycrypto_me_db_install`; `install()` tem que recusar rodar, sem gravar erro, e instalar normalmente assim que o lock é liberado. |
+| `HookRegistrationTest` (3 testes) | `DbInstaller::maybe_upgrade()` está pendurado em `admin_init`, `maybe_upgrade_after_update()` em `upgrader_process_complete`, e **nenhum dos dois está mais em `plugins_loaded`** — só observável contra um registro de hooks real, não um mock. |
+
+Isolamento é por prefixo de tabela (`pcmit<n>_`), não por banco: os activators derivam o nome das
+tabelas de `$wpdb->prefix`, então cada teste tem seu próprio namespace dentro do banco de dev e
+limpa no `tearDown`. As tabelas do site de dev nunca são tocadas.
+
+**Regra permanente:** todo bump de `DbInstaller::DB_VERSION` acompanha um
+`src/trunk/tests/schema/v<N>.sql` novo — gerado **depois** de implementar a mudança de schema no
+código (o snapshot congela o estado novo, não o antigo; a única exceção foi o `v1.sql` original,
+gerado retroativamente porque v1 já era o que estava publicado quando esta trilha foi criada):
+
+```bash
+docker compose exec -T -w /var/www/html/wp-content/plugins/paycrypto-me-for-woocommerce \
+  wordpress php tests/bin/dump-schema.php
+```
+
+Passo a passo completo de um bump de `DB_VERSION` (o que editar, quando gerar o snapshot, o que
+verificar antes de commitar): [docs/GUIDE-DB-SCHEMA-UPGRADE.md](./GUIDE-DB-SCHEMA-UPGRADE.md).
+
+O teste de convergência varre `tests/schema/v*.sql`, então cada versão histórica passa a ser coberta
+automaticamente — e uma versão sem snapshot é uma versão que nada verifica.
+
+> **Não vai no zip.** `tests/` já é excluído pelo `release.sh`, mas a lista de `--exclude` casa
+> `phpunit.xml.dist` **literalmente**: o `phpunit-integration.xml.dist` precisou da própria linha de
+> exclusão. Se algum dia surgir um terceiro arquivo de config, ele precisa da dele também.
 
 ---
 
@@ -682,6 +739,10 @@ PRÉ-RELEASE
 [ ] Docker rodando: docker compose ps
 [ ] Smoke de host mínimo passando:
     docker compose up -d wordpress && ./scripts/smoke-minimal-host.sh
+[ ] Trilha de schema passando:
+    docker compose up -d wordpress wp_db && ./scripts/schema-tests.sh
+[ ] Se DB_VERSION mudou: src/trunk/tests/schema/v<N>.sql novo commitado
+    (docker compose exec -T -w <plugin> wordpress php tests/bin/dump-schema.php)
 
 BUILD E VALIDAÇÃO
 [ ] Dry-run sem erros:

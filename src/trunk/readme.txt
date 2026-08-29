@@ -57,7 +57,11 @@ Bitcoin is currently the only supported cryptocurrency (on-chain and Lightning) 
 
 Notes:
 - For troubleshooting, enable debug logging in the gateway settings and check WooCommerce → Status → Logs (source `paycrypto_me`).
-- The plugin is not responsible for the data provided or who accesses it — safeguarding your xPub, API keys and macaroons is the store administrator's responsibility.
+- An xPub/yPub/zPub cannot spend your funds, but it can reveal the addresses and activity of that
+  wallet account. Treat it as privacy-sensitive financial data and protect access to your WordPress
+  database and backups. BTCPay API keys and lnd macaroons are authentication secrets with stronger
+  privileges: use least-privilege credentials and protect them accordingly. Never enter a wallet
+  seed or private key into this plugin.
 - Only Bitcoin is currently supported (on-chain and Lightning). Support for additional networks may be considered in future updates.
 - Payment confirmation is currently a manual, admin-driven step — see "What this plugin intentionally does not do" above.
 - **PHP extensions:** deriving addresses from an xPub/yPub/zPub requires the `gmp` extension. Without it, that route is unavailable (with an admin notice explaining it), but you can still accept On-Chain payments by configuring a single fixed bech32 address (`bc1…`/`tb1…`), which needs no such extension — every order is then paid to that same address, which is worse for privacy but works. Lightning is unaffected either way. The payment QR code requires `gd`; if it's missing, the order-details page still shows the address/invoice and a copy button, just without the QR image.
@@ -97,11 +101,22 @@ Through the native WooCommerce logger, source `paycrypto_me`. Access them via Wo
 = Does the order status update automatically once the customer pays? =
 Not in the free plugin — see "What this plugin intentionally does not do" in the description. Automatic confirmation is planned for a future Pro add-on.
 
+= Does the plugin store my wallet's private keys? =
+No. The plugin never asks for or stores a wallet seed or private key. For HD address derivation it
+stores the extended public key (xPub/yPub/zPub) you provide. An extended public key cannot authorize
+spending, but it can derive the account's public addresses and reveal its transaction history, so it
+should still be treated as privacy-sensitive financial data.
+
 == Privacy ==
 
 This plugin stores the following data needed to process Bitcoin payments:
 
-- Your wallet's extended public key (xPub/yPub/zPub) or single receiving address, and every address derived from it, in dedicated database tables (`{prefix}paycrypto_me_bitcoin_wallet_xpubkeys`, `{prefix}paycrypto_me_bitcoin_derivation_indexes`, `{prefix}paycrypto_me_bitcoin_transactions_data`).
+- Your wallet's extended public key (xPub/yPub/zPub) or single receiving address, and every address
+  derived from it, in dedicated database tables (`{prefix}paycrypto_me_bitcoin_wallet_xpubkeys`,
+  `{prefix}paycrypto_me_bitcoin_derivation_indexes`, `{prefix}paycrypto_me_bitcoin_transactions_data`).
+  The extended public key is stored in readable form because the plugin needs it to derive addresses
+  and reconnect the same wallet to its previous derivation indexes. It cannot authorize spending,
+  but it is privacy-sensitive because it can reveal that wallet account's addresses and activity.
 - Lightning node connection details you provide (BTCPay Server or lnd URL, API key/macaroon, optional TLS certificate) in the gateway settings (`wp_options`), and every created invoice in `{prefix}paycrypto_me_lightning_invoices`.
 - No customer personal data beyond what WooCommerce already stores with the order — the plugin only attaches the payment address/invoice details as order meta.
 
@@ -109,7 +124,14 @@ None of this data leaves your WordPress installation: the plugin only talks to y
 
 **On uninstall, both gateways' settings are deleted** — including the Lightning node credentials (API key, macaroon, TLS certificate), so those secrets are not left behind in your database.
 
-**The payment record tables are deliberately kept** (`{prefix}paycrypto_me_bitcoin_wallet_xpubkeys`, `{prefix}paycrypto_me_bitcoin_derivation_indexes`, `{prefix}paycrypto_me_bitcoin_transactions_data`, `{prefix}paycrypto_me_lightning_invoices`), so the payment history of past orders stays intact for accounting and reconciliation after the plugin is removed. Drop them manually (via your database) if you no longer need them.
+**The payment record tables are deliberately kept** (`{prefix}paycrypto_me_bitcoin_wallet_xpubkeys`,
+`{prefix}paycrypto_me_bitcoin_derivation_indexes`, `{prefix}paycrypto_me_bitcoin_transactions_data`,
+`{prefix}paycrypto_me_lightning_invoices`), so the payment history of past orders stays intact for
+accounting and reconciliation after the plugin is removed. Keeping the wallet and derivation-index
+records also prevents a later reinstall from starting the same wallet at an old index and reusing
+payment addresses. Because this retains the privacy-sensitive extended public key, protect database
+backups and drop these tables manually only when you no longer need the history and do not intend to
+resume derivation from that wallet through this plugin.
 
 == Changelog ==
 
@@ -162,4 +184,3 @@ For support, visit https://paycrypto.me/ or open an issue on the plugin's GitHub
 Developed by PayCrypto.Me — https://paycrypto.me/
 
 Built with the open-source `bitwasp/bitcoin` library for HD key derivation and `endroid/qr-code` for QR code generation.
-
