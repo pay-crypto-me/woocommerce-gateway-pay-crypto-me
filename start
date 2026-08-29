@@ -33,6 +33,21 @@ wp_exec() {
   compose exec -T "$WP_SERVICE" wp "$@" --path="$WP_PATH" --allow-root
 }
 
+# downloads.wordpress.org occasionally resets TLS/HTTP2 connections. Retry transient
+# failures and use the more widely compatible IPv4 + HTTP/1.1 path inside Docker.
+download() {
+  local url="$1"
+  local destination="$2"
+
+  dc_exec curl \
+    --fail --location --show-error \
+    --ipv4 --http1.1 \
+    --connect-timeout 15 \
+    --retry 5 --retry-delay 2 --retry-max-time 120 --retry-all-errors \
+    --output "$destination" \
+    "$url"
+}
+
 echo "🚀 Iniciando o setup do PayCrypto.Me WooCommerce..."
 wp_up
 
@@ -71,14 +86,33 @@ if wp_exec plugin is-installed woocommerce 2>/dev/null; then
 else
   echo "  baixando WooCommerce (requer acesso à internet)..."
   PLUGIN_ZIP=$(dc_exec mktemp -p /tmp woocommerce.XXXXXX.zip)
-  if dc_exec bash -c "cd /tmp && curl -fSL https://downloads.wordpress.org/plugin/woocommerce.zip -o ${PLUGIN_ZIP##*/} 2>&1" && \
+  if download "https://downloads.wordpress.org/plugin/woocommerce.zip" "$PLUGIN_ZIP" && \
      dc_exec unzip -q "${PLUGIN_ZIP}" -d "$WP_PATH/wp-content/plugins/" && \
      wp_exec plugin activate woocommerce; then
     echo "✅ WooCommerce instalado e ativado."
   else
-    echo "⚠️  Falha ao baixar WooCommerce. Verifique a conexão de rede."
-    echo "   Dica: verifique com '${DOCKER_COMPOSE[*]} exec -T wordpress curl https://downloads.wordpress.org/plugin/woocommerce.zip -I'"
+    echo "⚠️ Falha ao baixar WooCommerce. Verifique a conexão de rede."
+    echo "   Dica: verifique com '${DOCKER_COMPOSE[*]} exec -T wordpress curl -4 --http1.1 https://downloads.wordpress.org/plugin/woocommerce.zip -I'"
   fi
+  dc_exec rm -f "$PLUGIN_ZIP"
+fi
+
+echo "🔎 Verificando Plugin Check..."
+if wp_exec plugin is-installed plugin-check 2>/dev/null; then
+  echo "✅ Plugin Check já instalado."
+  wp_exec plugin activate plugin-check 2>/dev/null || true
+else
+  echo "  baixando Plugin Check (requer acesso à internet)..."
+  PLUGIN_CHECK_ZIP=$(dc_exec mktemp -p /tmp plugin-check.XXXXXX.zip)
+  if download "https://downloads.wordpress.org/plugin/plugin-check.zip" "$PLUGIN_CHECK_ZIP" && \
+     dc_exec unzip -q "$PLUGIN_CHECK_ZIP" -d "$WP_PATH/wp-content/plugins/" && \
+     wp_exec plugin activate plugin-check; then
+    echo "✅ Plugin Check instalado e ativado."
+  else
+    echo "⚠️ Falha ao baixar Plugin Check. Verifique a conexão de rede."
+    echo "   Dica: verifique com '${DOCKER_COMPOSE[*]} exec -T wordpress curl -4 --http1.1 https://downloads.wordpress.org/plugin/plugin-check.zip -I'"
+  fi
+  dc_exec rm -f "$PLUGIN_CHECK_ZIP"
 fi
 
 echo "🎨 Verificando tema Storefront..."
@@ -88,13 +122,14 @@ if wp_exec theme is-installed storefront 2>/dev/null; then
 else
   echo "  baixando Storefront (requer acesso à internet)..."
   THEME_ZIP=$(dc_exec mktemp -p /tmp storefront.XXXXXX.zip)
-  if dc_exec bash -c "cd /tmp && curl -fSL https://downloads.wordpress.org/theme/storefront.zip -o ${THEME_ZIP##*/} 2>&1" && \
+  if download "https://downloads.wordpress.org/theme/storefront.zip" "$THEME_ZIP" && \
      dc_exec unzip -q "${THEME_ZIP}" -d "$WP_PATH/wp-content/themes/" && \
      wp_exec theme activate storefront; then
     echo "✅ Storefront instalado e ativado."
   else
-    echo "⚠️  Falha ao instalar Storefront. Verifique a conexão de rede."
+    echo "⚠️ Falha ao instalar Storefront. Verifique a conexão de rede."
   fi
+  dc_exec rm -f "$THEME_ZIP"
 fi
 
 echo "⚙️ Configurando wp-config.php..."
@@ -105,7 +140,7 @@ wp_exec config set WP_DEBUG_DISPLAY true --raw
 
 echo "⚙️ Ativando plugin PayCrypto.Me..."
 wp_exec plugin activate paycrypto-me-for-woocommerce 2>/dev/null || \
-  echo "⚠️  Plugin não encontrado — verifique o mount em ./src/trunk"
+  echo "⚠️ Plugin não encontrado — verifique o mount em ./src/trunk"
 
 echo ""
 echo "✅ Setup completo!"

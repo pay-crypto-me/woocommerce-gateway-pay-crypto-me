@@ -415,11 +415,11 @@ Audits the `config.platform.php` pin (see "Composer dependencies" below for why 
 ### Plugin Check
 
 ```bash
-docker compose exec -T wordpress wp --allow-root plugin install plugin-check --activate  # once
+./start  # provisions and activates plugin-check when needed
 docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv
 ```
 
-Nothing in the `Dockerfile` or the scripts provisions `plugin-check` — install it once per WP volume, or the check command fails with *"'check' is not a registered subcommand of 'plugin'"*. Expected result: **no `ERROR` in shipped code** (`ERROR`s in `tests/`, `phpunit.xml.dist` and `.phpunit.result.cache` are fine — `release.sh` excludes those paths).
+The `start` script provisions and activates `plugin-check` once per WP volume; without it, the check command fails with *"'check' is not a registered subcommand of 'plugin'"*. Expected result: **no `ERROR` in shipped code** (`ERROR`s in `tests/`, `phpunit.xml.dist` and `.phpunit.result.cache` are fine — `release.sh` excludes those paths).
 
 `WARNING`s in shipped code are not free either: the deliberate `error_reporting()` calls in `BitcoinAddressService` are silenced with a `phpcs:disable` naming **both** sniffs that flag them (`WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting` **and** Plugin Check's own `PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall`) — the second fires independently of WPCS, and "production-time change to PHP error reporting" is exactly the kind of line a WordPress.org reviewer asks about in a payment plugin.
 
