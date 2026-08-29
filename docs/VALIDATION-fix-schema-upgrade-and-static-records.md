@@ -434,7 +434,16 @@ docker compose run --rm release ./vendor/bin/phpunit
 docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv
 ```
 
-**Resultado:** PASS / FAIL — nota: ___________
+**Resultado:** **PASS** (2026-08-29) — nota: PHPUnit passou com 407 testes, 931 assertions e 4
+skips dependentes do ambiente; a suíte de integração de schema passou 18/18 com 107 assertions;
+`smoke-minimal-host.sh` passou nos caminhos sem GMP, GD, iconv e fileinfo, incluindo renderização
+dos detalhes sem GD. O Plugin Check literal terminou com exit 0, mas varreu o bind mount de
+desenvolvimento e naturalmente reportou `tests/`, configs PHPUnit e cache que não entram no ZIP.
+Como controle relevante, o ZIP de produção foi instalado sob `paycrypto-me-block12` e verificado
+separadamente: todos os ERRORs dessa rodada foram exclusivamente `TextDomainMismatch` artificiais,
+porque o slug temporário difere do slug/text domain real `paycrypto-me-for-woocommerce`; fora isso,
+restaram apenas warnings já conhecidos de `load_plugin_textdomain()` e queries diretas das tabelas
+custom. O pacote temporário foi removido após a inspeção.
 
 ---
 
