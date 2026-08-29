@@ -51,10 +51,8 @@ ARCHIVED_PATHS=(
     "docs/archive/DONE-LEAN-VENDOR-TREE.md"
     "docs/archive/DONE-CRYPTO-DEPRECATION-CONTINGENCY.md"
     "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md"
-    # Not archived yet: docs/PLAN-SCHEMA-INSTALL-HARDENING.md cites this as the path it will be
-    # moved to once executed (its "Lifecycle of this document" section). Listed up front so the
-    # forward reference doesn't have to be vague — it belongs to this same gitignored group.
     "docs/archive/DONE-SCHEMA-INSTALL-HARDENING.md"
+    "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md"
 )
 
 FINDINGS=0
