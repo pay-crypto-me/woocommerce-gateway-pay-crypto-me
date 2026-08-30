@@ -74,6 +74,11 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
         public const URL_PRO = 'https://paycrypto.me/woocommerce/';
         public const URL_GITHUB = 'https://github.com/paycrypto-me/paycrypto-me-for-woocommerce/';
 
+        public const NAME_BRAND = 'PayCrypto.Me';
+        public const NAME_PRO_ADDON = 'PayCrypto.Me Pro';
+        public const NAME_PRO_ADDON_SHORT = 'Pro';
+        public const BTCPAY_DEFAULT_PAYMENT_METHOD_ID = 'BTC-LN';
+
         protected static $instance = null;
 
         protected function __construct()
@@ -194,7 +199,11 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
                 sprintf(
                     '<a href="%s" target="_blank" rel="noopener noreferrer" style="color:#00a32a;font-weight:600;">%s</a>',
                     esc_url(self::URL_PRO),
-                    esc_html__('Get Pro', 'paycrypto-me-for-woocommerce')
+                    esc_html(sprintf(
+                        /* translators: %s: short add-on name (not translated, product name), e.g. "Pro". */
+                        __('Get %s', 'paycrypto-me-for-woocommerce'),
+                        self::NAME_PRO_ADDON_SHORT
+                    ))
                 ),
             ];
 
@@ -281,4 +290,3 @@ add_filter(
     [WC_PayCryptoMe::class, 'add_action_links']
 );
 add_filter('plugin_row_meta', [WC_PayCryptoMe::class, 'add_row_meta_links'], 10, 2);
-

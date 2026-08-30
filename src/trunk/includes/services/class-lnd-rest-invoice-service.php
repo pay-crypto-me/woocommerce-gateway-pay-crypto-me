@@ -123,6 +123,10 @@ class LndRestInvoiceService extends AbstractLightningInvoiceService
 
     protected function payment_failed_message(): string
     {
-        return __('Payment via Lightning node failed. Please try again.', 'paycrypto-me-for-woocommerce');
+        return sprintf(
+            /* translators: %s: payment integration name. */
+            __('Payment via %s failed. Please try again.', 'paycrypto-me-for-woocommerce'),
+            __('Lightning node', 'paycrypto-me-for-woocommerce')
+        );
     }
 }

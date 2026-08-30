@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+ - Standardized translatable strings around reusable product-name constants, complete sentence
+   templates, translator context, and placeholders that locales can safely reorder.
+ - Added first-class block-script translation catalogs for all seven locales, retaining only the
+   two runtime-consumable JSON files per locale instead of redundant source-path copies.
+
 ## 0.2.0
 
 ### Fixed

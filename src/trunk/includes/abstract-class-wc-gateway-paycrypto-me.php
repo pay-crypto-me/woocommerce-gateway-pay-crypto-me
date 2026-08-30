@@ -246,7 +246,11 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
             [
                 'enabled' => array(
                     'title' => __('Enable Method', 'paycrypto-me-for-woocommerce'),
-                    'label' => __('Enable', 'paycrypto-me-for-woocommerce') . ' ' . $this->method_title,
+                    'label' => sprintf(
+                        /* translators: %s: gateway title, e.g. "Bitcoin Payments (On-Chain)". */
+                        __('Enable %s', 'paycrypto-me-for-woocommerce'),
+                        $this->method_title
+                    ),
                     'type' => 'checkbox',
                     'default' => 'yes',
                 ),
@@ -276,7 +280,11 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                     'type' => 'text',
                     'title' => __('Express Button Label', 'paycrypto-me-for-woocommerce'),
                     'placeholder' => __('Buy with', 'paycrypto-me-for-woocommerce'),
-                    'description' => __('Text displayed on the Express Payment button. If empty, the default label will be used \'Buy with\'', 'paycrypto-me-for-woocommerce'),
+                    'description' => sprintf(
+                        /* translators: %s: the actual default button label text (already translated elsewhere), shown quoted. */
+                        __('Text displayed on the Express Payment button. If empty, the default label will be used \'%s\'', 'paycrypto-me-for-woocommerce'),
+                        __('Buy with', 'paycrypto-me-for-woocommerce')
+                    ),
                     'default' => '',
                     'custom_attributes' => array(
                         'data-express_payment-text' => '',
@@ -325,10 +333,10 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
                         <img src="' . WC_PayCryptoMe::plugin_url() . '/assets/wallet_address_qrcode.png">
                     </div>
                     <div>
-                        ' . __('<strong>Enjoying the plugin?</strong> Send some BTC to support:', 'paycrypto-me-for-woocommerce') . '
+                        ' . sprintf('<strong>%s</strong> %s', esc_html__('Enjoying the plugin?', 'paycrypto-me-for-woocommerce'), __('Send some BTC to support:', 'paycrypto-me-for-woocommerce')) . '
                         <div style="display: flex; align-items: center; margin-top: 8px;">
                             <span id="btc-address-admin" class="support-content">' . esc_html($this->support_btc_address) . '</span>
-                            <button type="button" id="copy-btc-admin" class="support-btn">' . esc_html__('Copy', 'paycrypto-me-for-woocommerce') . '</button>
+                            <button type="button" id="copy-btc-admin" class="support-btn">' . esc_html_x('Copy', 'button label: copy the Bitcoin donation address to the clipboard', 'paycrypto-me-for-woocommerce') . '</button>
                         </div>
                     </div>
                 </div>',
@@ -561,9 +569,45 @@ abstract class Abstract_WC_Gateway_PayCryptoMe extends \WC_Payment_Gateway
     // tracking). The associated input is disabled so the free version never acts on the value.
     protected function pro_soon_badge(): string
     {
-        return '<span class="paycrypto-pro-badge">'
-            . esc_html__('Pro · Coming soon', 'paycrypto-me-for-woocommerce')
-            . '</span>';
+        return sprintf(
+            '<span class="paycrypto-pro-badge">%s</span>',
+            esc_html(sprintf(
+                /* translators: %s: short add-on name (not translated, product name), e.g. "Pro". */
+                __('%s · Coming soon', 'paycrypto-me-for-woocommerce'),
+                WC_PayCryptoMe::NAME_PRO_ADDON_SHORT
+            ))
+        );
+    }
+
+    protected function bitcoin_payments_title(string $network_label): string
+    {
+        return sprintf(
+            /* translators: %s: payment network name, e.g. "On-Chain" or "Lightning Network". */
+            __('Bitcoin Payments (%s)', 'paycrypto-me-for-woocommerce'),
+            $network_label
+        );
+    }
+
+    protected function bitcoin_payments_description(string $mode_clause, string $network_label): string
+    {
+        return sprintf(
+            /* translators: %1$s: custody/hosting mode clause, e.g. "Non-custodial" or "self-hosted", %2$s: payment network name, %3$s: brand name (not translated, product name). */
+            __('Accept Bitcoin payments %1$s via %2$s (Provided by %3$s).', 'paycrypto-me-for-woocommerce'),
+            $mode_clause,
+            $network_label,
+            WC_PayCryptoMe::NAME_BRAND
+        );
+    }
+
+    protected function pro_feature_notice(string $feature_clause, string $free_version_clause): string
+    {
+        return sprintf(
+            /* translators: %1$s: feature description, %2$s: add-on name (not translated, product name), %3$s: free-version behavior description. */
+            __('%1$s ships in the upcoming %2$s add-on. In the free version, %3$s.', 'paycrypto-me-for-woocommerce'),
+            $feature_clause,
+            WC_PayCryptoMe::NAME_PRO_ADDON,
+            $free_version_clause
+        );
     }
 
     public function get_payment_method_data()

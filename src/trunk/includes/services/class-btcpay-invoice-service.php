@@ -108,7 +108,7 @@ class BtcpayInvoiceService extends AbstractLightningInvoiceService
     {
         return (string) apply_filters(
             'paycryptome_lightning_btcpay_payment_method_id',
-            $this->gateway->get_option('btcpay_payment_method_id', 'BTC-LN')
+            $this->gateway->get_option('btcpay_payment_method_id', WC_PayCryptoMe::BTCPAY_DEFAULT_PAYMENT_METHOD_ID)
         );
     }
 
@@ -140,6 +140,10 @@ class BtcpayInvoiceService extends AbstractLightningInvoiceService
 
     protected function payment_failed_message(): string
     {
-        return __('Payment via BTCPay Server failed. Please try again.', 'paycrypto-me-for-woocommerce');
+        return sprintf(
+            /* translators: %s: payment integration name. */
+            __('Payment via %s failed. Please try again.', 'paycrypto-me-for-woocommerce'),
+            __('BTCPay Server', 'paycrypto-me-for-woocommerce')
+        );
     }
 }
