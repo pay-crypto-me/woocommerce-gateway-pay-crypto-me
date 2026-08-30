@@ -144,7 +144,8 @@ if (!class_exists(__NAMESPACE__ . '\\WC_PayCryptoMe')) {
             // /languages folder. We ship 7 complete locales maintained in-house and want them available
             // immediately on activation, so we load them explicitly. Plugin Check flags this call as
             // discouraged (its guidance assumes only language-pack translations); the directive doesn't
-            // apply to bundled files, and there's no inline suppression for this specific PCP check.
+            // apply to bundled files, so keep the exception narrow and reviewer-visible.
+            // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Required to load the 7 complete locale catalogs bundled in /languages; WordPress.org JIT loading only covers translate.wordpress.org language packs.
             load_plugin_textdomain(
                 'paycrypto-me-for-woocommerce',
                 false,

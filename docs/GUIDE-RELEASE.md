@@ -464,7 +464,23 @@ git push origin v1.2.0
 
 ---
 
-### 5. Submissão ao WordPress.org
+### 5. Plugin Check no Zip Aprovado
+
+Antes de qualquer upload ou comando SVN, instale o **zip aprovado** em um ambiente WordPress limpo,
+sem o bind mount da árvore `src/trunk`, e rode:
+
+```bash
+./start  # provisiona/ativa o plugin-check quando necessário
+docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv
+```
+
+O gate exige exit code `0`, **zero `ERROR`s e zero `WARNING`s** no código distribuído. Operações
+intencionais sem alternativa correta na API do WordPress devem ter uma exclusão PHPCS estreita,
+junto da própria linha e com justificativa útil para revisão; não aceite ruído conhecido como baseline.
+
+---
+
+### 6. Submissão ao WordPress.org
 
 #### Opção A — Upload Manual (mais simples)
 
@@ -753,6 +769,9 @@ BUILD E VALIDAÇÃO
     - ambos os blocos presentes (paycrypto_me-blocks.js e paycrypto_me_lightning-blocks.js)
     - vendor/composer/autoload_classmap.php presente
     - nenhum .git/, tests/ ou phpunit dentro do vendor
+[ ] Zip aprovado instalado num WordPress limpo, sem bind mount da árvore de trabalho
+[ ] Plugin Check limpo (zero ERRORs e zero WARNINGs):
+    docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-woocommerce --format=csv
 
 GIT E PUBLICAÇÃO
 [ ] git push origin main
