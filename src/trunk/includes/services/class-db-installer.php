@@ -62,6 +62,7 @@ class DbInstaller
     {
         global $wpdb;
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A live advisory lock cannot be cached; it serializes concurrent schema installation.
         $got_lock = $wpdb->get_var(
             $wpdb->prepare('SELECT GET_LOCK(%s, %d)', self::INSTALL_LOCK, self::INSTALL_LOCK_TIMEOUT)
         );
@@ -88,6 +89,7 @@ class DbInstaller
 
             return self::run_install();
         } finally {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Releasing the live advisory lock must reach the database and cannot use a cached result.
             $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', self::INSTALL_LOCK));
         }
     }
@@ -194,6 +196,7 @@ class DbInstaller
         foreach (self::tables() as $table) {
             $full_name = $wpdb->prefix . $table;
 
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema health must observe the current table state; caching could hide a missing or newly restored table.
             $found = $wpdb->get_var(
                 $wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($full_name))
             );

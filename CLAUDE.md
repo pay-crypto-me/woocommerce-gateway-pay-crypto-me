@@ -420,7 +420,7 @@ docker compose exec -T wordpress wp --allow-root plugin check paycrypto-me-for-w
 
 The `start` script provisions and activates `plugin-check` once per WP volume; without it, the check command fails with *"'check' is not a registered subcommand of 'plugin'"*. Expected result: **no `ERROR` in shipped code** (`ERROR`s in `tests/`, `phpunit.xml.dist` and `.phpunit.result.cache` are fine — `release.sh` excludes those paths).
 
-`WARNING`s in shipped code are not free either: the deliberate `error_reporting()` calls in `BitcoinAddressService` are silenced with a `phpcs:disable` naming **both** sniffs that flag them (`WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting` **and** Plugin Check's own `PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall`) — the second fires independently of WPCS, and "production-time change to PHP error reporting" is exactly the kind of line a WordPress.org reviewer asks about in a payment plugin.
+`WARNING`s in shipped code are not free either: the expected result is **zero warnings**. When an operation is intentional and has no sound WordPress API alternative, use the narrowest inline `phpcs:ignore`/`phpcs:disable` with a reviewer-visible reason instead of accepting a noisy report. Current examples are the bundled-locale `load_plugin_textdomain()` call, the live advisory-lock/schema checks in `DbInstaller`, and the deliberate `error_reporting()` calls in `BitcoinAddressService`. The latter must name **both** sniffs that flag them (`WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting` **and** Plugin Check's own `PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall`) because the second fires independently of WPCS.
 
 ### Compose form
 
