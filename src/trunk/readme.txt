@@ -8,7 +8,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 6.5
 WC tested up to: 10.9
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -135,6 +135,10 @@ resume derivation from that wallet through this plugin.
 
 == Changelog ==
 
+= 0.2.1 =
+* Standardized translatable strings around reusable product-name constants, complete sentence templates, translator context and reorderable placeholders.
+* Added block-script translation catalogs for all seven locales, retaining only the two runtime-consumable JSON files per locale instead of redundant source-path copies.
+
 = 0.2.0 =
 * Fixed-address On-Chain orders are now recorded in the payments table and safely reused on checkout retries.
 * Database upgrades now run only on admin/update paths, are serialized and preserve forward-only schema versions during rollback/reinstall cycles.
@@ -172,6 +176,9 @@ resume derivation from that wallet through this plugin.
 * Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
 
 == Upgrade Notice ==
+
+= 0.2.1 =
+Improves translation consistency and adds working Checkout block translations for all seven bundled locales. Payment behavior and existing settings are unchanged.
 
 = 0.2.0 =
 Adds persistent fixed-address payment records and hardens schema repair/upgrades and concurrent On-Chain/Lightning checkout retries. Existing data and settings are preserved on upgrade; rollback to 0.1.2 was validated as safe.

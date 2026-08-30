@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.1
+
 ### Changed
 
  - Standardized translatable strings around reusable product-name constants, complete sentence
