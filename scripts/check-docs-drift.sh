@@ -29,9 +29,7 @@ TRUNK="$REPO_ROOT/src/trunk"
 
 # Paths cited by an approved-but-not-started plan: they will exist once it runs. Listed here instead
 # of loosening the check, so "planned" stays distinguishable from "rotted".
-PLANNED_PATHS=(
-    "scripts/check-i18n-conventions.sh"
-)
+PLANNED_PATHS=()
 # WordPress core, not ours: the docs cite wp-includes/functions.php,
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) and wp-includes/class-wpdb.php
 # (whose flush() is what clears $wpdb->last_error) by their tail.
@@ -53,6 +51,7 @@ ARCHIVED_PATHS=(
     "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md"
     "docs/archive/DONE-SCHEMA-INSTALL-HARDENING.md"
     "docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md"
+    "docs/archive/DONE-I18N-CONVENTIONS.md"
 )
 
 FINDINGS=0

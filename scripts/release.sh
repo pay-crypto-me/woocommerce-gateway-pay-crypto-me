@@ -258,6 +258,15 @@ if [[ $DO_TESTS -eq 1 ]]; then
   else
     step "[dry-run] scripts/check-docs-drift.sh"
   fi
+
+  # Keep translation calls mechanically aligned with the authoring rules documented for this
+  # project. Like the docs audit, this is cheap, local and belongs to the release test gate.
+  header "i18n conventions audit"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    "$ROOT_DIR/scripts/check-i18n-conventions.sh"
+  else
+    step "[dry-run] scripts/check-i18n-conventions.sh"
+  fi
 fi
 
 if [[ $PUBLISH_ONLY -eq 0 ]]; then

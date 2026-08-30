@@ -5,6 +5,10 @@ namespace PayCryptoMe\WooCommerce {
         class WC_PayCryptoMe
         {
             public const VERSION = '0.1.0';
+            public const NAME_BRAND = 'PayCrypto.Me';
+            public const NAME_PRO_ADDON = 'PayCrypto.Me Pro';
+            public const NAME_PRO_ADDON_SHORT = 'Pro';
+            public const BTCPAY_DEFAULT_PAYMENT_METHOD_ID = 'BTC-LN';
 
             public static function plugin_abspath()
             {

@@ -80,7 +80,7 @@ class LightningConfigValidator
     public function validate_btcpay_payment_method_id($value): string
     {
         $val = $this->sanitize_text_val($value);
-        return $val !== '' ? $val : 'BTC-LN';
+        return $val !== '' ? $val : WC_PayCryptoMe::BTCPAY_DEFAULT_PAYMENT_METHOD_ID;
     }
 
     public function validate_btcpay_webhook_secret($value, bool $is_lnd_rest_selected): string

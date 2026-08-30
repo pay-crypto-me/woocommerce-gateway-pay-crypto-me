@@ -32,11 +32,14 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
 
         $this->icon         = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-icon.png';
         $this->express_icon = WC_PayCryptoMe::plugin_url() . '/assets/bitcoin-icon.png';
-        $this->method_title = __('Bitcoin Payments', 'paycrypto-me-for-woocommerce') . ' (' . __('On-Chain', 'paycrypto-me-for-woocommerce') . ')';
-        $this->method_description = __('Accept Bitcoin payments Non-custodial via On-Chain', 'paycrypto-me-for-woocommerce') . ' (' . __('Provided by PayCrypto.Me', 'paycrypto-me-for-woocommerce') . ').';
+        $this->method_title = $this->bitcoin_payments_title(__('On-Chain', 'paycrypto-me-for-woocommerce'));
+        $this->method_description = $this->bitcoin_payments_description(
+            __('Non-custodial', 'paycrypto-me-for-woocommerce'),
+            __('On-Chain', 'paycrypto-me-for-woocommerce')
+        );
 
         $this->title = $this->get_option('title') ?: __('Pay with Bitcoin', 'paycrypto-me-for-woocommerce');
-        $this->description = $this->get_option('description') ?: __('Use directly your Bitcoin wallet to pay. Place the order to view the QR code and payment instructions.', 'paycrypto-me-for-woocommerce');
+        $this->description = $this->get_option('description') ?: __('Pay directly from your Bitcoin wallet. Place your order to view the QR code and payment instructions.', 'paycrypto-me-for-woocommerce');
         $this->enabled = $this->get_option('enabled', 'yes');
         $this->hide_for_non_admin_users = $this->get_option('hide_for_non_admin_users', 'no');
         $this->debug_log = $this->get_option('debug_log', 'no');
@@ -290,7 +293,10 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             'payment_timeout_hours' => array(
                 'title' => __('Payment Timeout (hours)', 'paycrypto-me-for-woocommerce'),
                 'type' => 'number',
-                'description' => $this->pro_soon_badge() . '<br>' . __('Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me Pro add-on. In the free version, on-chain addresses stay valid until paid.', 'paycrypto-me-for-woocommerce'),
+                'description' => $this->pro_soon_badge() . '<br>' . $this->pro_feature_notice(
+                    __('Automatic order expiry after the timeout', 'paycrypto-me-for-woocommerce'),
+                    __('on-chain addresses stay valid until paid', 'paycrypto-me-for-woocommerce')
+                ),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '72', 'disabled' => 'disabled'),
                 'default' => '24',
                 'class' => 'paycrypto-pro-field',
@@ -298,7 +304,10 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
             'payment_number_confirmations' => array(
                 'title' => __('Payment number of confirmations', 'paycrypto-me-for-woocommerce'),
                 'type' => 'number',
-                'description' => $this->pro_soon_badge() . '<br>' . __('Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me Pro add-on. In the free version, payments are verified manually.', 'paycrypto-me-for-woocommerce'),
+                'description' => $this->pro_soon_badge() . '<br>' . $this->pro_feature_notice(
+                    __('Automatic on-chain confirmation tracking', 'paycrypto-me-for-woocommerce'),
+                    __('payments are verified manually', 'paycrypto-me-for-woocommerce')
+                ),
                 'custom_attributes' => array('min' => '1', 'step' => '1', 'max' => '6', 'disabled' => 'disabled'),
                 'default' => '3',
                 'class' => 'paycrypto-pro-field',
@@ -308,7 +317,7 @@ class WC_Gateway_PayCryptoMe extends Abstract_WC_Gateway_PayCryptoMe
                 'title' => __('Danger Area', 'paycrypto-me-for-woocommerce'),
                 'description' => '
                 <div class="paycrypto-danger-box">
-                    <strong>' . esc_html__('Warning:', 'paycrypto-me-for-woocommerce') . '</strong> ' . __('Resetting the payment derivation index will lead to the reuse of addresses and loss of past data. Proceed with caution and ensure you understand the implications.', 'paycrypto-me-for-woocommerce') . '
+                    ' . sprintf('<strong>%s</strong> %s', esc_html__('Warning:', 'paycrypto-me-for-woocommerce'), __('Resetting the payment derivation index will lead to the reuse of addresses and loss of past data. Proceed with caution and ensure you understand the implications.', 'paycrypto-me-for-woocommerce')) . '
                     <br>
                     <button type="button" id="paycrypto-me-reset-derivation-index" class="button paycrypto-danger-btn" style="margin-top: 8px;">' . esc_html__('Reset payment address derivation index', 'paycrypto-me-for-woocommerce') . '</button>
                 </div>

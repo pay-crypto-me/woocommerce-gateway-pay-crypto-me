@@ -76,8 +76,7 @@ generate_pot_wp_cli() {
         --domain=\"$TEXT_DOMAIN\" \
         --package-name=\"PayCrypto.Me for WooCommerce\" \
         --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/paycrypto-me/paycrypto-me-for-woocommerce/issues\",\"Language-Team\":\"PayCrypto.Me Team <contact@paycrypto.me>\"}' \
-        --exclude=\"node_modules,vendor,.git,assets/js,webpack.config.js\" \
-        --skip-js" 2>/dev/null; then
+        --exclude=\"node_modules,vendor,.git,assets/js,assets/blocks,webpack.config.js\"" 2>/dev/null; then
         log "Arquivo POT gerado: $POT_FILE"
         return 0
     else
@@ -215,6 +214,44 @@ compile_mo_file() {
     fi
 }
 
+# Gerar os catálogos JSON consumidos por wp_set_script_translations(). O --no-purge preserva
+# as mesmas strings JS no PO/MO compartilhado com o PHP.
+generate_json_files() {
+    local locale=$1
+    local po_file="$LANGUAGES_DIR/$PLUGIN_SLUG-$locale.po"
+
+    if ! docker_exec "[ -f \"$po_file\" ]"; then
+        error "Arquivo PO não encontrado: $po_file"
+        exit 1
+    fi
+
+    log "Gerando arquivos JSON para $locale"
+    docker_exec "wp i18n make-json \"$po_file\" \"$LANGUAGES_DIR\" --no-purge"
+
+    # make-json hashes the human-readable source paths recorded in the PO, while WordPress loads
+    # translations for the compiled, registered assets/blocks paths. These mappings were measured
+    # against the running WordPress loader on 2026-08-30. Rename the generated intermediates so the
+    # language directory contains only the files WordPress can actually request at runtime.
+    move_json_to_runtime_path "$locale" "c7c8c808e565b185d47fade194ce063c" "a3182ac899b43f45c64646648333cefa"
+    move_json_to_runtime_path "$locale" "d26feea67388eb4c0ad18b96ec855398" "feac5e6ca9c599de87a2aa3ef20fa917"
+}
+
+move_json_to_runtime_path() {
+    local locale=$1
+    local source_hash=$2
+    local runtime_hash=$3
+    local source_file="$LANGUAGES_DIR/$PLUGIN_SLUG-$locale-$source_hash.json"
+    local runtime_file="$LANGUAGES_DIR/$PLUGIN_SLUG-$locale-$runtime_hash.json"
+
+    if ! docker_exec "[ -f \"$source_file\" ]"; then
+        error "JSON de origem não encontrado para $locale: $source_file"
+        exit 1
+    fi
+
+    docker_exec "mv \"$source_file\" \"$runtime_file\""
+    log "JSON preparado para runtime: $(basename "$runtime_file")"
+}
+
 # Função principal
 main() {
     header "PayCrypto.Me - Script de Tradução"
@@ -310,6 +347,14 @@ case "${1:-}" in
         fi
         compile_mo_file "$2"
         ;;
+    "json")
+        if [ -z "$2" ]; then
+            error "Uso: $0 json <locale>"
+            error "Exemplo: $0 json pt_BR"
+            exit 1
+        fi
+        generate_json_files "$2"
+        ;;
     "help"|"-h"|"--help")
         echo "PayCrypto.Me Translation Build Script"
         echo ""
@@ -318,11 +363,13 @@ case "${1:-}" in
         echo "  $0 pot             # Gerar apenas arquivo POT"
         echo "  $0 po <locale>     # Criar/atualizar arquivo PO específico"
         echo "  $0 mo <locale>     # Compilar arquivo MO específico"
+        echo "  $0 json <locale>   # Gerar arquivos JSON específicos para scripts"
         echo "  $0 help            # Mostrar esta ajuda"
         echo ""
         echo "Exemplos:"
         echo "  $0 po pt_BR        # Criar/atualizar tradução pt_BR"
         echo "  $0 mo pt_BR        # Compilar arquivo MO pt_BR"
+        echo "  $0 json pt_BR      # Gerar arquivos JSON pt_BR"
         ;;
     *)
         main

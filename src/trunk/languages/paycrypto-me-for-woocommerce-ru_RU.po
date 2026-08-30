@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: PayCrypto.Me for WooCommerce 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/paycrypto-me/paycrypto-me-for-"
 "woocommerce/issues\n"
-"POT-Creation-Date: 2026-08-27T19:17:27+00:00\n"
+"POT-Creation-Date: 2026-08-30T15:22:58+00:00\n"
 "PO-Revision-Date: 2026-07-07 17:52+0000\n"
 "Last-Translator: PayCrypto.Me Team <contact@paycrypto.me>\n"
 "Language-Team: PayCrypto.Me Team <contact@paycrypto.me>\n"
@@ -76,34 +76,39 @@ msgstr "Выберите сеть для платежей."
 msgid "Enable Method"
 msgstr "Включить метод"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:249
-msgid "Enable"
-msgstr "Включить"
+#. translators: %s: gateway title, e.g. "Bitcoin Payments (On-Chain)".
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:251
+#, php-format
+msgid "Enable %s"
+msgstr "Включить %s"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:254
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:258
 msgid "Title"
 msgstr "Название"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:256
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:260
 msgid "Payment method name displayed on Checkout page."
 msgstr "Название способа оплаты, отображаемое на странице оформления заказа."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:257
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:34
-#: includes/class-wc-gateway-paycrypto-me.php:38
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:261
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:37
+#: includes/class-wc-gateway-paycrypto-me.php:41
+#: includes/blocks/js/paycrypto_me-blocks.js:9
+#: includes/blocks/js/paycrypto_me_lightning-blocks.js:9
 msgid "Pay with Bitcoin"
 msgstr "Оплатить Bitcoin"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:260
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:264
 msgid "Description"
 msgstr "Описание"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:262
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:266
 msgid "Payment method description displayed on Checkout page."
 msgstr "Описание способа оплаты, отображаемое на странице оформления заказа."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:263
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:35
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:267
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:38
+#: includes/class-wc-gateway-paycrypto-me.php:42
 msgid ""
 "Pay directly from your Bitcoin wallet. Place your order to view the QR code "
 "and payment instructions."
@@ -111,11 +116,11 @@ msgstr ""
 "Платите прямо со своего кошелька Bitcoin. Разместите заказ, чтобы увидеть QR-"
 "код и инструкции по оплате."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:267
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:271
 msgid "Express Payment (One-Click)"
 msgstr "Экспресс-платеж (один клик)"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:268
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:272
 msgid ""
 "Enable Express Payment to pay with one click. When enabled, customers are "
 "redirected straight to the payment QR code."
@@ -123,47 +128,50 @@ msgstr ""
 "Включить экспресс-платеж для оплаты одним щелчком. Если эта опция включена, "
 "покупатели будут перенаправлены прямо на QR-код платежа."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:271
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:275
 msgid "Enable Express Payment"
 msgstr "Включить экспресс-платеж"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:277
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:281
 msgid "Express Button Label"
 msgstr "Метка кнопки Express"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:278
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:42
-#: includes/class-wc-gateway-paycrypto-me.php:47
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:282
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:286
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:45
+#: includes/class-wc-gateway-paycrypto-me.php:50
 msgid "Buy with"
 msgstr "Купить"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:279
+#. translators: %s: the actual default button label text (already translated elsewhere), shown quoted.
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:285
+#, php-format
 msgid ""
 "Text displayed on the Express Payment button. If empty, the default label "
-"will be used 'Buy with'"
+"will be used '%s'"
 msgstr ""
-"Текст, отображаемый на кнопке экспресс-платежа. Если оставить пустым, будет "
-"использована метка по умолчанию 'Купить'"
+"Текст на кнопке быстрой оплаты. Если поле пустое, будет использована "
+"стандартная надпись «%s»"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:286
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:294
 msgid "Express Button Icon"
 msgstr "Значок кнопки Express"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:287
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:295
 msgid "Show icon on Express Payment button"
 msgstr "Показать значок на кнопке экспресс-платежа"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:290
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:298
 msgid ""
 "When enabled, the payment network icon is displayed alongside the button "
 "label."
 msgstr "При включении значок сети платежей отображается рядом с меткой кнопки."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:293
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:301
 msgid "Icon Position"
 msgstr "Позиция значка"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:296
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:304
 msgid ""
 "Controls where the icon appears relative to the button label. e.g. \"₿ Pay "
 "with\" (left) or \"Pay with ₿\" (right)."
@@ -171,95 +179,109 @@ msgstr ""
 "Контролирует расположение значка относительно метки кнопки. Например, \"₿ "
 "Оплатить\" (слева) или \"Оплатить ₿\" (справа)."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:298
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:306
 msgid "Left — icon before label"
 msgstr "Слева — значок перед меткой"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:299
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:307
 msgid "Right — icon after label"
 msgstr "Справа — значок после метки"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:307
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:315
 msgid "Hide for Non-Admin Users"
 msgstr "Скрыть для пользователей не-администраторов"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:308
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:316
 msgid "Show only for administrators."
 msgstr "Показать только администраторам."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:311
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:319
 msgid ""
 "If enabled, only administrators will see the payment method on Checkout page."
 msgstr ""
 "При включении только администраторы будут видеть способ оплаты на странице "
 "оформления заказа."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:314
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:322
 msgid "Debug"
 msgstr "Отладка"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:315
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:323
 msgid "Enable debugging messages"
 msgstr "Включить сообщения отладки"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:318
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:326
 msgid "Debug logs will be saved to WooCommerce > Status > Logs."
 msgstr "Логи отладки будут сохранены в WooCommerce > Статус > Логи."
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:322
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:330
 msgid "Support the development!"
 msgstr "Поддержите разработку!"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:328
-msgid "<strong>Enjoying the plugin?</strong> Send some BTC to support:"
-msgstr ""
-"<strong>Вам нравится плагин?</strong> Отправьте немного BTC в поддержку:"
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:336
+msgid "Enjoying the plugin?"
+msgstr "Нравится плагин?"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:331
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:336
+msgid "Send some BTC to support:"
+msgstr "Отправьте немного BTC в поддержку:"
+
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:339
+msgctxt "button label: copy the Bitcoin donation address to the clipboard"
 msgid "Copy"
 msgstr "Копировать"
 
-#: includes/abstract-class-wc-gateway-paycrypto-me.php:565
-msgid "Pro · Coming soon"
-msgstr "Pro · Скоро"
+#. translators: %s: short add-on name (not translated, product name), e.g. "Pro".
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:576
+#, php-format
+msgid "%s · Coming soon"
+msgstr "%s · Скоро"
+
+#. translators: %s: payment network name, e.g. "On-Chain" or "Lightning Network".
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:586
+#, php-format
+msgid "Bitcoin Payments (%s)"
+msgstr "Платежи Bitcoin (%s)"
+
+#. translators: %1$s: custody/hosting mode clause, e.g. "Non-custodial" or "self-hosted", %2$s: payment network name, %3$s: brand name (not translated, product name).
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:595
+#, php-format
+msgid "Accept Bitcoin payments %1$s via %2$s (Provided by %3$s)."
+msgstr "Принимайте платежи Bitcoin %1$s через %2$s (предоставлено %3$s)."
+
+#. translators: %1$s: feature description, %2$s: add-on name (not translated, product name), %3$s: free-version behavior description.
+#: includes/abstract-class-wc-gateway-paycrypto-me.php:606
+#, php-format
+msgid "%1$s ships in the upcoming %2$s add-on. In the free version, %3$s."
+msgstr "%1$s появится в готовящемся дополнении %2$s. В бесплатной версии %3$s."
 
 #: includes/class-wc-gateway-paycrypto-me-lightning.php:28
-#: includes/class-wc-gateway-paycrypto-me.php:35
-msgid "Bitcoin Payments"
-msgstr "Платежи Bitcoin"
-
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:28
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:364
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:31
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:383
 msgid "Lightning Network"
 msgstr "Lightning Network"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:29
-msgid "Accept Bitcoin payments self-hosted via Lightning Network"
-msgstr ""
-"Принимайте платежи Bitcoin через самохостируемую сеть Lightning Network"
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:30
+msgid "self-hosted"
+msgstr "на собственном сервере"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:29
-#: includes/class-wc-gateway-paycrypto-me.php:36
-msgid "Provided by PayCrypto.Me"
-msgstr "Предоставлено PayCrypto.Me"
-
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:106
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:109
 msgid "Proxy Settings"
 msgstr "Настройки прокси"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:108
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:111
 msgid "Configure proxy settings for connecting to your Lightning node."
 msgstr "Настройте параметры прокси для подключения к узлу Lightning."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:111
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:114
 msgid "Lightning Node Type"
 msgstr "Тип узла Lightning"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:116
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:119
 msgid "Invoice Expiry"
 msgstr "Срок действия счета"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:118
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:121
 msgid ""
 "Time before invoice expires. Min: 300 (5 min), Max: 86400 (24h). Default: "
 "3600 (1 hour)"
@@ -267,113 +289,125 @@ msgstr ""
 "Время до истечения счета. Мин: 300 (5 мин), Макс: 86400 (24ч). По умолчанию: "
 "3600 (1 час)"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:129
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:386
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:132
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:405
 #: includes/services/class-lightning-connection-tester.php:38
 #: includes/validators/class-lightning-config-validator.php:45
 #: includes/validators/class-lightning-config-validator.php:50
 msgid "BTCPay Server URL"
 msgstr "URL сервера BTCPay"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:131
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:134
 msgid "Full URL to your BTCPay Server (HTTPS required)."
 msgstr "Полный URL вашего сервера BTCPay (требуется HTTPS)."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:138
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:387
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:141
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:406
 #: includes/validators/class-lightning-config-validator.php:69
 msgid "BTCPay API Key"
 msgstr "API ключ BTCPay"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:140
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:143
 msgid "API key for BTCPay (min 20 characters)."
 msgstr "Ключ API для BTCPay (минимум 20 символов)."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:146
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:388
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:149
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:407
 msgid "BTCPay Store ID"
 msgstr "ID магазина BTCPay"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:148
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:151
 msgid "Your BTCPay store identifier."
 msgstr "Идентификатор вашего магазина BTCPay."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:153
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:156
 msgid "BTCPay Lightning Payment Method ID (advanced)"
 msgstr "ID метода платежа Lightning в BTCPay (продвинутые)"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:155
+#. translators: %1$s: BTCPay Server brand name (not translated), %2$s: default payment-method identifier, not translated (technical value).
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:160
+#, php-format
 msgid ""
-"Only change this if your BTCPay Server version reports a different Lightning "
-"payment method identifier than the default. Leave as \"BTC-LN\" unless "
-"instructed otherwise."
+"Only change this if your %1$s version reports a different Lightning payment "
+"method identifier than the default. Leave as \"%2$s\" unless instructed "
+"otherwise."
 msgstr ""
-"Изменяйте только если ваша версия сервера BTCPay сообщает другой "
-"идентификатор метода платежа Lightning. Оставьте как \"BTC-LN\", если не "
-"указано иное."
+"Изменяйте это значение только в том случае, если ваша версия %1$s сообщает "
+"идентификатор способа оплаты Lightning, отличный от стандартного. Оставьте "
+"«%2$s», если не указано иное."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:162
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:161
+#: includes/services/class-btcpay-invoice-service.php:146
+msgid "BTCPay Server"
+msgstr "Сервер BTCPay"
+
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:170
 msgid "BTCPay Connection Test"
 msgstr "Проверка подключения BTCPay"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:167
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:175
 msgid "Webhook Configuration"
 msgstr "Конфигурация Webhook"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:169
-msgid ""
-"Automatic payment confirmation via webhooks (BTCPay push / lnd polling) "
-"ships in the upcoming PayCrypto.Me Pro add-on. In the free version, "
-"Lightning payments are confirmed manually — the settings below are a preview "
-"and are not editable yet."
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:178
+msgid "Automatic payment confirmation via webhooks (BTCPay push / lnd polling)"
 msgstr ""
-"Автоматическое подтверждение платежей через веб-хуки (push от BTCPay / опрос "
-"lnd) появится в будущем дополнении Pro от PayCrypto.Me. В бесплатной версии "
-"платежи Lightning подтверждаются вручную — настройки ниже показаны для "
-"предпросмотра и пока недоступны для редактирования."
+"Автоматическое подтверждение платежей через вебхуки (push BTCPay / опрос lnd)"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:172
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:179
+msgid ""
+"Lightning payments are confirmed manually — the settings below are a preview "
+"and are not editable yet"
+msgstr ""
+"платежи Lightning подтверждаются вручную — настройки ниже приведены для "
+"ознакомления и пока недоступны для редактирования"
+
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:183
 msgid "BTCPay Webhook Secret"
 msgstr "Секрет Webhook BTCPay"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:174
-msgid "Reserved for the Pro add-on. Not used by the free version."
+#. translators: %s: short add-on name (not translated, product name), e.g. "Pro".
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:187
+#, php-format
+msgid "Reserved for the %s add-on. Not used by the free version."
 msgstr ""
-"Зарезервировано для дополнения Pro. Не используется в бесплатной версии."
+"Зарезервировано для дополнения %s. В бесплатной версии не используется."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:175
-msgid "Available in the Pro add-on"
-msgstr "Доступно в дополнении Pro"
+#. translators: %s: short add-on name (not translated, product name), e.g. "Pro".
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:192
+#, php-format
+msgid "Available in the %s add-on"
+msgstr "Доступно в дополнении %s"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:183
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:382
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:202
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:401
 #: includes/services/class-lightning-connection-tester.php:68
 #: includes/validators/class-lightning-config-validator.php:103
 #: includes/validators/class-lightning-config-validator.php:108
 msgid "lnd REST URL"
 msgstr "URL lnd REST"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:185
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:204
 msgid "REST API endpoint (HTTPS required)."
 msgstr "Endpoint REST API (требуется HTTPS)."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:192
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:383
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:211
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:402
 #: includes/validators/class-lightning-config-validator.php:120
 msgid "lnd Macaroon (hex)"
 msgstr "Macaroon lnd (hex)"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:194
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:213
 msgid "Admin macaroon in hexadecimal format (min 100 characters)."
 msgstr ""
 "Администраторский macaroon в шестнадцатеричном формате (минимум 100 "
 "символов)."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:200
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:219
 msgid "SSL Certificate (PEM)"
 msgstr "Сертификат SSL (PEM)"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:202
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:221
 msgid ""
 "Optional: Paste your SSL certificate in PEM format. If provided, this will "
 "be used for verification instead of disabling SSL checks."
@@ -381,15 +415,15 @@ msgstr ""
 "Опционально: Вставьте ваш сертификат SSL в формате PEM. Если предоставлен, "
 "он будет использоваться для проверки вместо отключения проверок SSL."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:208
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:227
 msgid "Verify SSL Certificate"
 msgstr "Проверить сертификат SSL"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:210
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:229
 msgid "Enable SSL certificate verification"
 msgstr "Включить проверку сертификата SSL"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:211
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:230
 msgid ""
 "Enable for production. If disabled and no certificate is provided, SSL "
 "verification is skipped (development only)."
@@ -397,45 +431,38 @@ msgstr ""
 "Включите для производства. Если отключено и сертификат не предоставлен, "
 "проверка SSL пропускается (только разработка)."
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:216
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:235
 msgid "lnd REST Connection Test"
 msgstr "Проверка подключения lnd REST"
 
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:283
-#: includes/class-wc-gateway-paycrypto-me-lightning.php:319
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:302
+#: includes/class-wc-gateway-paycrypto-me-lightning.php:338
 msgid "🔌 Test connection"
 msgstr "🔌 Проверить подключение"
 
 #: includes/class-wc-gateway-paycrypto-me.php:35
-#: includes/class-wc-gateway-paycrypto-me.php:359
+#: includes/class-wc-gateway-paycrypto-me.php:38
+#: includes/class-wc-gateway-paycrypto-me.php:368
 msgid "On-Chain"
 msgstr "On-Chain"
 
-#: includes/class-wc-gateway-paycrypto-me.php:36
-msgid "Accept Bitcoin payments Non-custodial via On-Chain"
-msgstr "Принимайте платежи Bitcoin без хранения ключей через On-Chain"
+#: includes/class-wc-gateway-paycrypto-me.php:37
+msgid "Non-custodial"
+msgstr "без хранения средств"
 
-#: includes/class-wc-gateway-paycrypto-me.php:39
-msgid ""
-"Use directly your Bitcoin wallet to pay. Place the order to view the QR code "
-"and payment instructions."
-msgstr ""
-"Используйте напрямую ваш кошелек Bitcoin для оплаты. Разместите заказ, чтобы "
-"увидеть QR-код и инструкции по оплате."
-
-#: includes/class-wc-gateway-paycrypto-me.php:259
+#: includes/class-wc-gateway-paycrypto-me.php:262
 msgid "Wallet xPub"
 msgstr "xPub кошелька"
 
-#: includes/class-wc-gateway-paycrypto-me.php:268
+#: includes/class-wc-gateway-paycrypto-me.php:271
 msgid "Testnet Wallet xPub"
 msgstr "xPub кошелька Testnet"
 
-#: includes/class-wc-gateway-paycrypto-me.php:283
+#: includes/class-wc-gateway-paycrypto-me.php:286
 msgid "Network Identifier"
 msgstr "Идентификатор сети"
 
-#: includes/class-wc-gateway-paycrypto-me.php:287
+#: includes/class-wc-gateway-paycrypto-me.php:290
 msgid ""
 "Tip: It is always preferable to use the wallet xPub rather than a wallet "
 "address for Bitcoin payments."
@@ -443,41 +470,39 @@ msgstr ""
 "Совет: Всегда предпочтительнее использовать xPub кошелька, чем адрес "
 "кошелька для платежей Bitcoin."
 
-#: includes/class-wc-gateway-paycrypto-me.php:291
+#: includes/class-wc-gateway-paycrypto-me.php:294
 msgid "Payment Timeout (hours)"
 msgstr "Таймаут платежа (часов)"
 
-#: includes/class-wc-gateway-paycrypto-me.php:293
-msgid ""
-"Automatic order expiry after the timeout ships in the upcoming PayCrypto.Me "
-"Pro add-on. In the free version, on-chain addresses stay valid until paid."
-msgstr ""
-"Автоматическое истечение срока заказа по тайм-ауту появится в будущем "
-"дополнении Pro от PayCrypto.Me. В бесплатной версии адреса on-chain остаются "
-"действительными до оплаты."
+#: includes/class-wc-gateway-paycrypto-me.php:297
+msgid "Automatic order expiry after the timeout"
+msgstr "Автоматическое истечение срока заказа после тайм-аута"
 
-#: includes/class-wc-gateway-paycrypto-me.php:299
+#: includes/class-wc-gateway-paycrypto-me.php:298
+msgid "on-chain addresses stay valid until paid"
+msgstr "адреса on-chain остаются действительными до оплаты"
+
+#: includes/class-wc-gateway-paycrypto-me.php:305
 msgid "Payment number of confirmations"
 msgstr "Количество подтверждений платежа"
 
-#: includes/class-wc-gateway-paycrypto-me.php:301
-msgid ""
-"Automatic on-chain confirmation tracking ships in the upcoming PayCrypto.Me "
-"Pro add-on. In the free version, payments are verified manually."
-msgstr ""
-"Автоматическое отслеживание подтверждений on-chain появится в будущем "
-"дополнении Pro от PayCrypto.Me. В бесплатной версии платежи проверяются "
-"вручную."
-
 #: includes/class-wc-gateway-paycrypto-me.php:308
+msgid "Automatic on-chain confirmation tracking"
+msgstr "Автоматическое отслеживание подтверждений on-chain"
+
+#: includes/class-wc-gateway-paycrypto-me.php:309
+msgid "payments are verified manually"
+msgstr "платежи проверяются вручную"
+
+#: includes/class-wc-gateway-paycrypto-me.php:317
 msgid "Danger Area"
 msgstr "Опасная зона"
 
-#: includes/class-wc-gateway-paycrypto-me.php:311
+#: includes/class-wc-gateway-paycrypto-me.php:320
 msgid "Warning:"
 msgstr "Предупреждение:"
 
-#: includes/class-wc-gateway-paycrypto-me.php:311
+#: includes/class-wc-gateway-paycrypto-me.php:320
 msgid ""
 "Resetting the payment derivation index will lead to the reuse of addresses "
 "and loss of past data. Proceed with caution and ensure you understand the "
@@ -487,15 +512,15 @@ msgstr ""
 "адресов и потере прошлых данных. Действуйте осторожно и убедитесь, что вы "
 "понимаете последствия."
 
-#: includes/class-wc-gateway-paycrypto-me.php:313
+#: includes/class-wc-gateway-paycrypto-me.php:322
 msgid "Reset payment address derivation index"
 msgstr "Сброс индекса производной адреса платежа"
 
-#: includes/class-wc-gateway-paycrypto-me.php:360
+#: includes/class-wc-gateway-paycrypto-me.php:369
 msgid "Testnet"
 msgstr "Testnet"
 
-#: includes/processors/abstract-class-lightning-processor.php:85
+#: includes/processors/abstract-class-lightning-processor.php:107
 msgid ""
 "We could not save your Lightning invoice. Please try again or contact the "
 "store."
@@ -503,7 +528,7 @@ msgstr ""
 "Не удалось сохранить ваш Lightning-инвойс. Попробуйте ещё раз или свяжитесь "
 "с магазином."
 
-#: includes/processors/abstract-class-lightning-processor.php:167
+#: includes/processors/abstract-class-lightning-processor.php:189
 msgid ""
 "Your Lightning invoice is taking longer than expected to generate. Please "
 "try again in a moment."
@@ -511,7 +536,7 @@ msgstr ""
 "Создание вашей счета Lightning занимает больше времени, чем ожидалось. "
 "Пожалуйста, повторите попытку через минуту."
 
-#: includes/processors/class-bitcoin-payment-processor.php:129
+#: includes/processors/class-bitcoin-payment-processor.php:144
 msgid ""
 "We could not register your payment. Please try again or contact the store."
 msgstr ""
@@ -519,44 +544,49 @@ msgstr ""
 "магазином."
 
 #. translators: 1: payment address, 2: order reference number.
-#: includes/processors/class-bitcoin-payment-processor.php:208
+#: includes/processors/class-bitcoin-payment-processor.php:250
 #, php-format
 msgid "Payment sent to %1$s, Order Reference #%2$s"
 msgstr "Платеж отправлен на %1$s, Ссылка на заказ #%2$s"
 
-#: includes/processors/class-payment-processor.php:164
+#: includes/processors/class-payment-processor.php:168
 msgid ""
 "Selected payment method cannot be processed. Please try choosing another one."
 msgstr ""
 "Выбранный способ оплаты не может быть обработан. Пожалуйста, выберите другой."
 
-#: includes/processors/class-payment-processor.php:176
+#: includes/processors/class-payment-processor.php:180
 msgid ""
 "Selected payment method is not supported. Please try choosing another one."
 msgstr ""
 "Выбранный способ оплаты не поддерживается. Пожалуйста, выберите другой."
 
-#: includes/services/class-btcpay-invoice-service.php:143
-msgid "Payment via BTCPay Server failed. Please try again."
-msgstr "Платеж через сервер BTCPay не удался. Пожалуйста, повторите попытку."
+#. translators: %s: payment integration name.
+#: includes/services/class-btcpay-invoice-service.php:145
+#: includes/services/class-lnd-rest-invoice-service.php:128
+#, php-format
+msgid "Payment via %s failed. Please try again."
+msgstr "Не удалось выполнить платёж через %s. Повторите попытку."
 
-#: includes/services/class-lnd-rest-invoice-service.php:126
-msgid "Payment via Lightning node failed. Please try again."
-msgstr "Платеж через узел Lightning не удался. Пожалуйста, повторите попытку."
+#: includes/services/class-lnd-rest-invoice-service.php:129
+msgid "Lightning node"
+msgstr "Узел Lightning"
 
-#: paycrypto-me-for-woocommerce.php:177
+#: paycrypto-me-for-woocommerce.php:197
 msgid "Settings"
 msgstr "Настройки"
 
-#: paycrypto-me-for-woocommerce.php:182
-msgid "Get Pro"
-msgstr "Получить Pro"
+#. translators: %s: short add-on name (not translated, product name), e.g. "Pro".
+#: paycrypto-me-for-woocommerce.php:204
+#, php-format
+msgid "Get %s"
+msgstr "Получить %s"
 
-#: paycrypto-me-for-woocommerce.php:198
+#: paycrypto-me-for-woocommerce.php:222
 msgid "Support"
 msgstr "Поддержка"
 
-#: paycrypto-me-for-woocommerce.php:203
+#: paycrypto-me-for-woocommerce.php:227
 msgid "GitHub"
 msgstr "GitHub"
 

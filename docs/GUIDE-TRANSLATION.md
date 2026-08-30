@@ -1,6 +1,8 @@
 # 🌍 [GUIDE] PayCrypto.Me Translation Guide
 
 Este guia explica como gerenciar as traduções do plugin PayCrypto.Me for WooCommerce.
+Para regras de autoria de cada string (placeholders, nomes de produto, contexto e HTML), leia também
+[GUIDE-I18N-CONVENTIONS.md](GUIDE-I18N-CONVENTIONS.md).
 
 ## 🚀 Fluxo Canônico
 
@@ -10,13 +12,14 @@ Este guia explica como gerenciar as traduções do plugin PayCrypto.Me for WooCo
 ```bash
 docker compose up -d wordpress   # se ainda não estiver rodando
 
-# Gerar/atualizar tudo (POT + PO via msgmerge + MO) para os 7 locales
+# Gerar/atualizar POT + PO via msgmerge + MO para os 7 locales
 ./scripts/build-translations.sh
 
 # Comandos específicos
 ./scripts/build-translations.sh pot           # só o template
 ./scripts/build-translations.sh po pt_BR      # só um locale (PO)
 ./scripts/build-translations.sh mo pt_BR      # só compilar o MO de um locale
+./scripts/build-translations.sh json pt_BR    # JSON dos scripts, depois de traduzir o PO
 
 # Script rápido (mesma função, interface simplificada)
 ./scripts/quick-translate.sh
@@ -40,6 +43,7 @@ src/trunk/languages/
 ├── paycrypto-me-for-woocommerce.pot        # Template (gerado automaticamente)
 ├── paycrypto-me-for-woocommerce-pt_BR.po   # Tradução Português (Brasil)
 ├── paycrypto-me-for-woocommerce-pt_BR.mo   # Compilado Português (Brasil)
+├── paycrypto-me-for-woocommerce-pt_BR-*.json # 2 catálogos de runtime dos scripts
 ├── paycrypto-me-for-woocommerce-es_ES.po   # Tradução Espanhol
 ├── paycrypto-me-for-woocommerce-es_ES.mo   # Compilado Espanhol
 └── ...                                      # de_DE, fr_FR, it_IT, ru_RU, zh_CN (mesmo padrão)
@@ -48,9 +52,23 @@ src/trunk/languages/
 Não existe `en_US.po`/`.mo`: inglês é o idioma-fonte das strings no código (`__('...',
 'paycrypto-me-for-woocommerce')`), não precisa de arquivo de tradução próprio.
 
+### Por que existem exatamente 2 JSON por locale
+
+Há dois bundles registrados (`paycrypto_me-blocks` e `paycrypto_me_lightning-blocks`), portanto o
+resultado final esperado é **2 JSON por locale** — 14 arquivos para os 7 locales. O `make-json`
+primeiro gera nomes baseados nos caminhos dos fontes em `includes/blocks/js/`, mas o WordPress
+calcula os nomes que carrega a partir dos bundles compilados em `assets/blocks/`. O script renomeia
+cada saída para o hash de runtime medido no próprio loader do WordPress.
+
+Durante a execução inicial do plano, considerou-se preservar também os 2 nomes intermediários por
+locale, o que produziria 28 arquivos. A estratégia foi refinada porque esses intermediários nunca
+são requisitados em runtime e são reproduzíveis em qualquer nova execução. Manter somente os 14
+arquivos consumíveis reduz artefatos versionados e o tamanho do pacote sem perder traduções,
+rastreabilidade ou capacidade de regeneração.
+
 O catálogo também guarda **referências de linha** (`#: arquivo.php:NNN`) e o `Project-Id-Version`
 lido do header do plugin. Ou seja: mudança de código que só desloca linhas já deixa o `.pot`/`.po`
-desatualizados sem nenhuma string ter mudado — rode `npm run translate` depois de mexer em arquivo que
+desatualizados sem nenhuma string ter mudado — rode `./scripts/build-translations.sh` depois de mexer em arquivo que
 contenha string traduzível (foi o caso da guarda de piso de PHP no entrypoint, em 2026-08-18, que
 empurrou 4 referências). O diff esperado nesse caso é só referência de linha + data de geração; se
 aparecer `msgid` entrando ou saindo, uma string mudou e a cobertura dos 7 locales precisa ser
@@ -174,6 +192,8 @@ processados por padrão.
    Isso regenera o `.pot`, faz `msgmerge` em cada `.po` (strings novas entram como `msgstr ""` —
    **vazias**, ou `fuzzy` quando o msgid mudou ligeiramente de um já traduzido) e recompila os
    `.mo`. **O script NÃO traduz** — só atualiza a estrutura. A tradução em si é um passo separado.
+   Depois de traduzir e validar cada PO, rode também `./scripts/build-translations.sh json <locale>`;
+   esse comando gera os catálogos JS com os nomes de runtime medidos para os bundles registrados.
 
 3. **Identificar o que ficou pendente** (por locale):
    ```bash
@@ -187,7 +207,8 @@ processados por padrão.
 
 1. **Abrir arquivo PO** no PoEdit ou Loco Translate
 2. **Traduzir strings** vazias (`msgstr ""`) e revisar as marcadas `fuzzy`
-3. **Salvar arquivo** (PoEdit compila MO automaticamente; senão, `./scripts/build-translations.sh mo <locale>`)
+3. **Salvar arquivo** (PoEdit compila MO automaticamente; senão, `./scripts/build-translations.sh mo <locale>`),
+   e gerar o JSON com `./scripts/build-translations.sh json <locale>`
 4. **Testar** mudando idioma do WordPress
 
 ## 🎯 Boas Práticas
@@ -253,7 +274,7 @@ docker compose up -d wordpress
 - ✅ Domain Path: `/languages/`
 - ✅ `load_plugin_textdomain()` registrado no hook `init` (ver `paycrypto-me-for-woocommerce.php`)
 - ✅ Strings usando funções corretas de tradução
-- ✅ Idiomas traduzidos (116/116 strings, 100% em 2026-08-15): `pt_BR`, `es_ES`, `de_DE`, `fr_FR`,
+- ✅ Idiomas traduzidos (122/122 strings, 100% em 2026-08-30): `pt_BR`, `es_ES`, `de_DE`, `fr_FR`,
   `it_IT`, `ru_RU`, `zh_CN`. O total de strings muda conforme o código evolui — rodar o comando de
   estatísticas do Workflow acima para o número atual antes de assumir 100%. (Eram 151 antes de
   erros/warnings/logs do painel saírem do catálogo — ver a seção "O que entra".)

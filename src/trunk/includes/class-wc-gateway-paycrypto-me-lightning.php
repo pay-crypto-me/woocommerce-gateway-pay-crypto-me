@@ -25,8 +25,11 @@ class WC_Gateway_PayCryptoMe_Lightning extends Abstract_WC_Gateway_PayCryptoMe
     public function __construct()
     {
         $this->id = 'paycrypto_me_lightning';
-        $this->method_title = __('Bitcoin Payments', 'paycrypto-me-for-woocommerce') . ' (' . __('Lightning Network', 'paycrypto-me-for-woocommerce') . ')';
-        $this->method_description = __('Accept Bitcoin payments self-hosted via Lightning Network', 'paycrypto-me-for-woocommerce') . ' (' . __('Provided by PayCrypto.Me', 'paycrypto-me-for-woocommerce') . ').';
+        $this->method_title = $this->bitcoin_payments_title(__('Lightning Network', 'paycrypto-me-for-woocommerce'));
+        $this->method_description = $this->bitcoin_payments_description(
+            __('self-hosted', 'paycrypto-me-for-woocommerce'),
+            __('Lightning Network', 'paycrypto-me-for-woocommerce')
+        );
         $this->has_fields = false;
 
         $this->icon         = WC_PayCryptoMe::plugin_url() . '/assets/paycrypto-me-lightning-icon.png';
@@ -152,9 +155,14 @@ class WC_Gateway_PayCryptoMe_Lightning extends Abstract_WC_Gateway_PayCryptoMe
             'btcpay_payment_method_id' => [
                 'title' => __('BTCPay Lightning Payment Method ID (advanced)', 'paycrypto-me-for-woocommerce'),
                 'type' => 'text',
-                'description' => __('Only change this if your BTCPay Server version reports a different Lightning payment method identifier than the default. Leave as "BTC-LN" unless instructed otherwise.', 'paycrypto-me-for-woocommerce'),
-                'placeholder' => 'BTC-LN',
-                'default' => 'BTC-LN',
+                'description' => sprintf(
+                    /* translators: %1$s: BTCPay Server brand name (not translated), %2$s: default payment-method identifier, not translated (technical value). */
+                    __('Only change this if your %1$s version reports a different Lightning payment method identifier than the default. Leave as "%2$s" unless instructed otherwise.', 'paycrypto-me-for-woocommerce'),
+                    __('BTCPay Server', 'paycrypto-me-for-woocommerce'),
+                    WC_PayCryptoMe::BTCPAY_DEFAULT_PAYMENT_METHOD_ID
+                ),
+                'placeholder' => WC_PayCryptoMe::BTCPAY_DEFAULT_PAYMENT_METHOD_ID,
+                'default' => WC_PayCryptoMe::BTCPAY_DEFAULT_PAYMENT_METHOD_ID,
                 'class' => 'paycrypto-btcpay-field',
                 'desc_tip' => true,
             ],
@@ -166,13 +174,24 @@ class WC_Gateway_PayCryptoMe_Lightning extends Abstract_WC_Gateway_PayCryptoMe
             'webhook_info' => [
                 'title' => __('Webhook Configuration', 'paycrypto-me-for-woocommerce'),
                 'type' => 'title',
-                'description' => $this->pro_soon_badge() . '<br>' . __('Automatic payment confirmation via webhooks (BTCPay push / lnd polling) ships in the upcoming PayCrypto.Me Pro add-on. In the free version, Lightning payments are confirmed manually — the settings below are a preview and are not editable yet.', 'paycrypto-me-for-woocommerce'),
+                'description' => $this->pro_soon_badge() . '<br>' . $this->pro_feature_notice(
+                    __('Automatic payment confirmation via webhooks (BTCPay push / lnd polling)', 'paycrypto-me-for-woocommerce'),
+                    __('Lightning payments are confirmed manually — the settings below are a preview and are not editable yet', 'paycrypto-me-for-woocommerce')
+                ),
             ],
             'btcpay_webhook_secret' => [
                 'title' => __('BTCPay Webhook Secret', 'paycrypto-me-for-woocommerce'),
                 'type' => 'password',
-                'description' => __('Reserved for the Pro add-on. Not used by the free version.', 'paycrypto-me-for-woocommerce'),
-                'placeholder' => __('Available in the Pro add-on', 'paycrypto-me-for-woocommerce'),
+                'description' => sprintf(
+                    /* translators: %s: short add-on name (not translated, product name), e.g. "Pro". */
+                    __('Reserved for the %s add-on. Not used by the free version.', 'paycrypto-me-for-woocommerce'),
+                    WC_PayCryptoMe::NAME_PRO_ADDON_SHORT
+                ),
+                'placeholder' => sprintf(
+                    /* translators: %s: short add-on name (not translated, product name), e.g. "Pro". */
+                    __('Available in the %s add-on', 'paycrypto-me-for-woocommerce'),
+                    WC_PayCryptoMe::NAME_PRO_ADDON_SHORT
+                ),
                 'default' => '',
                 'class' => 'paycrypto-btcpay-field paycrypto-pro-field',
                 'custom_attributes' => [
