@@ -21,7 +21,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: paycrypto-me-for-woocommerce.php
 msgid "PayCrypto.Me for WooCommerce"
-msgstr "PayCrypto.Me для WooCommerce"
+msgstr "PayCrypto.Me for WooCommerce"
 
 #. Plugin URI of the plugin
 #: paycrypto-me-for-woocommerce.php

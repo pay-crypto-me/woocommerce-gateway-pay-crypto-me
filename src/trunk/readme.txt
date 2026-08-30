@@ -139,6 +139,7 @@ resume derivation from that wallet through this plugin.
 * Standardized translatable strings around reusable product-name constants, complete sentence templates, translator context and reorderable placeholders.
 * Added block-script translation catalogs for all seven locales, retaining only the two runtime-consumable JSON files per locale instead of redundant source-path copies.
 * Documented required translation and schema operations so the distributable passes Plugin Check without warnings; runtime behavior is unchanged.
+* Kept the official plugin name unchanged across locales so WordPress.org recognizes the approved “for WooCommerce” trademark pattern in every site language.
 
 = 0.2.0 =
 * Fixed-address On-Chain orders are now recorded in the payments table and safely reused on checkout retries.

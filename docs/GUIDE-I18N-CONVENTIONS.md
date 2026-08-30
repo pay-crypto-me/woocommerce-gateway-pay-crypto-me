@@ -7,6 +7,9 @@ literal English.
 
 ## Product and technical names
 
+- Keep the plugin-header name `PayCrypto.Me for WooCommerce` literal in every locale. Do not
+  translate the connector `for`: WordPress.org Plugin Check recognizes that exact approved
+  trademark pattern, while localized forms such as `para WooCommerce` produce a warning.
 - Names controlled by this project never appear literally inside a `msgid`. Use a placeholder and
   `WC_PayCryptoMe::NAME_BRAND`, `NAME_PRO_ADDON`, or `NAME_PRO_ADDON_SHORT`.
 - Stable third-party/generic terms such as BTCPay Server, Lightning Network, Bitcoin, WooCommerce

@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file.
    two runtime-consumable JSON files per locale instead of redundant source-path copies.
  - Documented the required bundled-translation loader and live schema queries with narrow Plugin
    Check exceptions, so the distributable passes Plugin Check without warnings or behavior changes.
+ - Kept the official plugin name literal in every locale so WordPress.org recognizes the approved
+   “for WooCommerce” trademark pattern regardless of the active site language.
 
 ## 0.2.0
 
