@@ -138,6 +138,7 @@ resume derivation from that wallet through this plugin.
 = 0.2.1 =
 * Standardized translatable strings around reusable product-name constants, complete sentence templates, translator context and reorderable placeholders.
 * Added block-script translation catalogs for all seven locales, retaining only the two runtime-consumable JSON files per locale instead of redundant source-path copies.
+* Documented required translation and schema operations so the distributable passes Plugin Check without warnings; runtime behavior is unchanged.
 
 = 0.2.0 =
 * Fixed-address On-Chain orders are now recorded in the payments table and safely reused on checkout retries.
@@ -178,7 +179,7 @@ resume derivation from that wallet through this plugin.
 == Upgrade Notice ==
 
 = 0.2.1 =
-Improves translation consistency and adds working Checkout block translations for all seven bundled locales. Payment behavior and existing settings are unchanged.
+Improves translation consistency, adds working Checkout block translations for all seven bundled locales, and passes Plugin Check without warnings. Payment behavior and existing settings are unchanged.
 
 = 0.2.0 =
 Adds persistent fixed-address payment records and hardens schema repair/upgrades and concurrent On-Chain/Lightning checkout retries. Existing data and settings are preserved on upgrade; rollback to 0.1.2 was validated as safe.

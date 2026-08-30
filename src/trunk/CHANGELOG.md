@@ -13,6 +13,8 @@ All notable changes to this project are documented in this file.
    templates, translator context, and placeholders that locales can safely reorder.
  - Added first-class block-script translation catalogs for all seven locales, retaining only the
    two runtime-consumable JSON files per locale instead of redundant source-path copies.
+ - Documented the required bundled-translation loader and live schema queries with narrow Plugin
+   Check exceptions, so the distributable passes Plugin Check without warnings or behavior changes.
 
 ## 0.2.0
 
