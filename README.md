@@ -1,52 +1,66 @@
-# PayCrypto.Me Payments for WooCommerce
+# PayCrypto.Me for WooCommerce
 
-PayCrypto.Me for WooCommerce lets your customers pay with Bitcoin — On-Chain and Lightning Network — directly into wallets and nodes you control.
+Accept Bitcoin On-Chain and Lightning Network payments directly in your WooCommerce store. PayCrypto.Me is self-hosted and non-custodial: payments go straight to a wallet or node you control, with no PayCrypto.Me account, intermediary, or percentage fee from us.
 
-![alt text](src/assets/banner-1544x500.png)
-## Highlights
+[Learn more](https://paycrypto.me/woocommerce) · [Install from WordPress.org](https://wordpress.org/plugins/paycrypto-me-for-woocommerce/) · [Get support](https://wordpress.org/support/plugin/paycrypto-me-for-woocommerce/)
 
-- Accept Bitcoin and Lightning payments
-- Non-custodial — funds go directly to merchant wallets
-- Seamless checkout integration with QR code support
-- Compatible with WooCommerce Blocks and Custom Order Tables
-- Translation-ready, with complete translations for 7 locales (pt_BR, es_ES, fr_FR, de_DE, it_IT, ru_RU, zh_CN)
-- Debug logging via WooCommerce logger
+![PayCrypto.Me for WooCommerce banner](src/assets/banner-1544x500.png)
 
-## Quick Start
+## Features
 
-1. Upload the plugin folder to `/wp-content/plugins/` or install via GitHub/ZIP.
-2. Activate the plugin in WordPress admin (Plugins → Installed Plugins).
-3. Go to **WooCommerce → Settings → Payments** and enable **PayCrypto.Me**.
-4. Configure your wallet identifier (xPub / on-chain address / Lightning address) and preferences.
+- **Bitcoin On-Chain:** derive a unique address for every order from an xPub, yPub, or zPub, or use a fixed receiving address
+- **Bitcoin Lightning:** connect directly to your own BTCPay Server or lnd node
+- **Non-custodial:** your store connects to infrastructure you own and your funds never pass through PayCrypto.Me
+- **Modern checkout support:** compatible with WooCommerce Blocks, classic checkout, and High-Performance Order Storage (HPOS)
+- **Express Payment:** optionally add a one-click “Buy with Bitcoin” button at checkout
+- **Customer-friendly payment details:** QR codes, copy-to-clipboard, and wallet deep links on the Thank You and My Account pages
+- **Merchant tools:** payment details on the admin order screen, connection testing, and WooCommerce debug logs
+- **Internationalized:** includes translations for Brazilian Portuguese, Spanish, French, German, Italian, Russian, and Simplified Chinese
 
-## Configuration Notes
+Bitcoin is currently the only supported cryptocurrency. The free plugin does not automatically confirm payments or convert fiat order totals to BTC/sats; these remain manual workflows.
 
-- Recommended for Bitcoin: use an xPub to derive unique receiving addresses.
-- Payment timeout and confirmations can be customized in gateway settings.
-- Use the "Hide for non-admin users" option to test without showing the payment method to customers.
+## Installation
 
-## Screenshots & Assets
+The plugin is available from the official WordPress Plugin Directory:
 
-Images are included in the `src/assets` folder:
+1. In WordPress, go to **Plugins → Add New Plugin**.
+2. Search for **PayCrypto.Me for WooCommerce**.
+3. Click **Install Now**, then **Activate**.
+4. Go to **WooCommerce → Settings → Payments**.
+5. Configure and enable **Bitcoin** (On-Chain), **Bitcoin Lightning**, or both.
 
-- `banner-1544x500.png` — plugin banner
-- `banner-772x250.png` — small banner
-- `icon-128x128.png` / `icon-256x256.png` — plugin directory icon
-- `screenshot-1` … `screenshot-6` — admin and checkout screenshots (extension varies, `.png` or `.jpg`)
+You can also [download the plugin from WordPress.org](https://wordpress.org/plugins/paycrypto-me-for-woocommerce/) and upload the ZIP through **Plugins → Add New Plugin → Upload Plugin**.
 
-## Development & Testing
+WooCommerce must be installed and active. The plugin requires WordPress 6.5 or newer and PHP 8.1 or newer. HD address derivation requires the PHP `gmp` extension; a fixed bech32 address can be used without it. QR-code generation requires the PHP `gd` extension.
 
-- Enable testnet in settings or use a test wallet for development.
-- Enable logging to inspect events in WooCommerce > Status > Logs.
+## Configuration
+
+### Bitcoin On-Chain
+
+Add an xPub, yPub, or zPub to derive a fresh receiving address for each order (recommended), or configure a fixed bech32 address. Choose mainnet or testnet and set the payment timeout and required confirmations to suit your store.
+
+### Bitcoin Lightning
+
+Choose BTCPay Server or lnd REST, enter your node connection details, and use **Test connection** before enabling the gateway. API keys, macaroons, and TLS certificates are sensitive credentials; use least-privilege access and protect your WordPress database and backups.
+
+Never enter a wallet seed or private key into this plugin.
+
+## Development
+
+The distributable WordPress plugin lives in `src/trunk`. For local development and release instructions, see the documentation in [`docs`](docs/).
+
+Enable logging in the gateway settings and inspect events under **WooCommerce → Status → Logs** using the `paycrypto_me` source.
 
 ## Contributing
 
-Contributions are welcome. Please open issues for bugs or feature requests and submit pull requests with clear descriptions and tests when possible.
+Bug reports, feature requests, and pull requests are welcome through this GitHub repository. Please include clear reproduction steps and tests where appropriate.
 
 ## Support
 
-Visit https://paycrypto.me/ for documentation and support. For repository issues, use the GitHub issue tracker.
+- [Plugin overview and documentation](https://paycrypto.me/woocommerce)
+- [WordPress.org support forum](https://wordpress.org/support/plugin/paycrypto-me-for-woocommerce/)
+- [GitHub issues](https://github.com/paycrypto-me/paycrypto-me-for-woocommerce/issues)
 
 ## License
 
-GPL-3.0-or-later — see `LICENSE` for details.
+Licensed under the GPL-3.0-or-later. See [`LICENSE`](LICENSE) for details.
