@@ -274,59 +274,6 @@ class PayCryptoMeDBStatementsService
 		);
 	}
 
-	/**
-	 * Persist on-chain confirmation progress for an order and fire a domain action on change.
-	 *
-	 * Pro add-on seam: the free plugin never calls this (on-chain confirmations are verified
-	 * manually). The Pro confirmation poller drives it, and consumers react to
-	 * `paycryptome_bitcoin_status_changed` (e.g. call $order->payment_complete() once the required
-	 * confirmations are reached) — mirroring the Lightning precedent
-	 * PayCryptoMeLightningDBStatementsService::update_status()/paycryptome_lightning_status_changed.
-	 *
-	 * @param string $amount_received BTC amount (matches the DECIMAL(16,8) column), not sats.
-	 */
-	public function update_transaction_confirmations(
-		int $order_id,
-		int $num_confirmations,
-		string $amount_received,
-		string $tx_hash
-	): bool {
-		global $wpdb;
-
-		$table = esc_sql( $this->table_name );
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		// Table fragment escaped above; dynamic value is prepared. Read the old count to detect a real transition.
-		$old_confirmations = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT num_confirmations FROM {$table} WHERE order_id = %d LIMIT 1",
-				$order_id
-			)
-		);
-
-		$updated = $wpdb->update(
-			$table,
-			[
-				'num_confirmations' => $num_confirmations,
-				'amount_received'   => $amount_received,
-				'tx_hash'           => $tx_hash,
-			],
-			['order_id' => $order_id],
-			['%d', '%s', '%s'],
-			['%d']
-		);
-
-		if (function_exists('wp_cache_delete')) {
-			wp_cache_delete( 'paycrypto_order_' . $order_id, 'paycrypto_me' );
-		}
-
-		if ($updated !== false && $old_confirmations !== null && (int) $old_confirmations !== $num_confirmations) {
-			do_action('paycryptome_bitcoin_status_changed', $order_id, (int) $old_confirmations, $num_confirmations);
-		}
-
-		return $updated !== false;
-	}
-
 	public function reset_derivation_indexes(): bool
 	{
 		global $wpdb;

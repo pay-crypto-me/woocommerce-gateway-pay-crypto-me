@@ -36,13 +36,13 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.1** (this number and the one below are bumped by `release.sh`, not by hand). Current branch hardening is complete and verified (407 unit tests + 18 MySQL-backed schema tests, minimal-host smoke and manual validation complete; version bump approved 2026-08-29). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch hardening is complete and verified (407 unit tests + 18 MySQL-backed schema tests, minimal-host smoke and manual validation complete; version bump approved 2026-08-29). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
 
 ---
 
 ## What this project is
 
-WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.2.1**. Author: PayCrypto.Me (contact@paycrypto.me).
+WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.2.2**. Author: PayCrypto.Me (contact@paycrypto.me).
 
 **Two registered gateways, both fully functional:**
 - `paycrypto_me` — Bitcoin On-Chain (HD derivation from xPub/ypub/zpub, mainnet + testnet).
@@ -219,7 +219,7 @@ That template renders in two very different contexts: the customer's order page 
 All prefixed with `{$wpdb->prefix}`, created via `dbDelta()` in `PayCryptoMeBitcoinGatewayActivate`/`PayCryptoMeLightningGatewayActivate` — **no `IF NOT EXISTS`** (it breaks dbDelta's table-name extraction, turning every future schema change into a silent no-op) and **no `FOREIGN KEY`** (dbDelta doesn't manage FKs; composite PKs enforce integrity instead):
 - `paycrypto_me_bitcoin_wallet_xpubkeys` — (id, xpub `VARCHAR(191)`, network)
 - `paycrypto_me_bitcoin_derivation_indexes` — (derivation_index, wallet_xpubkeys_id) — composite PK
-- `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id). Both derivation columns hold `PayCryptoMeDBStatementsService::WALLET_ID_STATIC_ADDRESS` (`0`) for a payment to a **fixed address**, where there is no extended key and no index. `0` can never collide — `wallet_xpubkeys.id` is `AUTO_INCREMENT` from 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the fixed-address payments. A sentinel rather than nullable columns because of F1 below. This is also why `get_by_order_id()` joins with `LEFT JOIN`: an `INNER JOIN` drops those rows entirely, which is how they went unrecorded before.
+- `paycrypto_me_bitcoin_transactions_data` — (order_id, payment_address, derivation_index_id, wallet_xpubkeys_id). Both derivation columns hold `PayCryptoMeDBStatementsService::WALLET_ID_STATIC_ADDRESS` (`0`) for a payment to a **fixed address**, where there is no extended key and no index. `0` can never collide — `wallet_xpubkeys.id` is `AUTO_INCREMENT` from 1 — so `WHERE wallet_xpubkeys_id = 0` selects exactly the fixed-address payments. A sentinel rather than nullable columns because of F1 below. This is also why `get_by_order_id()` joins with `LEFT JOIN`: an `INNER JOIN` drops those rows entirely, which is how they went unrecorded before. Legacy confirmation columns (`num_confirmations`, `amount_received`, `tx_hash`) were removed by schema version 2; confirmation tracking belongs to the Pro add-on.
 - `paycrypto_me_lightning_invoices` — (order_id, node_type, invoice_id, payment_request, status, expires_at, amount_sats)
 
 Schema lifecycle lives in `DbInstaller` (`services/class-db-installer.php`) — `DbInstaller::activate()` (a zero-argument wrapper around `install(true)`) is the `register_activation_hook` target, plus `DbInstaller::maybe_upgrade()` on `admin_init` and `DbInstaller::maybe_upgrade_after_update()` on `upgrader_process_complete`. `activate()` always runs both `*GatewayActivate::activate()` calls, regardless of the recorded version — this is what lets it recreate a table that went missing (a restored migration, a merchant who manually dropped a table `uninstall.php` deliberately kept) even on a site whose `paycrypto_me_db_version` was already current. `maybe_upgrade()` (no force) runs them only when the code's `DbInstaller::DB_VERSION` is newer than the recorded version (the only way a schema change reaches an already-installed site otherwise, since WordPress doesn't re-fire `register_activation_hook` on update) — and additionally, when the version IS current, throttled-probes (`SHOW TABLES LIKE`, at most twice a day via the `paycrypto_me_db_health_check` transient) that the 4 tables still exist, force-repairing via `install(true)` if one is missing. The table names have one source: each activator's `TABLE_*` constants (bare names), exposed as `DbInstaller::tables()`. Each `dbDelta()` call goes through `DbDeltaRunner::run()`, which checks `$wpdb->last_error` **and then** a `dbDelta($sql, false)` dry run for anything still structurally missing (see F5 below) — see `DbDeltaRunner`'s own docblock for exactly what "unchanged" means here; each activator **returns** the errors it recorded as well as accumulating them in `paycrypto_me_db_activation_errors`, and `DbInstaller::install()` records the new version **only when that list is empty** — recording it unconditionally used to leave a site with broken tables permanently claiming to be up to date. A failed attempt sets the `paycrypto_me_db_upgrade_retry` transient (1h) so the retry doesn't re-run `dbDelta` on every request, and `DbInstaller::render_activation_errors()` keeps showing the notice until a later successful `install()` clears the option (it used to delete the option after rendering once, so the warning vanished while the schema stayed broken). `uninstall.php` deletes both settings options (including secrets: `lnd_macaroon_hex`, `btcpay_api_key`, `lnd_certificate`) but **deliberately keeps the 4 custom tables and `paycrypto_me_db_version`** — those tables are the store's payment records (derived addresses, indexes, Lightning invoices), still needed for accounting/reconciliation of past orders after the plugin is removed.
@@ -286,9 +286,8 @@ order-insensitive fingerprint from `SHOW COLUMNS` + `SHOW INDEX`, never raw `SHO
 There is no CI in this repo, so the only enforcement point is the release checklist in
 [docs/GUIDE-RELEASE.md](docs/GUIDE-RELEASE.md).
 
-**Versioned imperative migration steps are deliberately not implemented yet.** With no real
-migration to write, their shape would be guesswork; now that the test trail exists, adding them
-later is cheap. The contract for whoever writes the first one:
+**Versioned imperative migration steps are implemented.** The first real migration removes the
+legacy on-chain confirmation columns in schema version 2. The contract for future steps is:
 
 - `dbDelta()` stays the declarative baseline and runs first.
 - What `dbDelta` cannot do (F1, F4, backfill, rename) becomes an imperative step, ordered by target
@@ -339,7 +338,6 @@ later is cheap. The contract for whoever writes the first one:
 | `paycryptome_lightning_payment_data` | filter | Final `$payment_data` returned by the Lightning processor |
 | `paycryptome_lightning_btcpay_payment_method_id` / `paycryptome_lightning_btcpay_speed_policy` | filter | BTCPay protocol constants that don't flow through the args array |
 | `paycryptome_lightning_status_changed` | action | Fired inside `PayCryptoMeLightningDBStatementsService::update_status($order_id, $old_status, $new_status)` after a successful, actual status change — Pro add-on seam (webhook/polling consumers react here instead of monkey-patching) |
-| `paycryptome_bitcoin_status_changed` | action | On-chain analogue: fired inside `PayCryptoMeDBStatementsService::update_transaction_confirmations($order_id, $old_confirmations, $new_confirmations)` when the confirmation count actually changes — Pro add-on seam (confirmation poller consumers react here). No production caller in the free plugin. |
 
 **Note:** before adding a new filter for Lightning, check whether the value already flows through `base_invoice_args()`/the `invoice_args_filter()` array — only add a dedicated filter for values hardcoded inside a service that never reach that array.
 
@@ -513,9 +511,10 @@ declaration it now is.
 > mentions of `PREMIUM-ADDON.md` record an actual filename at an actual point in git history —
 > neither should be rewritten to match current naming.
 
-Two capabilities are **intentionally absent from this free plugin and reserved for a separate Pro add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version. The approved implementation plan for that separate add-on lives in its own repo, at [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — the plan doc itself kept its original filename/history (the repo was renamed from `paycrypto-me-premium` alongside the product rename), see its own naming note.
+Three capabilities are **intentionally absent from this free plugin and reserved for a separate Pro add-on plugin** — deliberate product-scope decisions, not development gaps. Do not treat them as unfinished work or "fix" them into the free version. The approved implementation plan for that separate add-on lives in its own repo, at [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — the plan doc itself kept its original filename/history (the repo was renamed from `paycrypto-me-premium` alongside the product rename), see its own naming note.
 
 - **Webhook REST endpoint + async status updates.** The Lightning settings UI references `rest_url('paycrypto-me/v1/webhook')`, but there is deliberately no `register_rest_route()` here. Automatic/async invoice-status confirmation (BTCPay webhook push; lnd polling via `wp_schedule_event`) is a Pro-tier feature.
+- **On-chain confirmation tracking.** The base records the receiving address and derivation context only. The Pro add-on owns confirmation polling, transaction history and confirmation-specific persistence; it must not add those fields back to the base table.
 - **Fiat → sats conversion.** Invoices are created zero-amount on purpose. Converting the order's fiat total into an `amount_sats` is a Pro-tier feature.
 
 **Delivery model:** the Pro features ship as a separate plugin that depends on this base and plugs in via hooks/filters — never as `if (is_premium())` gating inside this repo. The base exposes these extension points so the add-on is zero-core-edit:
@@ -525,11 +524,21 @@ Two capabilities are **intentionally absent from this free plugin and reserved f
 | `PayCryptoMeLightningDBStatementsService::get_by_invoice_id()` | Look up an order when a webhook payload only carries the invoice id (`get_by_order_id()` covers the other case) |
 | `paycryptome_lightning_status_changed` action (see "Public hooks") | React to a status change (e.g. call `$order->payment_complete()`) without monkey-patching |
 | `paycryptome_lightning_btcpay_invoice_args` / `_lnd_invoice_args` filters | Already receive `$order` + `$gateway` — the add-on computes `amount` in sats here for fiat→sats. For lnd, set the `value` key (sats) to enforce the amount on the invoice (BTCPay converts fiat itself, so it needs no `value`). |
-| `PayCryptoMeDBStatementsService::update_transaction_confirmations()` + `paycryptome_bitcoin_status_changed` action | On-chain confirmation poller persists confirmations/amount/tx via this method and reacts to the action (e.g. `$order->payment_complete()` once required confirmations are reached) — mirrors the Lightning `update_status()` seam |
 | `woocommerce_settings_api_form_fields_paycrypto_me_lightning` (native WooCommerce filter) | Append settings fields (e.g. webhook secret) without touching `init_form_fields()` |
 | Dependency guard (`class_exists()` + min-version check) | Add-on's own responsibility, not a base concern |
 
-**The base is closed for Pro enablement.** Every seam the add-on needs already shipped in 0.1.0 and is verified — no further base edits are planned or accepted for the add-on's sake, licensing SDK included (that's why the Freemius SDK lives only in the add-on, trading away the in-dashboard upgrade funnel). If a future task concludes it needs a base change to make the add-on work, the correct move is to find another design, not to make an exception. See §2 and §8.1 of [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) in the add-on's repo.
+The base payment-details template currently renders only the base payment data. A future official
+rendering slot may let Pro append its own transaction section; until that contract exists, Pro must
+not replace the base template or assume that arbitrary keys added through the display-data filters
+will be rendered.
+
+**The base owns the stable integration boundary.** Pro functionality remains a separate plugin and
+must use documented hooks, filters and read-only base services rather than editing base internals or
+sharing its schema. New base extension points, such as an official order-details rendering slot,
+must be added deliberately and documented here before the Pro add-on depends on them. Licensing SDK
+remains an add-on concern (that is why the Freemius SDK lives only there). See §2 and §8.1 of
+[`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md)
+in the add-on's repo.
 
 ---
 

@@ -140,6 +140,9 @@ class ActivateDbDeltaTest extends TestCase
         $this->assertStringContainsString('paycrypto_me_bitcoin_transactions_data', $all_sql, 'Tabela transactions_data ausente');
         $this->assertStringContainsString('order_id', $all_sql, 'Coluna order_id não encontrada');
         $this->assertStringContainsString('payment_address', $all_sql, 'Coluna payment_address não encontrada');
+        $this->assertStringNotContainsString('num_confirmations', $all_sql, 'Coluna legada num_confirmations não deve ser criada');
+        $this->assertStringNotContainsString('amount_received', $all_sql, 'Coluna legada amount_received não deve ser criada');
+        $this->assertStringNotContainsString('tx_hash', $all_sql, 'Coluna legada tx_hash não deve ser criada');
 
         // H1: dbDelta() doesn't manage FOREIGN KEY constraints (silently dropped on MyISAM),
         // and it isn't dropped here for lack of trying — composite PK (derivation_index,

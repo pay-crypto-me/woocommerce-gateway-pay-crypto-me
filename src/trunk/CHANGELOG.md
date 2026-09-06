@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.2.2
+
+### Changed
+
+- Removed legacy on-chain confirmation columns and their unused base-plugin API; confirmation tracking remains exclusive to the Pro add-on.
+
 ## 0.2.1
 
 ### Changed

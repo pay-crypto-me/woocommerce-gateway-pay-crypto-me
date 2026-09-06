@@ -13,6 +13,39 @@ use PayCryptoMe\WooCommerce\DbInstaller;
  */
 class SchemaUpgradeTest extends SchemaTestCase
 {
+    public function test_upgrade_removes_legacy_onchain_columns_and_is_idempotent()
+    {
+        $prefix = $this->reserve_prefix();
+        $this->install_frozen_schema(dirname(__DIR__) . '/schema/v1.sql', $prefix);
+        update_option(DbInstaller::VERSION_OPTION, '1');
+
+        $this->assertTrue($this->with_prefix($prefix, fn(): bool => DbInstaller::install()));
+        $this->assertSame([], $this->legacy_onchain_columns($prefix));
+
+        $this->assertTrue($this->with_prefix($prefix, fn(): bool => DbInstaller::install()));
+        $this->assertSame([], $this->legacy_onchain_columns($prefix));
+    }
+
+    /** @return string[] */
+    private function legacy_onchain_columns(string $prefix): array
+    {
+        global $wpdb;
+
+        $columns = $wpdb->get_col("SHOW COLUMNS FROM `{$prefix}paycrypto_me_bitcoin_transactions_data`", 0);
+
+        return array_values(array_intersect(
+            $columns,
+            ['num_confirmations', 'amount_received', 'tx_hash']
+        ));
+    }
+
+    private function snapshot_version(string $snapshot): string
+    {
+        preg_match('/v([^\.]+)\.sql$/', $snapshot, $matches);
+
+        return $matches[1] ?? '0';
+    }
+
     public function test_upgrade_from_each_frozen_version_converges_to_a_fresh_install()
     {
         $snapshots = $this->frozen_snapshots();
@@ -35,6 +68,7 @@ class SchemaUpgradeTest extends SchemaTestCase
             $upgraded_prefix = $this->reserve_prefix();
 
             $this->install_frozen_schema($snapshot, $upgraded_prefix);
+            update_option(DbInstaller::VERSION_OPTION, $this->snapshot_version($snapshot));
 
             $installed = $this->with_prefix($upgraded_prefix, fn(): bool => DbInstaller::install());
 

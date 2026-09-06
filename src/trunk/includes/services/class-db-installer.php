@@ -26,7 +26,7 @@ class DbInstaller
     // whenever the dbDelta SQL in either *GatewayActivate class changes, so maybe_upgrade()
     // re-runs dbDelta for existing installs (WordPress doesn't re-fire
     // register_activation_hook on a plugin update, only on activate).
-    public const DB_VERSION = '1';
+    public const DB_VERSION = '2';
 
     public const VERSION_OPTION = 'paycrypto_me_db_version';
     public const ERRORS_OPTION  = 'paycrypto_me_db_activation_errors';
@@ -114,6 +114,11 @@ class DbInstaller
         $errors = array_merge(
             PayCryptoMeBitcoinGatewayActivate::activate(),
             PayCryptoMeLightningGatewayActivate::activate()
+        );
+
+        $errors = array_merge(
+            $errors,
+            DbSchemaMigrations::run((string) get_option(self::VERSION_OPTION, '0'))
         );
 
         if (!empty($errors)) {

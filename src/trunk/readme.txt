@@ -3,12 +3,12 @@ Contributors: paycryptome, lucasrosa95
 Tags: woocommerce, payments, crypto, bitcoin, lightning-network
 Donate link: https://paycrypto.me/
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 6.5
 WC tested up to: 10.9
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -39,9 +39,10 @@ Connect the plugin straight to your own BTCPay Server instance or lnd node (REST
 
 = What this plugin intentionally does not do =
 
-To keep the free plugin simple and auditable, two things are left out on purpose and reserved for an upcoming official Pro add-on that plugs into this same base via hooks — no fork, no code duplication:
+To keep the free plugin simple and auditable, three things are left out on purpose and reserved for an upcoming official Pro add-on that plugs into this same base via hooks — no fork, no code duplication:
 
 - **Automatic payment confirmation.** Today, order status is moved forward manually once you've verified the payment yourself (e.g. in your node or block explorer). Automatic confirmation via BTCPay webhooks / lnd polling is planned for the Pro add-on.
+- **On-chain confirmation tracking and transaction history.** The base stores the receiving address and derivation context; the Pro add-on owns blockchain polling, transaction records and confirmation-specific data in its own tables.
 - **Fiat → sats conversion.** Lightning invoices are currently created as zero-amount (the wallet reads the amount from the invoice itself once the add-on populates it); automatic conversion of the order's fiat total into an exact BTC/sats amount is also planned for the Pro add-on.
 
 Bitcoin is currently the only supported cryptocurrency (on-chain and Lightning) — this keeps the codebase small and well-tested rather than spreading support thin across many chains.
@@ -135,6 +136,9 @@ resume derivation from that wallet through this plugin.
 
 == Changelog ==
 
+= 0.2.2 =
+* Removed legacy on-chain confirmation columns and their unused base-plugin API; confirmation tracking remains exclusive to the Pro add-on.
+
 = 0.2.1 =
 * Standardized translatable strings around reusable product-name constants, complete sentence templates, translator context and reorderable placeholders.
 * Added block-script translation catalogs for all seven locales, retaining only the two runtime-consumable JSON files per locale instead of redundant source-path copies.
@@ -175,9 +179,12 @@ resume derivation from that wallet through this plugin.
 * Payment QR code with copy-to-clipboard and "open in wallet" link on the Thank You page, My Account and admin order screens.
 * Debug logging via the WooCommerce logger.
 * Initial translations for pt_BR, es_ES, fr_FR, de_DE, it_IT, ru_RU and zh_CN.
-* Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, an on-chain confirmation-tracking hook, order-details display filters, and dedicated on-chain payment filters.
+* Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, order-details display filters, and dedicated on-chain payment filters. The Pro add-on owns on-chain confirmation tracking and transaction history in its own persistence.
 
 == Upgrade Notice ==
+
+= 0.2.2 =
+Removes legacy on-chain confirmation fields from the On-Chain payment table. Existing payment addresses and derivation records are preserved.
 
 = 0.2.1 =
 Improves translation consistency, adds working Checkout block translations for all seven bundled locales, and passes Plugin Check without warnings. Payment behavior and existing settings are unchanged.

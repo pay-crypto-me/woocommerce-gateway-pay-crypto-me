@@ -1,6 +1,6 @@
 {
   "name": "paycrypto-me-for-woocommerce",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "PayCrypto.Me payment gateway for WooCommerce with Blocks support",
   "main": "assets/js/frontend/paycrypto-me-script.js",
   "scripts": {

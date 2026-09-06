@@ -3,12 +3,9 @@
 > **Nota de origem:** este guia foi escrito em 2026-08-27, junto com o mecanismo que ele descreve
 > (`DbInstaller::is_current()`, o lock de instalação, a trilha `schema-tests.sh`), a partir da
 > execução de [docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md](./archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS.md)
-> (arquivado/gitignored, pode estar ausente no seu checkout). **Ainda não passou por um bump de
-> `DB_VERSION` real** — o checklist abaixo é a melhor previsão do fluxo, não um caminho já andado.
-> Se você for a primeira pessoa a de fato adicionar/alterar uma coluna ou tabela depois desta data,
-> espere que algum passo aqui esteja incompleto ou na ordem errada — **corrija este documento junto
-> com o seu PR**, não só o código. Isso vale tanto para passos que faltaram quanto para passos que
-> se provaram desnecessários.
+> (arquivado/gitignored, pode estar ausente no seu checkout). **O primeiro bump real de
+> `DB_VERSION` foi validado com a remoção das colunas legadas do On-Chain.** Se um passo futuro se
+> provar incompleto ou desnecessário, **corrija este documento junto com o seu PR**, não só o código.
 
 Leia primeiro [AGENTS.md § "Schema lifecycle and what `dbDelta()` will not do for you"](../AGENTS.md)
 — este guia é o "como fazer", aquele é o "por que funciona assim". Em especial, os fatos F1–F4
@@ -21,7 +18,7 @@ na mesma linha) não estão repetidos aqui.
 - Mudar o tipo de uma coluna existente.
 - Qualquer coisa que `dbDelta()` **não** faz sozinho (F1/F4 no AGENTS.md): remover coluna/índice,
   mudar nullability, renomear, fazer backfill de dado. Para esses casos, ver a seção "Se `dbDelta`
-  não resolve sozinho" abaixo — é o contrato da frente C, ainda não implementada.
+  não resolve sozinho" abaixo.
 
 Não se aplica a: mudar uma `option` do WordPress (sem `dbDelta` envolvido), ou qualquer coisa que não
 toque as 4 tabelas custom listadas em `AGENTS.md` § "Custom DB tables".
@@ -133,13 +130,11 @@ o `GUIDE-RELEASE.md` é a fonte de verdade para o que entra no checklist de rele
 
 ## Se `dbDelta` não resolve sozinho
 
-Remoção de coluna, rename, backfill de dado — nada disso `dbDelta()` faz (F4 no AGENTS.md), e não
-há mecanismo implementado para isso ainda (frente C do plano arquivado, deliberadamente adiada). O
-contrato para quando alguém escrever o primeiro passo desse tipo já está registrado em
-`AGENTS.md` § "Schema lifecycle...", último bloco. Resumo: `dbDelta` continua rodando primeiro como
-baseline declarativa; o que ele não cobre vira um passo imperativo, idempotente, com verificação de
-pós-condição, e `install()` só grava a versão se tudo verificar. Antes de implementar isso, leia
-esse contrato — não este guia, que ainda não cobre esse caminho.
+Remoção de coluna, rename e backfill continuam fora do `dbDelta()` (F4 no AGENTS.md), mas o executor
+de migrations imperativas agora existe. `dbDelta` roda primeiro como baseline declarativa; cada
+passo é versionado, idempotente e possui verificação de pós-condição. `install()` só grava a versão
+quando todas as etapas verificam sucesso. A primeira migration remove as colunas legadas de
+confirmação on-chain da versão 1 para a versão 2.
 
 ## Coisas que este guia provavelmente não previu
 
