@@ -10,7 +10,7 @@
 > com o seu PR**, não só o código. Isso vale tanto para passos que faltaram quanto para passos que
 > se provaram desnecessários.
 
-Leia primeiro [CLAUDE.md § "Schema lifecycle and what `dbDelta()` will not do for you"](../CLAUDE.md)
+Leia primeiro [AGENTS.md § "Schema lifecycle and what `dbDelta()` will not do for you"](../AGENTS.md)
 — este guia é o "como fazer", aquele é o "por que funciona assim". Em especial, os fatos F1–F4
 sobre o que `dbDelta()` silenciosamente ignora (nullability, remoção de coluna/índice, duas colunas
 na mesma linha) não estão repetidos aqui.
@@ -19,12 +19,12 @@ na mesma linha) não estão repetidos aqui.
 
 - Adicionar uma coluna ou tabela nova.
 - Mudar o tipo de uma coluna existente.
-- Qualquer coisa que `dbDelta()` **não** faz sozinho (F1/F4 no CLAUDE.md): remover coluna/índice,
+- Qualquer coisa que `dbDelta()` **não** faz sozinho (F1/F4 no AGENTS.md): remover coluna/índice,
   mudar nullability, renomear, fazer backfill de dado. Para esses casos, ver a seção "Se `dbDelta`
   não resolve sozinho" abaixo — é o contrato da frente C, ainda não implementada.
 
 Não se aplica a: mudar uma `option` do WordPress (sem `dbDelta` envolvido), ou qualquer coisa que não
-toque as 4 tabelas custom listadas em `CLAUDE.md` § "Custom DB tables".
+toque as 4 tabelas custom listadas em `AGENTS.md` § "Custom DB tables".
 
 ## Passo a passo
 
@@ -43,7 +43,7 @@ continuam valendo:
   `WALLET_ID_STATIC_ADDRESS` fez, ou aceite que ela só é preenchida daqui pra frente.
 - **Um bump que toca mais de uma coisa na mesma tabela** (ex. uma coluna nova *e* um índice novo)
   faz `dbDelta()` emitir várias `ALTER` na mesma chamada — colunas antes de índices. `$wpdb->last_error`
-  só reflete a **última** statement executada (F5 no CLAUDE.md), então uma coluna que falha seguida
+  só reflete a **última** statement executada (F5 no AGENTS.md), então uma coluna que falha seguida
   de um índice que funciona deixa `last_error` vazio mesmo com a coluna ausente. Isso não é mais um
   ponto cego silencioso: `DbDeltaRunner` (usado por ambos os `*GatewayActivate::activate()`) roda um
   segundo cheque — `dbDelta($sql, false)` (dry run) — depois de um `last_error` limpo, e trata
@@ -84,7 +84,7 @@ extra de registro é necessário além de o arquivo existir.
 Isso instala **cada** snapshot congelado (incluindo o que você acabou de gerar) e roda
 `DbInstaller::install()` por cima, comparando o resultado com uma instalação nova. Se falhar, é
 porque a mudança do passo 1 não faz o que você imagina que faz — volte para os fatos F1–F5 no
-CLAUDE.md antes de assumir que é bug no teste.
+AGENTS.md antes de assumir que é bug no teste.
 
 Além do teste de convergência (fingerprint de `SHOW COLUMNS`/`SHOW INDEX`), a trilha também roda a
 asserção "nada pendente" (`SchemaUpgradeTest::assert_nothing_pending()`, chamada tanto logo após uma
@@ -106,14 +106,14 @@ convergência que nunca falhou é indistinguível de um que não consegue falhar
 
 Se código em `includes/processors/` ou `includes/services/` vai ler a coluna nova, ele pode rodar
 num request onde o schema ainda não foi upgradeado (site que acabou de atualizar o plugin mas cujo
-`admin_init`/`upgrader_process_complete` ainda não disparou — ver CLAUDE.md). Consulte
+`admin_init`/`upgrader_process_complete` ainda não disparou — ver AGENTS.md). Consulte
 `DbInstaller::is_current()` e degrade em vez de assumir que a coluna existe.
 
 ### 6. Atualize a documentação
 
-- `CLAUDE.md` § "Custom DB tables" — se mudou o formato de uma tabela existente ou adicionou uma
+- `AGENTS.md` § "Custom DB tables" — se mudou o formato de uma tabela existente ou adicionou uma
   nova, a lista de colunas ali precisa refletir isso.
-- `CLAUDE.md` § "Schema lifecycle and what `dbDelta()` will not do for you" — só se o mecanismo em
+- `AGENTS.md` § "Schema lifecycle and what `dbDelta()` will not do for you" — só se o mecanismo em
   si mudou (não para toda mudança de schema; a maioria só toca a seção "Custom DB tables" acima).
 - `scripts/check-docs-drift.sh` — a contagem de "custom database tables" (hoje `4`) é verificada
   automaticamente contra `grep -c '"CREATE TABLE '`; se você adicionou uma tabela, `./scripts/check-docs-drift.sh`
@@ -133,10 +133,10 @@ o `GUIDE-RELEASE.md` é a fonte de verdade para o que entra no checklist de rele
 
 ## Se `dbDelta` não resolve sozinho
 
-Remoção de coluna, rename, backfill de dado — nada disso `dbDelta()` faz (F4 no CLAUDE.md), e não
+Remoção de coluna, rename, backfill de dado — nada disso `dbDelta()` faz (F4 no AGENTS.md), e não
 há mecanismo implementado para isso ainda (frente C do plano arquivado, deliberadamente adiada). O
 contrato para quando alguém escrever o primeiro passo desse tipo já está registrado em
-`CLAUDE.md` § "Schema lifecycle...", último bloco. Resumo: `dbDelta` continua rodando primeiro como
+`AGENTS.md` § "Schema lifecycle...", último bloco. Resumo: `dbDelta` continua rodando primeiro como
 baseline declarativa; o que ele não cobre vira um passo imperativo, idempotente, com verificação de
 pós-condição, e `install()` só grava a versão se tudo verificar. Antes de implementar isso, leia
 esse contrato — não este guia, que ainda não cobre esse caminho.

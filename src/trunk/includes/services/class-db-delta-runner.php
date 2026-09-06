@@ -21,7 +21,7 @@ namespace PayCryptoMe\WooCommerce;
  * every single query, and dbDelta() builds every statement up front and executes them all in one
  * loop, column ALTERs before index ALTERs. So last_error only ever reflects dbDelta's LAST
  * statement — a failing "ADD COLUMN" followed by a succeeding "ADD INDEX" leaves last_error empty
- * even though the column never landed (measured against MySQL 8.0.46; see CLAUDE.md's F5). Today,
+ * even though the column never landed (measured against MySQL 8.0.46; see AGENTS.md's F5). Today,
  * every activator emits exactly one statement per table, so this has never fired in production —
  * it exists for the first DB_VERSION bump that changes more than one thing on the same table.
  *

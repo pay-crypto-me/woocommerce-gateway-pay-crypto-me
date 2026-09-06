@@ -8,7 +8,7 @@ use PayCryptoMe\WooCommerce\DbInstaller;
  * dbDelta() executed — wpdb::query() calls flush() (clearing last_error) on every query, and
  * dbDelta() runs every statement it built in one loop, column ALTERs before index ALTERs. A failing
  * "ADD COLUMN" followed by a succeeding "ADD INDEX" therefore leaves last_error empty even though
- * the column never landed. This is what CLAUDE.md's F5 records.
+ * the column never landed. This is what AGENTS.md's F5 records.
  */
 class DbDeltaErrorVisibilityTest extends SchemaTestCase
 {

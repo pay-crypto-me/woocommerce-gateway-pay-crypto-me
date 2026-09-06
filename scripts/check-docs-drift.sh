@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Audits the canonical docs (CLAUDE.md + docs/*.md) against the tree they describe.
+# Audits the canonical docs (AGENTS.md + docs/*.md) against the tree they describe.
 #
 # WHY THIS EXISTS
 #   The docs here are load-bearing: an agent reads them before the code, and the repo deliberately
@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # WHY NOT A PHPUNIT TEST
 #   The unit suite runs with `src/trunk` as its world (that is all the dev container mounts, and all
-#   the release build copies). CLAUDE.md and docs/ live above it, so a test would skip exactly where
+#   the release build copies). AGENTS.md and docs/ live above it, so a test would skip exactly where
 #   the suite normally runs — a guard that never fires. Here the repo root exists by construction.
 #
 # Usage: ./scripts/check-docs-drift.sh
@@ -34,11 +34,11 @@ PLANNED_PATHS=()
 # wp-admin/includes/upgrade.php (the file dbDelta lives in) and wp-includes/class-wpdb.php
 # (whose flush() is what clears $wpdb->last_error) by their tail.
 # docs/PREMIUM-ADDON.md moved to the paycrypto-me-pro repo on 2026-08-25 — genuinely external
-# now, not planned. CLAUDE.md links it by full GitHub URL (matches the substring), and
+# now, not planned. AGENTS.md links it by full GitHub URL (matches the substring), and
 # DONE-CRYPTO-DEPENDENCIES-AUDIT.md's mention is a historical record of when it still lived here; neither
 # should be "fixed" by resurrecting the file.
 EXTERNAL_PATHS=("includes/functions.php" "includes/upgrade.php" "includes/class-wpdb.php" "docs/PREMIUM-ADDON.md")
-# Executed-and-verified plans/records, moved to docs/archive/ (see CLAUDE.md's "Context and
+# Executed-and-verified plans/records, moved to docs/archive/ (see AGENTS.md's "Context and
 # guides" — "Executed and verified" group) and added to .gitignore so they stop being committed
 # going forward. They still exist in THIS working tree, but a fresh clone from this point on will
 # not have them — every doc citing one already says so inline. Do not "fix" a finding here by
@@ -68,10 +68,10 @@ is_listed() {
 
 echo -e "\n${BLUE}${BOLD}== canonical docs vs codebase ==${NC}"
 
-mapfile -t DOCS < <(printf '%s\n' "$REPO_ROOT/CLAUDE.md" "$REPO_ROOT"/docs/*.md | sort -u)
+mapfile -t DOCS < <(printf '%s\n' "$REPO_ROOT/AGENTS.md" "$REPO_ROOT"/docs/*.md | sort -u)
 
 # A sweep that silently finds no docs would pass every check below vacuously.
-if [[ ${#DOCS[@]} -lt 2 || ! -f "$REPO_ROOT/CLAUDE.md" ]]; then
+if [[ ${#DOCS[@]} -lt 2 || ! -f "$REPO_ROOT/AGENTS.md" ]]; then
     error "Found no canonical docs to audit under $REPO_ROOT — refusing to report a clean sweep."
     exit 1
 fi
@@ -141,18 +141,18 @@ done
 # It is the contract the Pro add-on is built against: a hook missing from it is a seam nobody
 # knows exists, one listed but absent is a promise the add-on cannot keep.
 HOOKS_IN_CODE="$(grep -rhoE "'paycryptome_[a-z_]+'" "$TRUNK/includes" "$TRUNK/templates" | tr -d "'" | sort -u)"
-HOOKS_IN_DOC="$(grep -oE 'paycryptome_[a-z_]+' "$REPO_ROOT/CLAUDE.md" | sort -u)"
+HOOKS_IN_DOC="$(grep -oE 'paycryptome_[a-z_]+' "$REPO_ROOT/AGENTS.md" | sort -u)"
 
 if [[ -z "$HOOKS_IN_CODE" ]]; then
     finding "found no paycryptome_* hooks in the code at all — the scan is broken, not the docs"
 fi
 
 while IFS= read -r hook; do
-    [[ -n "$hook" ]] && finding "hook '$hook' is fired in code but missing from the CLAUDE.md hooks table"
+    [[ -n "$hook" ]] && finding "hook '$hook' is fired in code but missing from the AGENTS.md hooks table"
 done < <(comm -23 <(printf '%s\n' "$HOOKS_IN_CODE") <(printf '%s\n' "$HOOKS_IN_DOC"))
 
 while IFS= read -r hook; do
-    [[ -n "$hook" ]] && finding "hook '$hook' is in the CLAUDE.md hooks table but fired nowhere in the code"
+    [[ -n "$hook" ]] && finding "hook '$hook' is in the AGENTS.md hooks table but fired nowhere in the code"
 done < <(comm -13 <(printf '%s\n' "$HOOKS_IN_CODE") <(printf '%s\n' "$HOOKS_IN_DOC"))
 
 # --- 4. counts the docs state in prose -----------------------------------------------------------

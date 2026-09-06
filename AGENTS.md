@@ -56,7 +56,7 @@ Async webhook status updates and fiat→sats conversion are deliberately out of 
 
 ```
 paycrypto-me-for-woocommerce/
-├── CLAUDE.md                     ← this file
+├── AGENTS.md                     ← this file
 ├── src/trunk/                    ← plugin root (everything that ships)
 │   ├── paycrypto-me-for-woocommerce.php   ← entrypoint / plugin header
 │   ├── includes/                 ← all PHP logic
@@ -392,7 +392,7 @@ Runs against the real `wordpress` dev container (unlike PHPUnit, which needs no 
 ./scripts/check-docs-drift.sh
 ```
 
-Compares the canonical docs (`CLAUDE.md` + `docs/*.md`) with the tree: every cited path exists, every
+Compares the canonical docs (`AGENTS.md` + `docs/*.md`) with the tree: every cited path exists, every
 `file.php:NNN` still lands on code, the *Public hooks* table below matches what the code actually
 fires, and the counts stated in prose (7 locales, 9 `validate_*_field`, 3 `generate_*_html`, 4 tables,
 60 vectors) are real. Runs automatically in `release.sh`'s *Docs drift audit* phase; no Docker needed.
@@ -401,7 +401,7 @@ Deliberately not a PHPUnit test: the suite's world is `src/trunk`, and these fil
 test would skip exactly where the suite normally runs. **Cite symbols, not line numbers** — a
 `Class::method()` reference survives an edit above it, `file.php:412` does not (line numbers are
 reserved for `vendor/`, which `composer.lock` pins). And when a number appears in prose in more than
-one doc, only the `CLAUDE.md` one is "current"; the rest must say which measurement and when.
+one doc, only the `AGENTS.md` one is "current"; the rest must say which measurement and when.
 
 ### Platform pin audit
 

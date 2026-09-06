@@ -114,7 +114,7 @@ releases/*
 auth.json
 
 # Archived docs: already-executed plans/records moved out of the tracked docs/ index
-# (see CLAUDE.md's "Context and guides" — "Executed and verified" group). Kept locally as a
+# (see AGENTS.md's "Context and guides" — "Executed and verified" group). Kept locally as a
 # convenience, deliberately not committed going forward, so cloning the repo fresh from here on
 # does not carry closed-out history forever. References to files under here must be written as
 # possibly-absent, never as "read this file" without a fallback.

@@ -251,7 +251,7 @@ if [[ $DO_TESTS -eq 1 ]]; then
   # The docs here are read before the code, by people and agents alike, so a stale record is worse
   # than no record. This checks the mechanical part (paths, line references, the hooks table, the
   # counts stated in prose) against the tree. It cannot be a PHPUnit test: the suite's world is
-  # src/trunk, and CLAUDE.md/docs/ live above it. Cheap, no Docker, no network.
+  # src/trunk, and AGENTS.md/docs/ live above it. Cheap, no Docker, no network.
   header "Docs drift audit"
   if [[ $DRY_RUN -eq 0 ]]; then
     "$ROOT_DIR/scripts/check-docs-drift.sh"
@@ -324,16 +324,16 @@ bump_sed "$README_FILE" \
   "Stable tag" \
   "^Stable tag:[[:space:]]*$VERSION[[:space:]]*$"
 
-# CLAUDE.md states the current version twice, and it is the file every agent loads first — a stale
+# AGENTS.md states the current version twice, and it is the file every agent loads first — a stale
 # number there is read as fact. Bumped here so it cannot fall behind the header it describes.
-bump_sed "$ROOT_DIR/CLAUDE.md" \
+bump_sed "$ROOT_DIR/AGENTS.md" \
   "s/(current version \*\*)[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$VERSION\2/" \
-  "current version in CLAUDE.md" \
+  "current version in AGENTS.md" \
   "current version \*\*$VERSION\*\*"
 
-bump_sed "$ROOT_DIR/CLAUDE.md" \
+bump_sed "$ROOT_DIR/AGENTS.md" \
   "s/(Version: \*\*)[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$VERSION\2/" \
-  "Version: line in CLAUDE.md" \
+  "Version: line in AGENTS.md" \
   "Version: \*\*$VERSION\*\*"
 
 # composer.json and package.json: "version": "X.Y.Z"
@@ -469,7 +469,7 @@ if [[ $DO_GIT -eq 1 ]]; then
       "$README_FILE" \
       "$TRUNK/composer.json" \
       "$TRUNK/package.json" \
-      "$ROOT_DIR/CLAUDE.md" \
+      "$ROOT_DIR/AGENTS.md" \
     && git commit -m "chore: bump version to $VERSION" || log "No changes to commit")
     (cd "$ROOT_DIR" && git tag -a "v$VERSION" -m "Release v$VERSION" \
       && log "Tag v$VERSION created. Push manually: git push origin v$VERSION" \

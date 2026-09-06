@@ -5,7 +5,7 @@ use PayCryptoMe\WooCommerce\DbDeltaRunner;
 use PayCryptoMe\WooCommerce\DbInstaller;
 
 /**
- * DbDeltaRunner is the fix for F5 (CLAUDE.md): $wpdb->last_error only reflects the LAST statement
+ * DbDeltaRunner is the fix for F5 (AGENTS.md): $wpdb->last_error only reflects the LAST statement
  * dbDelta() executed, so a failing "ADD COLUMN" followed by a succeeding "ADD INDEX" leaves
  * last_error empty even though the column never landed. dbDelta($sql, false) — the read-only
  * dry-run — is the second, independent check: its own "Created table / Added column / Added

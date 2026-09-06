@@ -155,7 +155,7 @@ Antes de executar o release, verifique:
 | Smoke de host mínimo passando (**stack de dev precisa estar no ar** — diferente do resto do release) | `docker compose up -d wordpress` e depois `./scripts/smoke-minimal-host.sh` — ver seção abaixo |
 | Trilha de schema passando (**stack de dev precisa estar no ar**, com o banco) | `docker compose up -d wordpress wp_db` e depois `./scripts/schema-tests.sh` — ver seção abaixo |
 | Auditoria do pin de plataforma passando | `./scripts/check-platform-pin.sh` — **já roda automaticamente** na fase de testes do `release.sh`; ver seção abaixo |
-| Auditoria de drift dos docs passando | `./scripts/check-docs-drift.sh` — **já roda automaticamente** na fase de testes do `release.sh` (fase *Docs drift audit*); confere caminhos citados, refs `arquivo:linha`, a tabela de hooks do `CLAUDE.md` e as contagens afirmadas em prosa |
+| Auditoria de drift dos docs passando | `./scripts/check-docs-drift.sh` — **já roda automaticamente** na fase de testes do `release.sh` (fase *Docs drift audit*); confere caminhos citados, refs `arquivo:linha`, a tabela de hooks do `AGENTS.md` e as contagens afirmadas em prosa |
 | Versão nova definida (semver `X.Y.Z`) | Ver seção "Determinando a Próxima Versão" |
 | Credenciais SVN configuradas (se for submeter ao WP.org) | Ver seção "Configurando Credenciais SVN" abaixo |
 
@@ -270,7 +270,7 @@ valia `7.4`, o que resolvia a árvore **inteira** na era 7.4 — histórico e me
 [docs/archive/DONE-CRYPTO-DEPENDENCIES.md](archive/DONE-CRYPTO-DEPENDENCIES.md) → E7/E7.2 e
 [docs/archive/DONE-LEAN-VENDOR-TREE.md](archive/DONE-LEAN-VENDOR-TREE.md) (frentes já executadas; ambos os
 documentos foram arquivados em `docs/archive/`, que é gitignored — podem estar ausentes no seu
-checkout, ver a nota em `CLAUDE.md` → "Context and guides").
+checkout, ver a nota em `AGENTS.md` → "Context and guides").
 
 O script roda `composer why-not php <piso>`, que **ignora o pin** e lista *todos* os pacotes cujo
 requisito de PHP exclui aquele piso. O piso vem do header do plugin (`Requires PHP:`), então subir o
@@ -299,7 +299,7 @@ PHPUnit, e é pulado junto com os testes por `--no-tests` (então o fluxo `--svn
 
 ## Auditoria de drift dos docs (roda dentro do `release.sh`)
 
-`./scripts/check-docs-drift.sh` compara os 10 canonical docs (`CLAUDE.md` + `docs/*.md`) com a árvore
+`./scripts/check-docs-drift.sh` compara os 10 canonical docs (`AGENTS.md` + `docs/*.md`) com a árvore
 que eles descrevem. Existe porque aqui o doc é lido **antes** do código: um registro velho não é
 neutro, é confiado.
 
@@ -307,11 +307,11 @@ neutro, é confiado.
 |---|---|
 | todo caminho citado existe | renomear arquivo não quebra nada — só o doc, silenciosamente. Caminhos de plano aprovado-e-não-iniciado ficam em `PLANNED_PATHS`, para "planejado" continuar distinguível de "apodreceu" |
 | toda ref `arquivo.php:NNN` cai em código | número de linha apodrece a cada edição acima dele. A regra da casa é citar o **símbolo**; número fica só para `vendor/`, que o lock fixa (e por isso é ignorado aqui) |
-| tabela de hooks do `CLAUDE.md` ↔ código | é o contrato contra o qual o add-on Pro é construído: hook faltando é seam que ninguém sabe que existe; hook listado e inexistente é promessa que o add-on não pode cumprir |
+| tabela de hooks do `AGENTS.md` ↔ código | é o contrato contra o qual o add-on Pro é construído: hook faltando é seam que ninguém sabe que existe; hook listado e inexistente é promessa que o add-on não pode cumprir |
 | contagens afirmadas em prosa | 7 locales, 9 `validate_*_field`, 3 `generate_*_html`, 4 tabelas, 60 vetores |
 
 Não roda como teste do PHPUnit por um motivo concreto: o mundo da suíte é `src/trunk` (é só isso que
-o container monta e que o build copia), e `CLAUDE.md`/`docs/` moram acima — como teste ele pularia
+o container monta e que o build copia), e `AGENTS.md`/`docs/` moram acima — como teste ele pularia
 justamente onde a suíte roda. Aqui a raiz do repo existe por construção. E se não encontrar docs para
 auditar, **falha** em vez de reportar varredura limpa.
 
@@ -406,7 +406,7 @@ Este comando executa na ordem:
    - Constante `VERSION` na classe PHP
    - `Stable tag` em `readme.txt`
    - Campo `"version"` em `composer.json` e `package.json`
-   - As duas menções de versão no `CLAUDE.md` (é o arquivo que todo agente carrega primeiro; um número
+   - As duas menções de versão no `AGENTS.md` (é o arquivo que todo agente carrega primeiro; um número
      velho ali é lido como fato)
 
    O que ele **não** escreve é o changelog: o texto de `== Changelog ==`/`== Upgrade Notice ==` do
@@ -642,7 +642,7 @@ O script atualiza **apenas** estes arquivos ao bumpar a versão. Nenhum outro ar
 | `src/trunk/readme.txt` | `Stable tag: X.Y.Z` |
 | `src/trunk/composer.json` | `"version": "X.Y.Z"` |
 | `src/trunk/package.json` | `"version": "X.Y.Z"` |
-| `CLAUDE.md` | `current version **X.Y.Z**` e `Version: **X.Y.Z**` |
+| `AGENTS.md` | `current version **X.Y.Z**` e `Version: **X.Y.Z**` |
 
 Cada um é verificado depois do `sed`: se o padrão não casar, o release **falha** em vez de seguir com
 uma versão velha (foi o que deixou a constante `VERSION` parada durante todo o ciclo 0.1.0).
