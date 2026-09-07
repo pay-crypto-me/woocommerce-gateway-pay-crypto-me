@@ -1,4 +1,4 @@
-# [PLAN — NOT STARTED] Contrato público de projeção de status de pagamento
+# [VALIDATION] Contrato público de projeção de status de pagamento
 
 **Origem:** [RFC — Contrato público de projeção de status de pagamento](rfcs/RFC-PUBLIC-PAYMENT-STATUS-PROJECTION.md)
 
@@ -6,6 +6,8 @@
 
 **Escopo de execução:** plugin Base; as adaptações no repositório Pro são critérios consumidores,
 não autorização para implementar M6/M7 neste repositório.
+
+**Estado:** implementação Base concluída; validação cross-repo do Pro ainda pendente.
 
 ## Resultado esperado
 
@@ -207,8 +209,21 @@ cd ../..
 ./scripts/schema-tests.sh
 ./scripts/smoke-minimal-host.sh
 ./scripts/check-docs-drift.sh
-./scripts/release.sh -v 0.3.0 --dry-run
+./scripts/release.sh -v 0.3.0 -s paycrypto-me-for-woocommerce --dry-run
 ```
 
 O plano só pode ser marcado `[DONE]` quando todos os comandos passarem, os testes concorrentes
 forem permanentes e a evidência Base mínimo/atual do harness Pro estiver registrada.
+
+## Evidência da implementação Base — 2026-09-06
+
+- [x] PHPUnit unitário: 415 testes, 965 asserções, 4 skips esperados.
+- [x] Suíte WordPress/MySQL: 23 testes, 174 asserções, incluindo os dois cenários concorrentes.
+- [x] Smoke de host mínimo: GMP, GD, iconv e fileinfo degradam conforme o contrato existente.
+- [x] Auditorias de platform pin, i18n, drift documental e `git diff --check`.
+- [x] Dry-run de release 0.3.0 com slug explícito.
+- [ ] Harness do Pro contra Base mínimo e Base com capability v1.
+- [ ] Atualização dos dois planos consumidores do Pro para remover o write-back on-chain.
+
+O documento permanece `[VALIDATION]` enquanto os dois itens cross-repo estiverem abertos. O código
+Base não deve ser ampliado com M6/M7 para encerrá-los.

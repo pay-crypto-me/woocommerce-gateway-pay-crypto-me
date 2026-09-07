@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Schema integration suite — the only tests in this repo that see a real dbDelta() against a real
-# MySQL.
+# Database integration suite — the only tests in this repo that see a real wpdb/dbDelta() against
+# a real MySQL. The historical script name is retained as a stable release command.
 #
 # The unit suite (./vendor/bin/phpunit) shims wpdb away and ActivateDbDeltaTest defines its own
 # fake dbDelta(), which is what keeps it fast and WordPress-free. The price is that no unit test can
@@ -12,8 +12,8 @@ set -euo pipefail
 # is a change that passes CI-less review, works on a fresh install, and does nothing at all on the
 # sites already published on WordPress.org.
 #
-# So this suite installs each frozen schema from src/trunk/tests/schema/v*.sql, runs the upgrade
-# over it, and asserts the result is indistinguishable from a fresh install.
+# The suite installs each frozen schema and proves convergence, and also exercises concurrency
+# contracts that unit-test wpdb fakes cannot represent faithfully.
 #
 # Usage: ./scripts/schema-tests.sh [extra phpunit args]
 # Run from the repo root, with the `wordpress` dev service up (docker compose up -d wordpress wp_db).
@@ -50,7 +50,7 @@ if ! "${DOCKER_COMPOSE[@]}" exec -T "$COMPOSE_SERVICE" test -x "$PLUGIN_DIR_IN_C
     exit 1
 fi
 
-echo "== Schema integration suite (real WordPress, real MySQL, real dbDelta) =="
+echo "== Database integration suite (real WordPress, real MySQL, real wpdb/dbDelta) =="
 
 if "${DOCKER_COMPOSE[@]}" exec -T -w "$PLUGIN_DIR_IN_CONTAINER" "$COMPOSE_SERVICE" \
     ./vendor/bin/phpunit -c phpunit-integration.xml.dist "$@"; then

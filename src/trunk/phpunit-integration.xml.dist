@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Schema integration suite: real WordPress, real MySQL, real dbDelta. Opt-in, run by
+    Database integration suite: real WordPress, real MySQL, real dbDelta. Opt-in, run by
     ./scripts/schema-tests.sh from inside the `wordpress` dev container.
 
     Separate from phpunit.xml.dist on purpose — that one scans ./tests/phpunit only, needs no
@@ -8,7 +8,7 @@
 -->
 <phpunit bootstrap="tests/integration/bootstrap.php" colors="true">
     <testsuites>
-        <testsuite name="Schema Integration Suite">
+        <testsuite name="Database Integration Suite">
             <directory>./tests/integration</directory>
         </testsuite>
     </testsuites>

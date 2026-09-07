@@ -36,7 +36,7 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch hardening is complete and verified (407 unit tests + 18 MySQL-backed schema tests, minimal-host smoke and manual validation complete; version bump approved 2026-08-29). Pro features (webhook/fiat→sats) are reserved for the separate add-on above — see "Pro add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch includes the public payment-status projection contract for the Pro add-on (415 unit tests + 23 MySQL-backed integration tests). Pro features (webhook/fiat→sats) remain reserved for the separate add-on — see "Pro add-on" section below.
 
 ---
 
@@ -303,7 +303,9 @@ legacy on-chain confirmation columns in schema version 2. The contract for futur
 |-------|------|------|
 | `BitcoinAddressService` | `services/class-bitcoin-address-service.php` | Generate/validate Bitcoin addresses (p2pkh, p2sh-p2wpkh, p2wpkh) from xpub/ypub/zpub using `bitwasp/bitcoin`; `requires_gmp_math()`/`validate_segwit_address()` keep the bech32 path usable on hosts without the GMP extension |
 | `PayCryptoMeDBStatementsService` | `services/pay-crypto-me-db-statements-service.php` | CRUD on the 3 On-Chain custom tables; atomic index reservation via MySQL advisory lock; `release_derivation_index()` refunds a reserved index if derivation/persistence fails afterward, so a systemic failure (missing GMP, invalid xpub) can't burn through the wallet's BIP-44 gap limit; `insert_static_address()` records a fixed-address payment through the same `insert_address()` INSERT and `exists_for_order()` guard, using the `WALLET_ID_STATIC_ADDRESS` sentinel |
-| `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices` (insert/update status/lookup by order or by invoice id); order-lookup misses are not cached because a racing request may insert immediately afterward; `replace_invoice()` compare-and-swaps the expired invoice id so two retries cannot both claim to have replaced the same row — used when `AbstractLightningProcessor::process()` finds and reuses/replaces an existing invoice for the order (checkout retries, `order-pay`) |
+| `PayCryptoMeLightningDBStatementsService` | `services/class-paycrypto-me-lightning-db-statements-service.php` | CRUD on `paycrypto_me_lightning_invoices`; `transition_status()` compare-and-swaps `order_id` + invoice identity + expected status and returns a typed outcome, so concurrent write-backs emit at most one transition and a delayed webhook cannot settle a replacement invoice; `update_status()` remains as a deprecated compatibility wrapper |
+| `PaymentStatusProjectionCapabilities` | `contracts/class-payment-status-projection-capabilities.php` | Versioned discovery API for add-ons: Lightning invoice CAS is v1 and on-chain confirmation projection is explicitly absent (`0`) |
+| `LightningStatusTransitionResult` | `invoices/class-lightning-status-transition-result.php` | Immutable result of a Lightning projection attempt: `applied`, `already_applied`, `conflict`, `not_found` or `error`, with invoice/current-state diagnostics |
 | `AbstractLightningInvoiceService` | `services/abstract-class-lightning-invoice-service.php` | Base for the two Lightning invoice services: shared constructor (`HttpClientContract`, `WC_Payment_Gateway`) + `parse_response()`, parameterized by `error_log_label()`/`payment_failed_message()` |
 | `BtcpayInvoiceService` | `services/class-btcpay-invoice-service.php` | Creates/resolves/checks BTCPay Server invoices via REST |
 | `LndRestInvoiceService` | `services/class-lnd-rest-invoice-service.php` | Creates/checks lnd invoices via its REST API (macaroon auth, optional TLS cert via `request_with_cert()`) |
@@ -337,7 +339,7 @@ legacy on-chain confirmation columns in schema version 2. The contract for futur
 | `paycryptome_lightning_btcpay_invoice_args` / `paycryptome_lightning_lnd_invoice_args` | filter | Full invoice args array before `create_invoice()` (includes `amount`/`currency` already merged). `LndRestInvoiceService::create_invoice()` also honors an optional `value` key (sats) — free plugin never sets it; the Pro fiat→sats add-on sets it here to enforce the invoice amount. |
 | `paycryptome_lightning_payment_data` | filter | Final `$payment_data` returned by the Lightning processor |
 | `paycryptome_lightning_btcpay_payment_method_id` / `paycryptome_lightning_btcpay_speed_policy` | filter | BTCPay protocol constants that don't flow through the args array |
-| `paycryptome_lightning_status_changed` | action | Fired inside `PayCryptoMeLightningDBStatementsService::update_status($order_id, $old_status, $new_status)` after a successful, actual status change — Pro add-on seam (webhook/polling consumers react here instead of monkey-patching) |
+| `paycryptome_lightning_status_changed` | action | `($order_id, $old_status, $new_status, $invoice_id)`, fired only when `PayCryptoMeLightningDBStatementsService::transition_status()` applies its atomic CAS. At most one action is emitted per applied transition; it is a post-write notification, not durable delivery or a distributed lock. Existing 3-argument listeners remain compatible. |
 
 **Note:** before adding a new filter for Lightning, check whether the value already flows through `base_invoice_args()`/the `invoice_args_filter()` array — only add a dedicated filter for values hardcoded inside a service that never reach that array.
 
@@ -360,9 +362,9 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 407 tests, 931 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
+Tests use custom WP shims in `tests/_support/` — no real WordPress needed. Config in `phpunit.xml.dist`, which scans `./tests/phpunit` only, so the MySQL-backed suite under `tests/integration/` is never pulled into this run. Current suite: 415 tests, 965 assertions, 0 errors (4 skipped by design: they assert what a host *without* the GMP extension shows, so they only run on a GMP-less host — e.g. `docker run --rm -v $(pwd)/src/trunk:/plugin -w /plugin php:8.3-cli php ./vendor/bin/phpunit --filter OnchainWithoutGmpTest`).
 
-### Schema tests against real MySQL (run from the repo root)
+### Integration tests against real MySQL (run from the repo root)
 
 ```bash
 docker compose up -d wordpress wp_db   # if not already up
@@ -370,7 +372,7 @@ docker compose up -d wordpress wp_db   # if not already up
 ```
 
 Runs `tests/integration/` inside the `wordpress` container (`phpunit-integration.xml.dist`), against
-real `$wpdb`/`dbDelta`. The only place the plugin's schema behaviour is actually observed — see
+real `$wpdb`/`dbDelta`. It covers schema behaviour and database concurrency contracts — see
 "Schema lifecycle and what `dbDelta()` will not do for you" above for why the unit suite cannot do
 it. Mandatory before cutting a release. When adding a test here, make it fail on purpose once: a
 convergence test that has never failed is indistinguishable from one that cannot.
@@ -521,8 +523,9 @@ Three capabilities are **intentionally absent from this free plugin and reserved
 
 | Extension point | How the add-on uses it |
 |---|---|
-| `PayCryptoMeLightningDBStatementsService::get_by_invoice_id()` | Look up an order when a webhook payload only carries the invoice id (`get_by_order_id()` covers the other case) |
-| `paycryptome_lightning_status_changed` action (see "Public hooks") | React to a status change (e.g. call `$order->payment_complete()`) without monkey-patching |
+| `PaymentStatusProjectionCapabilities::all()` | Detect `lightning_invoice_status_cas = 1` before projecting status; absent/zero degrades without fatal. `onchain_confirmation_progress = 0` is deliberate: that state remains only in Pro. |
+| `PayCryptoMeLightningDBStatementsService::transition_status()` | Project a Pro decision into the exact Base invoice using atomic compare-and-swap; inspect the typed result instead of guessing from a boolean. |
+| `paycryptome_lightning_status_changed` action (see "Public hooks") | Optional post-write notification. Never use it as the only durable trigger for `$order->payment_complete()`; Pro retries from its own persisted decision. |
 | `paycryptome_lightning_btcpay_invoice_args` / `_lnd_invoice_args` filters | Already receive `$order` + `$gateway` — the add-on computes `amount` in sats here for fiat→sats. For lnd, set the `value` key (sats) to enforce the amount on the invoice (BTCPay converts fiat itself, so it needs no `value`). |
 | `woocommerce_settings_api_form_fields_paycrypto_me_lightning` (native WooCommerce filter) | Append settings fields (e.g. webhook secret) without touching `init_form_fields()` |
 | Dependency guard (`class_exists()` + min-version check) | Add-on's own responsibility, not a base concern |

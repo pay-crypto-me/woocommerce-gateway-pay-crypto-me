@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Added a versioned payment-status projection capability registry and an invoice-identified,
+  compare-and-swap Lightning status API for the Pro add-on.
+
+### Fixed
+
+- Concurrent Lightning status write-backs now publish at most one transition action, and a delayed
+  update for an expired invoice can no longer settle the replacement invoice for the same order.
+
 ## 0.2.2
 
 ### Changed

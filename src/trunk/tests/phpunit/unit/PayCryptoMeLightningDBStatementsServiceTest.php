@@ -1,5 +1,7 @@
 <?php
 use PHPUnit\Framework\TestCase;
+use PayCryptoMe\WooCommerce\LightningStatusTransitionResult;
+use PayCryptoMe\WooCommerce\PaymentStatusProjectionCapabilities;
 use PayCryptoMe\WooCommerce\PayCryptoMeLightningDBStatementsService;
 
 // esc_sql()/wp_cache_*()/ARRAY_A fallbacks live in tests/_support/paycryptome-shims.php
@@ -10,6 +12,9 @@ class FakeWPDBLightningInvoices
     public $prefix = 'wp_';
     public array $rows = [];
     public int $get_row_calls = 0;
+    public string $last_error = '';
+    public bool $fail_query = false;
+    public bool $fail_read = false;
 
     public function prepare($query, ...$args)
     {
@@ -23,6 +28,12 @@ class FakeWPDBLightningInvoices
     public function get_row($query, $output = ARRAY_A)
     {
         $this->get_row_calls++;
+        $this->last_error = '';
+
+        if ($this->fail_read) {
+            $this->last_error = 'Injected read failure';
+            return null;
+        }
 
         if (preg_match("/order_id = '?(\d+)'?/", $query, $m)) {
             $order_id = (int) $m[1];
@@ -58,6 +69,45 @@ class FakeWPDBLightningInvoices
             return 0;
         }
         $this->rows[$order_id] = array_merge($this->rows[$order_id], $data);
+        return 1;
+    }
+
+    public function query($query)
+    {
+        $this->last_error = '';
+        if ($this->fail_query) {
+            $this->last_error = 'Injected update failure';
+            return false;
+        }
+
+        if (!preg_match(
+            "/SET status = '([^']*)' WHERE order_id = (\d+) AND invoice_id = '([^']*)' AND status = '([^']*)'/",
+            $query,
+            $matches
+        )) {
+            $this->last_error = 'Unexpected query';
+            return false;
+        }
+
+        $new_status = $matches[1];
+        $order_id = (int) $matches[2];
+        $invoice_id = $matches[3];
+        $expected_status = $matches[4];
+
+        if (!isset($this->rows[$order_id])) {
+            return 0;
+        }
+        if (
+            $this->rows[$order_id]['invoice_id'] !== $invoice_id
+            || $this->rows[$order_id]['status'] !== $expected_status
+        ) {
+            return 0;
+        }
+        if ($expected_status === $new_status) {
+            return 0;
+        }
+
+        $this->rows[$order_id]['status'] = $new_status;
         return 1;
     }
 }
@@ -152,6 +202,146 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
         $this->assertFalse($svc->update_status(999, 'Settled'));
     }
 
+    public function test_projection_capabilities_are_explicit_and_versioned()
+    {
+        $this->assertSame([
+            'contract_version'                  => 1,
+            'lightning_invoice_status_cas'      => 1,
+            'onchain_confirmation_progress'     => 0,
+        ], PaymentStatusProjectionCapabilities::all());
+    }
+
+    public function test_transition_status_applies_once_and_returns_complete_result()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(30, 'btcpay', 'inv_30', 'lnbc30', '2026-02-01 00:00:00');
+
+        $result = $svc->transition_status(30, 'inv_30', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::APPLIED, $result->outcome);
+        $this->assertTrue($result->is_success());
+        $this->assertSame(30, $result->order_id);
+        $this->assertSame('inv_30', $result->requested_invoice_id);
+        $this->assertSame('inv_30', $result->stored_invoice_id);
+        $this->assertSame('New', $result->expected_status);
+        $this->assertSame('Settled', $result->requested_status);
+        $this->assertSame('Settled', $result->current_status);
+        $this->assertNull($result->error_message);
+
+        $calls = hook_spy_calls('paycryptome_lightning_status_changed');
+        $this->assertCount(1, $calls);
+        $this->assertSame([30, 'New', 'Settled', 'inv_30'], $calls[0]['args']);
+    }
+
+    public function test_transition_status_repeated_call_is_successful_noop_without_action()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(31, 'btcpay', 'inv_31', 'lnbc31', '2026-02-01 00:00:00');
+        $svc->transition_status(31, 'inv_31', 'New', 'Settled');
+        hook_spy_reset();
+
+        $result = $svc->transition_status(31, 'inv_31', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::ALREADY_APPLIED, $result->outcome);
+        $this->assertTrue($result->is_success());
+        $this->assertSame('Settled', $result->current_status);
+        $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
+    }
+
+    public function test_transition_status_invalidates_a_cached_order_row()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(37, 'btcpay', 'inv_37', 'lnbc37', '2026-02-01 00:00:00');
+        $this->assertSame('New', $svc->get_by_order_id(37)['status']);
+
+        $svc->transition_status(37, 'inv_37', 'New', 'Settled');
+
+        $this->assertSame('Settled', $svc->get_by_order_id(37)['status']);
+    }
+
+    public function test_transition_status_distinguishes_missing_order()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+
+        $result = $svc->transition_status(999, 'missing', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::NOT_FOUND, $result->outcome);
+        $this->assertFalse($result->is_success());
+        $this->assertNull($result->stored_invoice_id);
+        $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
+    }
+
+    public function test_transition_status_refuses_replaced_invoice()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(32, 'btcpay', 'inv_old', 'lnbcold', '2026-02-01 00:00:00');
+        $svc->replace_invoice(32, 'btcpay', 'inv_new', 'lnbcnew', '2026-03-01 00:00:00', null, 'inv_old');
+
+        $result = $svc->transition_status(32, 'inv_old', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::CONFLICT, $result->outcome);
+        $this->assertSame('inv_new', $result->stored_invoice_id);
+        $this->assertSame('New', $result->current_status);
+        $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
+    }
+
+    public function test_transition_status_reports_unexpected_current_status_as_conflict()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $svc->insert_invoice(33, 'btcpay', 'inv_33', 'lnbc33', '2026-02-01 00:00:00');
+        $wpdb->rows[33]['status'] = 'Expired';
+
+        $result = $svc->transition_status(33, 'inv_33', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::CONFLICT, $result->outcome);
+        $this->assertSame('Expired', $result->current_status);
+        $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
+    }
+
+    public function test_transition_status_returns_error_for_update_failure()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $wpdb->fail_query = true;
+
+        $result = $svc->transition_status(34, 'inv_34', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::ERROR, $result->outcome);
+        $this->assertSame('Injected update failure', $result->error_message);
+        $this->assertCount(0, hook_spy_calls('paycryptome_lightning_status_changed'));
+    }
+
+    public function test_transition_status_returns_error_when_resolution_read_fails()
+    {
+        global $wpdb;
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $wpdb->fail_read = true;
+
+        $result = $svc->transition_status(35, 'inv_35', 'New', 'Settled');
+
+        $this->assertSame(LightningStatusTransitionResult::ERROR, $result->outcome);
+        $this->assertSame('Injected read failure', $result->error_message);
+    }
+
+    /** @dataProvider empty_transition_argument_provider */
+    public function test_transition_status_rejects_empty_arguments(string $invoice_id, string $expected, string $new)
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $svc->transition_status(36, $invoice_id, $expected, $new);
+    }
+
+    public function empty_transition_argument_provider(): array
+    {
+        return [
+            'invoice id' => ['', 'New', 'Settled'],
+            'expected status' => ['inv_36', ' ', 'Settled'],
+            'new status' => ['inv_36', 'New', ''],
+        ];
+    }
+
     public function test_get_by_order_id_serves_stale_cache_until_invalidated()
     {
         global $wpdb;
@@ -212,7 +402,7 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
 
         $calls = hook_spy_calls('paycryptome_lightning_status_changed');
         $this->assertCount(1, $calls);
-        $this->assertSame([4, 'New', 'Settled'], $calls[0]['args']);
+        $this->assertSame([4, 'New', 'Settled', 'inv_4'], $calls[0]['args']);
     }
 
     public function test_update_status_does_not_fire_action_when_status_unchanged()

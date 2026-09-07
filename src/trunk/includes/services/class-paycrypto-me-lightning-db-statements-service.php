@@ -173,31 +173,202 @@ class PayCryptoMeLightningDBStatementsService
         return $expected_invoice_id === null ? $updated !== false : $updated === 1;
     }
 
+    /**
+     * Atomically projects one status transition for one specific invoice.
+     *
+     * The invoice id and expected status are part of the compare-and-swap so a delayed webhook
+     * cannot settle a replacement invoice and concurrent requests cannot both publish the same
+     * transition. The action is a post-write notification, not a durable delivery mechanism.
+     */
+    public function transition_status(
+        int $order_id,
+        string $invoice_id,
+        string $expected_status,
+        string $new_status
+    ): LightningStatusTransitionResult {
+        global $wpdb;
+
+        foreach ([
+            'invoice_id'      => $invoice_id,
+            'expected_status' => $expected_status,
+            'new_status'      => $new_status,
+        ] as $name => $value) {
+            if (trim($value) === '') {
+                throw new \InvalidArgumentException("{$name} must not be empty.");
+            }
+        }
+
+        $table = esc_sql($this->table_name);
+
+        $can_suppress_errors = \method_exists($wpdb, 'suppress_errors');
+        $previous_suppress_errors = $can_suppress_errors ? $wpdb->suppress_errors() : false;
+        try {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Atomic CAS against the plugin's own escaped table; dynamic values are prepared and this mutation cannot be cached.
+            $updated = $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE {$table} SET status = %s WHERE order_id = %d AND invoice_id = %s AND status = %s",
+                    $new_status,
+                    $order_id,
+                    $invoice_id,
+                    $expected_status
+                )
+            );
+        } finally {
+            if ($can_suppress_errors) {
+                $wpdb->suppress_errors($previous_suppress_errors);
+            }
+        }
+
+        if ($updated === false) {
+            return $this->transition_result(
+                LightningStatusTransitionResult::ERROR,
+                $order_id,
+                $invoice_id,
+                null,
+                $expected_status,
+                $new_status,
+                null,
+                (string) (($wpdb->last_error ?? '') ?: 'Database update failed.')
+            );
+        }
+
+        if ((int) $updated === 1) {
+            $this->delete_order_cache($order_id);
+
+            $result = $this->transition_result(
+                LightningStatusTransitionResult::APPLIED,
+                $order_id,
+                $invoice_id,
+                $invoice_id,
+                $expected_status,
+                $new_status,
+                $new_status
+            );
+
+            do_action('paycryptome_lightning_status_changed', $order_id, $expected_status, $new_status, $invoice_id);
+
+            return $result;
+        }
+
+        $row = $this->get_status_row_direct($order_id);
+        $read_error = (string) ($wpdb->last_error ?? '');
+
+        if ($read_error !== '') {
+            return $this->transition_result(
+                LightningStatusTransitionResult::ERROR,
+                $order_id,
+                $invoice_id,
+                null,
+                $expected_status,
+                $new_status,
+                null,
+                $read_error
+            );
+        }
+
+        if ($row === null) {
+            return $this->transition_result(
+                LightningStatusTransitionResult::NOT_FOUND,
+                $order_id,
+                $invoice_id,
+                null,
+                $expected_status,
+                $new_status
+            );
+        }
+
+        $this->delete_order_cache($order_id);
+        $stored_invoice_id = (string) $row['invoice_id'];
+        $current_status = (string) $row['status'];
+        $outcome = $stored_invoice_id === $invoice_id && $current_status === $new_status
+            ? LightningStatusTransitionResult::ALREADY_APPLIED
+            : LightningStatusTransitionResult::CONFLICT;
+
+        return $this->transition_result(
+            $outcome,
+            $order_id,
+            $invoice_id,
+            $stored_invoice_id,
+            $expected_status,
+            $new_status,
+            $current_status
+        );
+    }
+
+    /**
+     * Backward-compatible status writer.
+     *
+     * @deprecated 0.3.0 Use transition_status() with the invoice identity and expected status.
+     */
     public function update_status(int $order_id, string $status): bool
     {
         global $wpdb;
 
-        $old_status = $this->get_by_order_id($order_id)['status'] ?? null;
+        $row = $this->get_status_row_direct($order_id);
+        if ($row === null || (string) ($wpdb->last_error ?? '') !== '') {
+            return false;
+        }
+
+        return $this->transition_status(
+            $order_id,
+            (string) $row['invoice_id'],
+            (string) $row['status'],
+            $status
+        )->is_success();
+    }
+
+    private function get_status_row_direct(int $order_id): ?array
+    {
+        global $wpdb;
 
         $table = esc_sql($this->table_name);
+        $can_suppress_errors = \method_exists($wpdb, 'suppress_errors');
+        $previous_suppress_errors = $can_suppress_errors ? $wpdb->suppress_errors() : false;
+        try {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Resolution of a live CAS result must bypass object cache; table is escaped and the id is prepared.
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT invoice_id, status FROM {$table} WHERE order_id = %d LIMIT 1",
+                    $order_id
+                ),
+                ARRAY_A
+            );
+        } finally {
+            if ($can_suppress_errors) {
+                $wpdb->suppress_errors($previous_suppress_errors);
+            }
+        }
 
-        $updated = $wpdb->update(
-            $table,
-            ['status' => $status],
-            ['order_id' => $order_id],
-            ['%s'],
-            ['%d']
-        );
+        return $row ?: null;
+    }
 
+    private function delete_order_cache(int $order_id): void
+    {
         if (function_exists('wp_cache_delete')) {
             wp_cache_delete('paycrypto_lightning_order_' . $order_id, 'paycrypto_me');
         }
+    }
 
-        if ($updated !== false && $old_status !== null && $old_status !== $status) {
-            do_action('paycryptome_lightning_status_changed', $order_id, $old_status, $status);
-        }
-
-        return $updated !== false;
+    private function transition_result(
+        string $outcome,
+        int $order_id,
+        string $requested_invoice_id,
+        ?string $stored_invoice_id,
+        string $expected_status,
+        string $requested_status,
+        ?string $current_status = null,
+        ?string $error_message = null
+    ): LightningStatusTransitionResult {
+        return new LightningStatusTransitionResult(
+            $outcome,
+            $order_id,
+            $requested_invoice_id,
+            $stored_invoice_id,
+            $expected_status,
+            $requested_status,
+            $current_status,
+            $error_message
+        );
     }
 }
 

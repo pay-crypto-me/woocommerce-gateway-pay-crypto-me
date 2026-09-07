@@ -1,6 +1,6 @@
 <?php
 /**
- * Bootstrap for the schema integration suite.
+ * Bootstrap for the database integration suite.
  *
  * The unit suite (tests/bootstrap.php) shims WordPress away so it runs in ~5s with no database,
  * and that is deliberate — but it means no unit test can observe what dbDelta() actually does.
@@ -14,7 +14,7 @@
  */
 
 if (PHP_SAPI !== 'cli') {
-    fwrite(STDERR, "The schema integration suite is CLI-only.\n");
+    fwrite(STDERR, "The database integration suite is CLI-only.\n");
     exit(1);
 }
 
