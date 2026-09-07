@@ -17,6 +17,9 @@ namespace PayCryptoMe\WooCommerce;
 
 class PayCryptoMeLightningDBStatementsService
 {
+    private const INVOICE_ID_MAX_BYTES = 255;
+    private const STATUS_MAX_BYTES = 30;
+
     private string $table_name;
 
     public function __construct()
@@ -188,15 +191,7 @@ class PayCryptoMeLightningDBStatementsService
     ): LightningStatusTransitionResult {
         global $wpdb;
 
-        foreach ([
-            'invoice_id'      => $invoice_id,
-            'expected_status' => $expected_status,
-            'new_status'      => $new_status,
-        ] as $name => $value) {
-            if (trim($value) === '') {
-                throw new \InvalidArgumentException("{$name} must not be empty.");
-            }
-        }
+        $this->validate_transition_arguments($order_id, $invoice_id, $expected_status, $new_status);
 
         $table = esc_sql($this->table_name);
 
@@ -346,6 +341,35 @@ class PayCryptoMeLightningDBStatementsService
     {
         if (function_exists('wp_cache_delete')) {
             wp_cache_delete('paycrypto_lightning_order_' . $order_id, 'paycrypto_me');
+        }
+    }
+
+    private function validate_transition_arguments(
+        int $order_id,
+        string $invoice_id,
+        string $expected_status,
+        string $new_status
+    ): void {
+        if ($order_id <= 0) {
+            throw new \InvalidArgumentException('Order id must be greater than zero.');
+        }
+        if (trim($invoice_id) === '') {
+            throw new \InvalidArgumentException('Invoice id must not be empty.');
+        }
+        if (strlen($invoice_id) > self::INVOICE_ID_MAX_BYTES) {
+            throw new \InvalidArgumentException('Invoice id must not exceed 255 bytes.');
+        }
+        if (trim($expected_status) === '') {
+            throw new \InvalidArgumentException('Expected status must not be empty.');
+        }
+        if (strlen($expected_status) > self::STATUS_MAX_BYTES) {
+            throw new \InvalidArgumentException('Expected status must not exceed 30 bytes.');
+        }
+        if (trim($new_status) === '') {
+            throw new \InvalidArgumentException('New status must not be empty.');
+        }
+        if (strlen($new_status) > self::STATUS_MAX_BYTES) {
+            throw new \InvalidArgumentException('New status must not exceed 30 bytes.');
         }
     }
 

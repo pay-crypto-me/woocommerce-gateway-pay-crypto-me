@@ -69,9 +69,12 @@ public function transition_status(
 ): LightningStatusTransitionResult;
 ```
 
-`invoice_id`, `expected_status` e `new_status` vazios são erro de programação e lançam
-`InvalidArgumentException` antes de consultar o banco. Falhas operacionais do banco não lançam:
-retornam outcome `error` com `error_message`.
+`order_id` deve ser positivo. `invoice_id`, `expected_status` e `new_status` não podem ser vazios;
+além disso, devem respeitar os limites físicos do schema: 255 bytes para `invoice_id` e 30 bytes
+para cada status. Violações são erro de programação e lançam `InvalidArgumentException` antes de
+consultar o banco. A medição é em bytes (`strlen`), coerente com o limite que o MySQL efetivamente
+persiste e sem depender de `mbstring`. Falhas operacionais do banco não lançam: retornam outcome
+`error` com `error_message`.
 
 ## Algoritmo obrigatório
 
@@ -147,9 +150,10 @@ O método legado fica disponível apenas para compatibilidade. A capability v1 a
 
 ### Unitários
 
-Cobrir todos os outcomes, argumentos vazios, diagnóstico de erro, invalidação de cache, payload da
-action e wrapper legado. O fake de `$wpdb` deve reproduzir o contrato real: update sem linha
-correspondente retorna `0`, enquanto erro retorna `false`.
+Cobrir todos os outcomes, argumentos inválidos (vazios, `order_id` não positivo e comprimentos além
+do schema), diagnóstico de erro, invalidação de cache, payload da action e wrapper legado. O fake
+de `$wpdb` deve reproduzir o contrato real: update sem linha correspondente retorna `0`, enquanto
+erro retorna `false`.
 
 Casos mínimos:
 
@@ -215,12 +219,14 @@ cd ../..
 O plano só pode ser marcado `[DONE]` quando todos os comandos passarem, os testes concorrentes
 forem permanentes e a evidência Base mínimo/atual do harness Pro estiver registrada.
 
-## Evidência da implementação Base — 2026-09-06
+## Evidência da implementação Base — revisada em 2026-09-07
 
-- [x] PHPUnit unitário: 415 testes, 965 asserções, 4 skips esperados.
+- [x] PHPUnit unitário: 420 testes, 979 asserções, 4 skips esperados.
 - [x] Suíte WordPress/MySQL: 23 testes, 174 asserções, incluindo os dois cenários concorrentes.
 - [x] Smoke de host mínimo: GMP, GD, iconv e fileinfo degradam conforme o contrato existente.
 - [x] Auditorias de platform pin, i18n, drift documental e `git diff --check`.
+- [x] Revisão adversarial do CAS: limites do schema validados antes do SQL, exceções literais
+  compatíveis com Plugin Check e fake de `$wpdb` alinhado ao retorno real para zero linhas.
 - [x] Dry-run de release 0.3.0 com slug explícito.
 - [ ] Harness do Pro contra Base mínimo e Base com capability v1.
 - [ ] Atualização dos dois planos consumidores do Pro para remover o write-back on-chain.

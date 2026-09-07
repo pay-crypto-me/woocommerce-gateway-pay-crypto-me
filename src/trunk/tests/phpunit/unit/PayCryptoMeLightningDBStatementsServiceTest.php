@@ -63,7 +63,7 @@ class FakeWPDBLightningInvoices
     {
         $order_id = $where['order_id'];
         if (!isset($this->rows[$order_id])) {
-            return false;
+            return 0;
         }
         if (isset($where['invoice_id']) && $this->rows[$order_id]['invoice_id'] !== $where['invoice_id']) {
             return 0;
@@ -324,22 +324,57 @@ class PayCryptoMeLightningDBStatementsServiceTest extends TestCase
         $this->assertSame('Injected read failure', $result->error_message);
     }
 
-    /** @dataProvider empty_transition_argument_provider */
-    public function test_transition_status_rejects_empty_arguments(string $invoice_id, string $expected, string $new)
+    /** @dataProvider invalid_transition_argument_provider */
+    public function test_transition_status_rejects_invalid_arguments(
+        string $invoice_id,
+        string $expected,
+        string $new,
+        string $message
+    )
     {
         $svc = new PayCryptoMeLightningDBStatementsService();
 
         $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
         $svc->transition_status(36, $invoice_id, $expected, $new);
     }
 
-    public function empty_transition_argument_provider(): array
+    public function invalid_transition_argument_provider(): array
     {
         return [
-            'invoice id' => ['', 'New', 'Settled'],
-            'expected status' => ['inv_36', ' ', 'Settled'],
-            'new status' => ['inv_36', 'New', ''],
+            'empty invoice id' => ['', 'New', 'Settled', 'Invoice id must not be empty.'],
+            'long invoice id' => [str_repeat('i', 256), 'New', 'Settled', 'Invoice id must not exceed 255 bytes.'],
+            'empty expected status' => ['inv_36', ' ', 'Settled', 'Expected status must not be empty.'],
+            'long expected status' => ['inv_36', str_repeat('s', 31), 'Settled', 'Expected status must not exceed 30 bytes.'],
+            'empty new status' => ['inv_36', 'New', '', 'New status must not be empty.'],
+            'long new status' => ['inv_36', 'New', str_repeat('s', 31), 'New status must not exceed 30 bytes.'],
         ];
+    }
+
+    public function test_transition_status_rejects_non_positive_order_id()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Order id must be greater than zero.');
+        $svc->transition_status(0, 'inv_36', 'New', 'Settled');
+    }
+
+    public function test_transition_status_accepts_values_at_schema_limits()
+    {
+        $svc = new PayCryptoMeLightningDBStatementsService();
+        $invoice_id = str_repeat('i', 255);
+        $expected_status = str_repeat('e', 30);
+        $new_status = str_repeat('n', 30);
+        $svc->insert_invoice(38, 'btcpay', $invoice_id, 'lnbc38', '2026-02-01 00:00:00');
+
+        global $wpdb;
+        $wpdb->rows[38]['status'] = $expected_status;
+        $result = $svc->transition_status(38, $invoice_id, $expected_status, $new_status);
+
+        $this->assertSame(LightningStatusTransitionResult::APPLIED, $result->outcome);
+        $this->assertSame($new_status, $result->current_status);
+        $this->assertSame($new_status, $wpdb->rows[38]['status']);
     }
 
     public function test_get_by_order_id_serves_stale_cache_until_invalidated()
