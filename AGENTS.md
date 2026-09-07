@@ -36,6 +36,9 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
+**Branches under manual validation**
+- **[VALIDATION]** [docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md](docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md) — browser checklist and disposable two-store environment for `feat/payment-status-projection`; compares the 0.2.2 release ZIP with the candidate ZIP from commit `27bed50`, exercises the CAS outcomes through a QA-only admin page, and records checkout/coexistence/upgrade acceptance before merge or bump.
+
 **Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch includes the public payment-status projection contract for the Pro add-on (420 unit tests + 23 MySQL-backed integration tests). Pro features (webhook/fiat→sats) remain reserved for the separate add-on — see "Pro add-on" section below.
 
 ---

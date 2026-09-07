@@ -1,0 +1,54 @@
+services:
+  candidate_wordpress:
+    image: paycrypto-me-for-woocommerce:local
+    ports:
+      - "8092:80"
+    environment:
+      WORDPRESS_DB_HOST: candidate_db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: browser-validation
+      WORDPRESS_DB_NAME: candidate
+    depends_on:
+      - candidate_db
+    volumes:
+      - candidate_wordpress:/var/www/html
+
+  candidate_db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: candidate
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: browser-validation
+      MYSQL_ROOT_PASSWORD: browser-validation-root
+    volumes:
+      - candidate_db:/var/lib/mysql
+
+  baseline_wordpress:
+    image: paycrypto-me-for-woocommerce:local
+    ports:
+      - "8093:80"
+    environment:
+      WORDPRESS_DB_HOST: baseline_db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: browser-validation
+      WORDPRESS_DB_NAME: baseline
+    depends_on:
+      - baseline_db
+    volumes:
+      - baseline_wordpress:/var/www/html
+
+  baseline_db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: baseline
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: browser-validation
+      MYSQL_ROOT_PASSWORD: browser-validation-root
+    volumes:
+      - baseline_db:/var/lib/mysql
+
+volumes:
+  candidate_wordpress:
+  candidate_db:
+  baseline_wordpress:
+  baseline_db:
