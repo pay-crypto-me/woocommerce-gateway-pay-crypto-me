@@ -43,13 +43,13 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Pre-release preparation**
 - **[PLAN — NOT STARTED]** [docs/PRE-RELEASE-0.3.0.md](docs/PRE-RELEASE-0.3.0.md) — release gates and editorial notes prepared for 0.3.0; no release command, tag, version bump or upload has been started.
 
-**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch includes the public payment-status projection contract for the Pro add-on (420 unit tests + 23 MySQL-backed integration tests). Pro features (webhook/fiat→sats) remain reserved for the separate add-on — see "Pro add-on" section below.
+**Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.3.0** (this number and the one below are bumped by `release.sh`, not by hand). Current branch includes the public payment-status projection contract for the Pro add-on (420 unit tests + 23 MySQL-backed integration tests). Pro features (webhook/fiat→sats) remain reserved for the separate add-on — see "Pro add-on" section below.
 
 ---
 
 ## What this project is
 
-WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.2.2**. Author: PayCrypto.Me (contact@paycrypto.me).
+WordPress plugin (GPL-3.0-or-later) that adds Bitcoin payment gateways to WooCommerce. Non-custodial: the store owner controls the keys. Version: **0.3.0**. Author: PayCrypto.Me (contact@paycrypto.me).
 
 **Two registered gateways, both fully functional:**
 - `paycrypto_me` — Bitcoin On-Chain (HD derivation from xPub/ypub/zpub, mainnet + testnet).
