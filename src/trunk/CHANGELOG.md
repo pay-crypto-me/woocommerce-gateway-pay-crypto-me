@@ -5,6 +5,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+No changes yet.
+
+## 0.3.0
+
 ### Added
 
 - Added a versioned payment-status projection capability registry and an invoice-identified,

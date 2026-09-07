@@ -32,6 +32,7 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 - **[DONE]** [docs/archive/DONE-SCHEMA-INSTALL-HARDENING.md](docs/archive/DONE-SCHEMA-INSTALL-HARDENING.md) — closes the repair-path, masked-`dbDelta`-error and double-submit findings from the 2026-08-28 adversarial review. Implemented and verified with 407 unit + 18 integration tests and the manual repair/race checks completed 2026-08-29; durable behavior lives in the schema lifecycle section below.
 - **[DONE]** [docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md](docs/archive/DONE-SCHEMA-UPGRADE-AND-STATIC-RECORDS-VALIDATION.md) — browser/database validation record for upgrade, fixed/derived flows, failures, GMP-less operation, Lightning races, fresh install, rollback, uninstall and repair. Completed 2026-08-29 with the version bump approved; one translation-only visual check was explicitly waived as non-blocking.
 - **[DONE]** [docs/archive/DONE-I18N-CONVENTIONS.md](docs/archive/DONE-I18N-CONVENTIONS.md) — execution record for the i18n retrofit: brand constants, safe templates, JS catalog extraction, 7 locales at 100%, the runtime-only 14-file JSON strategy, and an automated release audit. Completed and verified 2026-08-30; archived/gitignored and therefore potentially absent from a fresh checkout. Durable rules live in `docs/GUIDE-I18N-CONVENTIONS.md`.
+- **[DONE]** [docs/archive/DONE-PUBLIC-PAYMENT-STATUS-PROJECTION-VALIDATION.md](docs/archive/DONE-PUBLIC-PAYMENT-STATUS-PROJECTION-VALIDATION.md) — browser acceptance record for the Base projection contract: candidate, published fallback, checkout, coexistence and upgrade paths all passed on 2026-09-07; archived before release preparation, while the formal Pro cross-repo acceptance remains open.
 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
@@ -39,8 +40,8 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Proposed RFCs — not implemented**
 - **[PLAN — NOT STARTED]** [docs/rfcs/RFC-PUBLIC-PAYMENT-PRESENTATION-DATA.md](docs/rfcs/RFC-PUBLIC-PAYMENT-PRESENTATION-DATA.md) — proposal committed in `043187e`; no runtime/API implementation exists in this branch.
 
-**Branches under manual validation**
-- **[VALIDATION]** [docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md](docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md) — browser checklist and disposable two-store environment for `feat/payment-status-projection`; compares the 0.2.2 release ZIP with the candidate ZIP from commit `27bed50`, exercises the CAS outcomes through a QA-only admin page, and records checkout/coexistence/upgrade acceptance before merge or bump.
+**Pre-release preparation**
+- **[PLAN — NOT STARTED]** [docs/PRE-RELEASE-0.3.0.md](docs/PRE-RELEASE-0.3.0.md) — release gates and editorial notes prepared for 0.3.0; no release command, tag, version bump or upload has been started.
 
 **Status:** **Live on WordPress.org** since 2026-08-08 (first published as 0.1.0); current version **0.2.2** (this number and the one below are bumped by `release.sh`, not by hand). Current branch includes the public payment-status projection contract for the Pro add-on (420 unit tests + 23 MySQL-backed integration tests). Pro features (webhook/fiat→sats) remain reserved for the separate add-on — see "Pro add-on" section below.
 

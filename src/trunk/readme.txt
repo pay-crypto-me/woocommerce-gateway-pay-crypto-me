@@ -136,6 +136,10 @@ resume derivation from that wallet through this plugin.
 
 == Changelog ==
 
+= 0.3.0 =
+* Added a versioned payment-status projection capability registry and an invoice-identified, compare-and-swap Lightning status API for the Pro add-on.
+* Fixed concurrent Lightning status write-backs so at most one transition action is published, and delayed updates for expired invoices cannot settle a replacement invoice for the same order.
+
 = 0.2.2 =
 * Removed legacy on-chain confirmation columns and their unused base-plugin API; confirmation tracking remains exclusive to the Pro add-on.
 
@@ -182,6 +186,9 @@ resume derivation from that wallet through this plugin.
 * Developer extension points reserved for the upcoming Pro add-on, with no effect on the free plugin: amount-enforced lnd invoices, order-details display filters, and dedicated on-chain payment filters. The Pro add-on owns on-chain confirmation tracking and transaction history in its own persistence.
 
 == Upgrade Notice ==
+
+= 0.3.0 =
+Adds the versioned payment-status projection contract used by the Pro add-on and hardens concurrent Lightning status updates. Existing payment records and settings are preserved.
 
 = 0.2.2 =
 Removes legacy on-chain confirmation fields from the On-Chain payment table. Existing payment addresses and derivation records are preserved.

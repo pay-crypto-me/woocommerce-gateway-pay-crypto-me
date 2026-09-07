@@ -5,7 +5,7 @@ pendente.
 
 **Commits de execução do Base:** `9d4a09a`, `27bed50`
 
-**Registro de validação:** [docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md](../VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md)
+**Registro de validação:** [docs/archive/DONE-PUBLIC-PAYMENT-STATUS-PROJECTION-VALIDATION.md](../archive/DONE-PUBLIC-PAYMENT-STATUS-PROJECTION-VALIDATION.md)
 
 **Origem:** revisão independente P7d do PayCrypto.Me Pro
 
