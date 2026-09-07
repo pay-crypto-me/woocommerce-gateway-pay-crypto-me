@@ -1,6 +1,11 @@
-# RFC — Contrato público de projeção de status de pagamento
+# [VALIDATION] RFC — Contrato público de projeção de status de pagamento
 
-**Status:** proposta para discussão
+**Status:** decisão aprovada; implementação do Base validada; aceite cross-repo formal do Pro ainda
+pendente.
+
+**Commits de execução do Base:** `9d4a09a`, `27bed50`
+
+**Registro de validação:** [docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md](../VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md)
 
 **Origem:** revisão independente P7d do PayCrypto.Me Pro
 

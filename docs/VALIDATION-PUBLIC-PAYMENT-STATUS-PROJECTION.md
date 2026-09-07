@@ -1,4 +1,4 @@
-# [VALIDATION] Projeção pública de status — aceite manual no navegador
+# [VALIDATION] Projeção pública de status — aceite manual aprovado
 
 **Branch:** `feat/payment-status-projection`
 
@@ -8,7 +8,7 @@
 
 **SHA-256:** `b3c7680655ebbd467a0fde6888a1c40cfc574cdec15f6170cfcd7978e8b8ce60`
 
-**Estado:** aguardando execução manual.
+**Estado:** validação manual aprovada em 2026-09-07; merge e release ainda pendentes.
 
 Este checklist é o registro da validação humana da branch. Não autoriza merge, tag ou bump da
 checkout de trabalho. Depois do aceite, os bumps continuam sendo feitos somente por `release.sh`.
@@ -62,9 +62,30 @@ Esperado: oito linhas PASS:
 - entradas além dos limites são rejeitadas antes do SQL;
 - erro SQL vira outcome `error`, sem fatal.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 
 Evidência/observação:
+```
+Payment Status Projection QA
+Perfil provisionado: candidate
+Base instalado: 0.3.0
+
+Este harness usa somente pedidos fictícios 990001–990099 e remove suas fixtures ao terminar.
+O hostname reservado qa-btcpay.invalid é interceptado para permitir checkout Lightning determinístico; nenhuma outra requisição HTTP é alterada.
+Executar matriz candidate Executar matriz baseline
+Resultado — candidate
+```
+
+| Caso | Estado | Evidência |
+|---|---|---:|
+C01 — capability v1 publicada | PASS | {"contract_version":1,"lightning_invoice_status_cas":1,"onchain_confirmation_progress":0}
+C02 — applied + retry idempotente + uma action | PASS | first=applied; retry=already_applied; stored=Settled; actions=1
+C03 — evento atrasado não liquida invoice substituta | PASS | outcome=conflict; row={"invoice_id":"qa-new-invoice","status":"New"}
+C04 — estado inesperado retorna conflict | PASS | outcome=conflict; current=Expired
+C05 — pedido ausente retorna not_found | PASS | outcome=not_found
+C06 — limites exatos 255/30 são aceitos | PASS | outcome=applied; invoice_bytes=255; status_bytes=30
+C07 — entradas fora do schema falham antes do SQL | PASS | ["Order id must be greater than zero.","Invoice id must not exceed 255 bytes.","Expected status must not exceed 30 bytes.","New status must not exceed 30 bytes."]
+C08 — erro SQL retorna outcome error sem exception | PASS | outcome=error; diagnostic_present=yes
 
 ### B01 — fallback no Base publicado
 
@@ -74,8 +95,25 @@ Evidência/observação:
 
 Esperado: duas linhas PASS — classe de capability ausente e retorno antecipado sem escolher writer.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
+```
+Payment Status Projection QA
+Perfil provisionado: baseline
+
+Base instalado: 0.2.2
+
+Este harness usa somente pedidos fictícios 990001–990099 e remove suas fixtures ao terminar.
+
+O hostname reservado qa-btcpay.invalid é interceptado para permitir checkout Lightning determinístico; nenhuma outra requisição HTTP é alterada.
+
+Resultado — baseline
+```
+
+| Caso | Estado | Evidência |
+|---|---|---:|
+B01 — capability ausente no Base 0.2.2 | PASS | class_exists=false
+B02 — fallback não seleciona writer legado | PASS | retorno antecipado sem writer
 
 O segundo botão de cada página existe para o teste de upgrade. Antes do upgrade, executar a matriz
 do perfil oposto deve falhar e não constitui defeito.
@@ -92,7 +130,7 @@ do perfil oposto deve falhar e não constitui defeito.
 
 Esperado: nenhum erro; aviso, se houver, pertence somente ao gateway/tela corrente.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
 
 ### S02 — Lightning fixture
@@ -105,7 +143,7 @@ Evidência/observação:
 Esperado: valor persiste e nenhum aviso On-Chain aparece nessa tela. Não use **Test connection**:
 o fixture cobre criação/consulta de invoice, não o endpoint administrativo de diagnóstico.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
 
 ## 5. Checkout candidato
@@ -129,7 +167,7 @@ Esperado:
 - reload não troca o endereço;
 - clicar em copiar não salva o pedido e não mostra “Order updated.”.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 
 Pedido/evidência:
 
@@ -152,7 +190,7 @@ Esperado:
 Esse caso percorre o fluxo real até `WpHttpClient`; somente o host reservado é respondido pelo
 harness. Ele não valida TLS, autenticação ou operação de um BTCPay real.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Pedido/evidência:
 
 ## 6. Comparação visual e funcional com 0.2.2
@@ -163,7 +201,7 @@ Repita O01 em <http://localhost:8093/product/qa-bitcoin-product/> escolhendo **B
 
 Esperado: comportamento equivalente ao candidato.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 
 Diferenças observadas:
 
@@ -174,7 +212,7 @@ Repita L01 em <http://localhost:8093/product/qa-bitcoin-product/> escolhendo **B
 Esperado: comportamento equivalente ao candidato; a nova feature não altera criação ou renderização
 da invoice.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Diferenças observadas:
 
 ## 7. Coexistência com o ZIP Pro disponível
@@ -192,7 +230,7 @@ O Pro 0.1.0 está instalado, mas inativo, nas duas lojas.
 
 Esperado: sem fatal, oito PASS novamente, pedidos e configurações continuam acessíveis.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
 
 **Limite honesto:** o release Pro 0.1.0 ainda não implementa M6/M7 em runtime. Assim, P01 prova
@@ -206,7 +244,7 @@ cross-repo existente é sintética/automatizada; confirmação real será aceite
 Antes do upgrade, confirme que os pedidos R01/R02 ainda abrem e registre seus IDs, status,
 endereço/invoice.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 
 ### U02 — atualizar pelo painel
 
@@ -218,7 +256,7 @@ Resultado: [ ] PASS [ ] FAIL
 
 Esperado: atualização concluída sem fatal e sem aviso de schema.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
 
 ### U03 — pós-upgrade
@@ -231,7 +269,7 @@ Evidência/observação:
 
 Esperado: dados antigos intactos, oito PASS e novo checkout funcional.
 
-Resultado: [ ] PASS [ ] FAIL
+Resultado: [x] PASS [ ] FAIL
 Evidência/observação:
 
 ## 9. Aceite e devolução
@@ -260,3 +298,15 @@ Observações/evidências: ...
 Depois da devolução, a parte técnica deve inspecionar os dois `debug.log`, estados finais e tabelas.
 O consenso para merge exige todos os casos obrigatórios PASS, logs sem erro novo atribuível à branch
 e nenhuma perda/mutação indevida dos pedidos atravessados pelo upgrade.
+
+## 10. Registro de aceite — 2026-09-07
+
+- Todos os casos C01, B01, S01, S02, O01, L01, R01, R02, P01 e U01–U03 foram executados e aprovados
+  manualmente pelo responsável pela regressão.
+- Auditoria posterior do executor: os dois `debug.log` tinham 0 bytes; as fixtures QA 990001–990099
+  estavam removidas; candidato e instalação atualizada exibiam Base 0.3.0, enquanto a coexistência
+  candidata mantinha Pro 0.1.0 ativo sem erro.
+- A instalação baseline foi convertida em candidata durante U02/U03, como previsto. Não recriar os
+  volumes antes de um eventual diagnóstico complementar; `setup.sh --fresh` os apaga.
+- Conclusão: **aprovado para merge e preparação de release**, aguardando autorização explícita para
+  executar essas operações.

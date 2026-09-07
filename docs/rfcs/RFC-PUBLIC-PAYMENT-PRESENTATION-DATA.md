@@ -1,6 +1,8 @@
-# RFC — Contrato público de dados de apresentação do pagamento
+# [PLAN — NOT STARTED] RFC — Contrato público de dados de apresentação do pagamento
 
-**Status:** proposta para discussão
+**Status:** proposta comitada, não implementada; nenhum código/runtime deste RFC está no Base.
+
+**Commit da proposta:** `043187e`
 
 **Origem:** revisão independente P7f do PayCrypto.Me Pro
 

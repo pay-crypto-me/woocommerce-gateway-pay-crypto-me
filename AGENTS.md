@@ -36,6 +36,9 @@ if you need the history, `git log` on the commit that last had it under `docs/` 
 **Approved plans — not started yet**
 - **[PLAN — NOT STARTED]** [`docs/PREMIUM-ADDON.md`](https://github.com/paycrypto-me/paycrypto-me-pro/blob/main/docs/PREMIUM-ADDON.md) — approved implementation plan for the separate Pro add-on plugin (renamed from "Premium" to "Pro" 2026-08-25). Lives in that add-on's own repo; see "Pro add-on" below for the base's own scope boundaries and extension points.
 
+**Proposed RFCs — not implemented**
+- **[PLAN — NOT STARTED]** [docs/rfcs/RFC-PUBLIC-PAYMENT-PRESENTATION-DATA.md](docs/rfcs/RFC-PUBLIC-PAYMENT-PRESENTATION-DATA.md) — proposal committed in `043187e`; no runtime/API implementation exists in this branch.
+
 **Branches under manual validation**
 - **[VALIDATION]** [docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md](docs/VALIDATION-PUBLIC-PAYMENT-STATUS-PROJECTION.md) — browser checklist and disposable two-store environment for `feat/payment-status-projection`; compares the 0.2.2 release ZIP with the candidate ZIP from commit `27bed50`, exercises the CAS outcomes through a QA-only admin page, and records checkout/coexistence/upgrade acceptance before merge or bump.
 
