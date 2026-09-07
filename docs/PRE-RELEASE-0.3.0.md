@@ -32,8 +32,9 @@ separado e não entra neste release.
 
 ## Gatilhos ainda necessários antes de publicar
 
-- [ ] O responsável pelo Pro concluir o harness cross-repo contra o Base e atualizar os dois planos
-  consumidores; até lá o RFC de status permanece `[VALIDATION]`.
+- [x] O contrato foi entregue ao Pro em early access e o trabalho consumidor já avançou no
+  repositório próprio. O harness e os planos detalhados do Pro ficam sob responsabilidade daquele
+  repositório e não bloqueiam este release do Base.
 - [ ] Revisar o diff final da branch e confirmar que somente o Base e a documentação aprovada estão
   no escopo.
 - [ ] Executar o dry-run do release em uma árvore limpa:

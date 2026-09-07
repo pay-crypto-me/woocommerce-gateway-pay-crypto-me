@@ -7,7 +7,8 @@
 **Escopo de execução:** plugin Base; as adaptações no repositório Pro são critérios consumidores,
 não autorização para implementar M6/M7 neste repositório.
 
-**Estado:** implementação Base concluída; validação cross-repo do Pro ainda pendente.
+**Estado:** implementação Base concluída; contrato entregue ao Pro em early access. A validação
+detalhada do consumidor permanece no repositório do Pro e não bloqueia o release do Base.
 
 ## Resultado esperado
 
@@ -231,5 +232,7 @@ forem permanentes e a evidência Base mínimo/atual do harness Pro estiver regis
 - [ ] Harness do Pro contra Base mínimo e Base com capability v1.
 - [ ] Atualização dos dois planos consumidores do Pro para remover o write-back on-chain.
 
-O documento permanece `[VALIDATION]` enquanto os dois itens cross-repo estiverem abertos. O código
-Base não deve ser ampliado com M6/M7 para encerrá-los.
+O documento permanece `[VALIDATION]` porque os dois itens cross-repo são mantidos como trilha do
+consumidor. Eles não bloqueiam este release: o contrato já foi entregue ao Pro em early access e o
+trabalho consumidor avançou no repositório próprio. O Base não deve ser ampliado com M6/M7 para
+encerrá-los.

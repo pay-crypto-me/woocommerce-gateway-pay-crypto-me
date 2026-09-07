@@ -1,7 +1,8 @@
 # [VALIDATION] RFC — Contrato público de projeção de status de pagamento
 
-**Status:** decisão aprovada; implementação do Base validada; aceite cross-repo formal do Pro ainda
-pendente.
+**Status:** decisão aprovada; implementação do Base validada; contrato entregue ao Pro em early
+access e já consumido no desenvolvimento do add-on. O aceite do consumidor é externo e não bloqueia
+este release do Base.
 
 **Commits de execução do Base:** `9d4a09a`, `27bed50`
 
